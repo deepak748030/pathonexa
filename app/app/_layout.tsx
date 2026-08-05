@@ -33,22 +33,11 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
         <Stack.Screen name="index" />
-        <Stack.Screen name="splash" />
-        <Stack.Screen name="onboarding" />
-        <Stack.Screen name="login" />
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="auction-details" />
-        <Stack.Screen name="kyc" />
-        <Stack.Screen name="payment-pending" />
-        <Stack.Screen name="edit-profile" />
-        <Stack.Screen name="wallet" />
-        <Stack.Screen name="my-bids" />
-        <Stack.Screen name="notifications" />
-        <Stack.Screen name="privacy-policy" />
-        <Stack.Screen name="help-support" />
-        <Stack.Screen name="maintenance" />
-        <Stack.Screen name="update-required" />
-
+        <Stack.Screen name="add-patient" />
+        <Stack.Screen name="create-report" />
+        <Stack.Screen name="report-preview" />
+        <Stack.Screen name="menu" options={{ presentation: 'transparentModal', animation: 'fade' }} />
       </Stack>
       <StatusBar style="light" backgroundColor={colors.primary} translucent={true} />
     </SafeAreaProvider>
