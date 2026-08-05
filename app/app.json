@@ -1,19 +1,19 @@
 {
   "expo": {
-    "name": "Tractor Wala",
-    "slug": "tractor-wala",
+    "name": "PathoNexa",
+    "slug": "pathonexa",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "tractorwaladealers",
+    "scheme": "pathonexa",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/images/icon.png",
-      "resizeMode": "cover",
-      "backgroundColor": "#0F172A"
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
     },
     "android": {
-      "package": "com.tractorwala.application",
+      "package": "com.pathonexa.app",
       "versionCode": 1,
       "enableProguardInReleaseBuilds": true,
       "enableShrinkResourcesInReleaseBuilds": true,
@@ -27,16 +27,15 @@
         "android.permission.VIBRATE",
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.WRITE_EXTERNAL_STORAGE"
       ]
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tractorwala.application",
+      "bundleIdentifier": "com.pathonexa.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "Tractor Wala needs camera access to upload bid proof.",
-        "NSPhotoLibraryUsageDescription": "Tractor Wala needs photo library access to upload bid proof."
+        "NSCameraUsageDescription": "PathoNexa needs camera access to capture patient documents.",
+        "NSPhotoLibraryUsageDescription": "PathoNexa needs photo library access to attach report images."
       }
     },
     "web": {
@@ -62,23 +61,16 @@
         }
       ],
       [
-        "expo-notifications",
-        {
-          "icon": "./assets/images/icon.png",
-          "color": "#4338CA"
-        }
-      ],
-      [
         "expo-camera",
         {
-          "cameraPermission": "Tractor Wala needs camera access to capture bid items."
+          "cameraPermission": "PathoNexa needs camera access to capture patient documents."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Tractor Wala needs photo library access to upload bid items.",
-          "cameraPermission": "Tractor Wala needs camera access to capture bid items."
+          "photosPermission": "PathoNexa needs photo library access to attach report images.",
+          "cameraPermission": "PathoNexa needs camera access to capture patient documents."
         }
       ]
     ],
@@ -87,10 +79,7 @@
     },
     "newArchEnabled": true,
     "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "26c48fd1-f926-4a9c-be2a-60c1f4a01114"
-      }
+      "router": {}
     }
   }
 }

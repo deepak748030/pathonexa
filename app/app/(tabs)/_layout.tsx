@@ -1,38 +1,20 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Tabs, router } from 'expo-router';
-import { Compass, Gavel, Trophy, Search, User } from 'lucide-react-native';
+import { View, Pressable, StyleSheet } from 'react-native';
+import { Home, Users, FileText, MoreHorizontal, Plus } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts } from '@/lib/theme';
-import { kycApi, getToken } from '@/lib/api';
-import { useRealtime, getSocket } from '@/lib/socket';
-import { refreshMyBids } from '@/lib/useMyBids';
+
+function Fab() {
+  return (
+    <Pressable style={styles.fab} onPress={() => router.push('/create-report' as any)}>
+      <Plus size={26} color="#FFFFFF" strokeWidth={3} />
+    </Pressable>
+  );
+}
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  useEffect(() => {
-    (async () => {
-      const token = await getToken();
-      if (!token) { router.replace('/login' as any); return; }
-      // Ensure the socket connects with the current token so realtime events flow.
-      getSocket().catch(() => { /* offline — fine */ });
-      refreshMyBids();
-      try {
-        const r = await kycApi.mine();
-        const st = r.data.status;
-        if (st === 'approved') return;
-        if (st === 'pending' || st === 'in_progress') { router.replace('/payment-pending' as any); return; }
-        router.replace('/kyc' as any);
-      } catch { /* ignore */ }
-    })();
-  }, []);
-
-  // Realtime — react instantly when admin approves/rejects KYC.
-  useRealtime<{ status: string; reason?: string }>('kyc:updated', (p) => {
-    if (p.status === 'approved') router.replace('/(tabs)' as any);
-    else if (p.status === 'rejected') router.replace('/kyc' as any);
-    else if (p.status === 'pending' || p.status === 'in_progress') router.replace('/payment-pending' as any);
-  });
-
   return (
     <Tabs
       screenOptions={{
@@ -41,22 +23,43 @@ export default function TabLayout() {
           backgroundColor: '#FFFFFF',
           borderTopWidth: 1,
           borderTopColor: colors.border,
-          height: 56 + insets.bottom,
+          height: 58 + insets.bottom,
           paddingBottom: insets.bottom + 4,
-          paddingTop: 4,
+          paddingTop: 6,
           elevation: 0,
-          shadowOpacity: 0,
         },
-        tabBarActiveTintColor: '#0A0A0A',
-        tabBarInactiveTintColor: '#9A9A99',
-        tabBarLabelStyle: { fontSize: 10, fontFamily: fonts.bold, marginTop: 2, letterSpacing: 0.3 },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: '#94A3B8',
+        tabBarLabelStyle: { fontSize: 10, fontFamily: fonts.semibold, marginTop: 2 },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Explore', tabBarIcon: ({ color }) => <Compass size={22} color={color} strokeWidth={2} /> }} />
-      <Tabs.Screen name="auction" options={{ title: 'Auction', tabBarIcon: ({ color }) => <Gavel size={22} color={color} strokeWidth={2} /> }} />
-      <Tabs.Screen name="orders" options={{ title: 'Result', tabBarIcon: ({ color }) => <Trophy size={22} color={color} strokeWidth={2} /> }} />
-      <Tabs.Screen name="search" options={{ title: 'Search', tabBarIcon: ({ color }) => <Search size={22} color={color} strokeWidth={2} /> }} />
-      <Tabs.Screen name="account" options={{ title: 'Account', tabBarIcon: ({ color }) => <User size={22} color={color} strokeWidth={2} /> }} />
+      <Tabs.Screen name="index" options={{ title: 'Dashboard', tabBarIcon: ({ color }) => <Home size={20} color={color} /> }} />
+      <Tabs.Screen name="patients" options={{ title: 'Patients', tabBarIcon: ({ color }) => <Users size={20} color={color} /> }} />
+      <Tabs.Screen
+        name="create"
+        options={{
+          title: '',
+          tabBarIcon: () => <Fab />,
+          tabBarButton: (props) => <View style={styles.fabSlot}>{props.children}</View>,
+        }}
+      />
+      <Tabs.Screen name="reports" options={{ title: 'Reports', tabBarIcon: ({ color }) => <FileText size={20} color={color} /> }} />
+      <Tabs.Screen name="more" options={{ title: 'More', tabBarIcon: ({ color }) => <MoreHorizontal size={20} color={color} /> }} />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  fabSlot: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  fab: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 18,
+    borderWidth: 4,
+    borderColor: '#FFFFFF',
+  },
+});
