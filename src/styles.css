@@ -1,0 +1,257 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-obsidian: var(--obsidian);
+  --color-ivory: var(--ivory);
+}
+
+:root {
+  --radius: 0.375rem;
+
+  /* FEED POINT palette — mill green + cream + deep bark */
+  --obsidian: oklch(0.16 0.02 145);
+  --ivory: oklch(0.95 0.02 95);
+  --gold: oklch(0.62 0.13 145);        /* leafy mill green (primary) */
+  --gold-soft: oklch(0.78 0.09 135);   /* soft moss */
+
+  --background: oklch(0.15 0.015 145);
+  --foreground: oklch(0.95 0.02 95);
+  --card: oklch(0.19 0.015 145);
+  --card-foreground: oklch(0.95 0.02 95);
+  --popover: oklch(0.17 0.015 145);
+  --popover-foreground: oklch(0.95 0.02 95);
+  --primary: oklch(0.62 0.13 145);
+  --primary-foreground: oklch(0.14 0.02 145);
+  --secondary: oklch(0.24 0.015 145);
+  --secondary-foreground: oklch(0.95 0.02 95);
+  --muted: oklch(0.22 0.012 145);
+  --muted-foreground: oklch(0.7 0.02 120);
+  --accent: oklch(0.26 0.025 140);
+  --accent-foreground: oklch(0.95 0.02 95);
+  --destructive: oklch(0.55 0.2 25);
+  --destructive-foreground: oklch(0.98 0.005 80);
+  --border: oklch(1 0 0 / 7%);
+  --input: oklch(1 0 0 / 10%);
+  --ring: oklch(0.62 0.13 145);
+  --sidebar: oklch(0.17 0.015 145);
+  --sidebar-foreground: oklch(0.95 0.02 95);
+  --sidebar-primary: oklch(0.62 0.13 145);
+  --sidebar-primary-foreground: oklch(0.14 0.02 145);
+  --sidebar-accent: oklch(0.24 0.015 145);
+  --sidebar-accent-foreground: oklch(0.95 0.02 95);
+  --sidebar-border: oklch(1 0 0 / 7%);
+  --sidebar-ring: oklch(0.62 0.13 145);
+}
+
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html {
+    scroll-behavior: smooth;
+    font-size: 16px;
+  }
+  /* Scale everything down on desktop so the site reads at 100% zoom the way
+     it did at ~67% before. Mobile stays untouched. */
+  @media (min-width: 768px) {
+    html { font-size: 13px; }
+  }
+  @media (min-width: 1280px) {
+    html { font-size: 11px; }
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "ss01", "cv11";
+  }
+  h1, h2, h3, h4, .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+  ::selection {
+    background: var(--gold);
+    color: var(--obsidian);
+  }
+}
+
+@utility shimmer {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--muted) 60%, transparent);
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in oklab, var(--gold) 12%, transparent),
+      transparent
+    );
+    animation: shimmer 1.8s infinite;
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
+@keyframes float-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@utility animate-float-up {
+  animation: float-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes gold-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--gold) 40%, transparent); }
+  50% { box-shadow: 0 0 0 12px color-mix(in oklab, var(--gold) 0%, transparent); }
+}
+@utility gold-pulse {
+  animation: gold-pulse 2s ease-in-out infinite;
+}
+
+@utility grain-bg {
+  background-image:
+    radial-gradient(ellipse at top, color-mix(in oklab, var(--gold) 8%, transparent), transparent 60%),
+    radial-gradient(ellipse at bottom right, color-mix(in oklab, var(--gold) 4%, transparent), transparent 55%);
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar { display: none; width: 0; height: 0; }
+}
+
+@keyframes leaf-pop {
+  0%   { transform: scale(1) rotate(0deg); }
+  30%  { transform: scale(1.35) rotate(-14deg); }
+  60%  { transform: scale(0.9) rotate(8deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+@utility leaf-pop {
+  animation: leaf-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes sparkle-out {
+  0%   { transform: scale(0) rotate(0deg); opacity: 0; }
+  40%  { transform: scale(1) rotate(45deg); opacity: 1; }
+  100% { transform: scale(1.6) rotate(90deg); opacity: 0; }
+}
+@utility sparkle-out {
+  animation: sparkle-out 0.7s ease-out forwards;
+}
+
+
+
+/* Themed scrollbar */
+@layer base {
+  html {
+    scrollbar-color: color-mix(in oklab, var(--gold) 55%, var(--obsidian)) transparent;
+    scrollbar-width: thin;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: color-mix(in oklab, var(--obsidian) 92%, transparent);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--gold) 70%, var(--obsidian)),
+      color-mix(in oklab, var(--gold-soft) 40%, var(--obsidian))
+    );
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+    animation: scroll-glow 3.4s ease-in-out infinite;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, var(--gold), var(--gold-soft));
+    background-clip: padding-box;
+    border: 2px solid transparent;
+    box-shadow: 0 0 14px color-mix(in oklab, var(--gold) 55%, transparent);
+  }
+  ::-webkit-scrollbar-corner { background: transparent; }
+}
+
+@keyframes scroll-glow {
+  0%, 100% { box-shadow: 0 0 0 color-mix(in oklab, var(--gold) 0%, transparent); }
+  50% { box-shadow: 0 0 8px color-mix(in oklab, var(--gold) 35%, transparent); }
+}
+
+
+/* Pointer cursor for all interactive elements */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]),
+  [role="menuitem"]:not([aria-disabled="true"]),
+  [role="option"]:not([aria-disabled="true"]),
+  [role="switch"]:not([aria-disabled="true"]),
+  [role="checkbox"]:not([aria-disabled="true"]),
+  [role="radio"]:not([aria-disabled="true"]),
+  a[href],
+  label[for],
+  summary,
+  select:not(:disabled),
+  [type="button"]:not(:disabled),
+  [type="submit"]:not(:disabled),
+  [type="reset"]:not(:disabled),
+  [type="checkbox"]:not(:disabled),
+  [type="radio"]:not(:disabled),
+  [type="file"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled="true"],
+  [data-disabled],
+  :disabled {
+    cursor: not-allowed;
+  }
+}
