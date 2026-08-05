@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, Pressable } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ChevronLeft, Share2, Printer, Download } from 'lucide-react-native';
 import ScreenHeader from '@/components/ScreenHeader';
@@ -11,6 +12,7 @@ const p = patients[0];
 const d = doctors[0];
 
 export default function ReportPreview() {
+  const insets = useSafeAreaInsets();
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScreenHeader
@@ -65,7 +67,7 @@ export default function ReportPreview() {
         </Card>
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
         <Pressable style={styles.ghost}>
           <Printer size={15} color={colors.primary} />
           <Text style={styles.ghostText}>Print</Text>
@@ -95,9 +97,9 @@ function InfoRow({ label, value, label2, value2 }: { label: string; value: strin
 }
 
 const styles = StyleSheet.create({
-  body: { paddingHorizontal: spacing.hPad, paddingBottom: 20, marginTop: -14 },
+  body: { paddingHorizontal: spacing.hPad, paddingTop: 14, paddingBottom: 24 },
   letterhead: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderBottomWidth: 2, borderBottomColor: colors.primary },
-  logo: { width: 46, height: 46 },
+  logo: { width: 44, height: 44 },
   labName: { color: colors.primary, fontFamily: fonts.bold, fontSize: 13 },
   labMeta: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 9, marginTop: 1 },
   info: { padding: 12, backgroundColor: colors.primaryLight },
@@ -107,13 +109,13 @@ const styles = StyleSheet.create({
   testTitle: { textAlign: 'center', color: colors.foreground, fontFamily: fonts.bold, fontSize: 12, paddingVertical: 10, letterSpacing: 0.4 },
   tableHead: { flexDirection: 'row', backgroundColor: colors.muted, paddingVertical: 7, paddingHorizontal: 10 },
   th: { color: colors.foreground, fontFamily: fonts.semibold, fontSize: 10 },
-  tr: { flexDirection: 'row', paddingHorizontal: 10, paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  tr: { flexDirection: 'row', paddingHorizontal: 10, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.border },
   td: { color: colors.foreground, fontFamily: fonts.regular, fontSize: 10 },
   signature: { alignItems: 'flex-end', padding: 14 },
   sigName: { color: colors.foreground, fontFamily: fonts.semibold, fontSize: 11 },
   sigRole: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 9 },
   note: { textAlign: 'center', color: colors.mutedForeground, fontFamily: fonts.medium, fontSize: 10, paddingBottom: 14 },
-  footer: { flexDirection: 'row', gap: 10, padding: spacing.hPad, backgroundColor: colors.card, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  footer: { flexDirection: 'row', gap: 10, padding: spacing.hPad, backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border },
   ghost: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.primary },
   ghostText: { color: colors.primary, fontFamily: fonts.semibold, fontSize: 13 },
   solid: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: radius.sm, backgroundColor: colors.primary },

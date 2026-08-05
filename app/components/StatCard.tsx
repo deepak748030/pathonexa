@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
-import { colors, fonts, radius, shadow } from '@/lib/theme';
+import { colors, fonts, radius } from '@/lib/theme';
 
 export type Tone = 'primary' | 'green' | 'orange' | 'purple' | 'red';
 
@@ -26,27 +26,25 @@ type Props = {
 export default function StatCard({ label, value, sub, tone = 'primary', icon, compact, onPress }: Props) {
   const t = toneColor[tone];
   return (
-    <Pressable onPress={onPress} style={[styles.card, compact && styles.compact]}>
-      <View style={[styles.top, compact && { justifyContent: 'center' }]}>
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
+      <View style={styles.top}>
         <View style={[styles.iconBox, { backgroundColor: t.bg }]}>{icon}</View>
-        {!compact && <Text style={styles.label} numberOfLines={1}>{label}</Text>}
+        {onPress ? <ChevronRight size={13} color={colors.mutedForeground} /> : null}
       </View>
-      <View style={[styles.bottom, compact && { justifyContent: 'center' }]}>
-        <Text style={[styles.value, compact && { textAlign: 'center' }]} numberOfLines={1}>{value}</Text>
-        {!compact && onPress ? <ChevronRight size={14} color={t.fg} /> : null}
-      </View>
-      <Text style={[styles.sub, compact && { textAlign: 'center' }]} numberOfLines={1}>{compact ? label : sub}</Text>
+      <Text style={styles.value} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+      <Text style={styles.label} numberOfLines={2}>{label}</Text>
+      {!compact && !!sub && <Text style={styles.sub} numberOfLines={1}>{sub}</Text>}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { flex: 1, backgroundColor: colors.card, borderRadius: radius.lg, padding: 10, ...shadow },
-  compact: { alignItems: 'center' },
-  top: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  iconBox: { width: 28, height: 28, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
-  label: { flex: 1, color: colors.mutedForeground, fontFamily: fonts.medium, fontSize: 10 },
-  bottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
-  value: { color: colors.foreground, fontFamily: fonts.bold, fontSize: 17 },
-  sub: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 9, marginTop: 2 },
+  // Flat cell: no radius, no shadow. Dividers come from the grid wrapper.
+  card: { flex: 1, backgroundColor: colors.card, paddingHorizontal: 10, paddingVertical: 10, justifyContent: 'flex-start' },
+  pressed: { backgroundColor: colors.muted },
+  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  iconBox: { width: 26, height: 26, borderRadius: radius.xs, alignItems: 'center', justifyContent: 'center' },
+  value: { color: colors.foreground, fontFamily: fonts.bold, fontSize: 16 },
+  label: { color: colors.mutedForeground, fontFamily: fonts.medium, fontSize: 10, marginTop: 2, lineHeight: 13 },
+  sub: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 9, marginTop: 1 },
 });

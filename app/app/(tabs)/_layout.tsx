@@ -3,12 +3,15 @@ import { Tabs, router } from 'expo-router';
 import { View, Pressable, StyleSheet } from 'react-native';
 import { Home, Users, FileText, MoreHorizontal, Plus } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, fonts } from '@/lib/theme';
+import { colors, fonts, radius } from '@/lib/theme';
 
 function Fab() {
   return (
-    <Pressable style={styles.fab} onPress={() => router.push('/create-report' as any)}>
-      <Plus size={26} color="#FFFFFF" strokeWidth={3} />
+    <Pressable
+      style={({ pressed }) => [styles.fab, pressed && { opacity: 0.85, transform: [{ scale: 0.96 }] }]}
+      onPress={() => router.push('/create-report' as any)}
+    >
+      <Plus size={24} color="#FFFFFF" strokeWidth={3} />
     </Pressable>
   );
 }
@@ -19,18 +22,20 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        // Flat bar: hairline top border, no elevation/shadow, no overlap.
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
           borderTopWidth: 1,
           borderTopColor: colors.border,
-          height: 58 + insets.bottom,
-          paddingBottom: insets.bottom + 4,
-          paddingTop: 6,
+          height: 56 + insets.bottom,
+          paddingBottom: insets.bottom + 6,
+          paddingTop: 8,
           elevation: 0,
+          shadowOpacity: 0,
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: '#94A3B8',
-        tabBarLabelStyle: { fontSize: 10, fontFamily: fonts.semibold, marginTop: 2 },
+        tabBarLabelStyle: { fontSize: 10, fontFamily: fonts.semibold, marginTop: 3 },
       }}
     >
       <Tabs.Screen name="index" options={{ title: 'Dashboard', tabBarIcon: ({ color }) => <Home size={20} color={color} /> }} />
@@ -51,15 +56,13 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   fabSlot: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  // Sits inside the bar (no negative margin) so it can never overlap content.
   fab: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 42,
+    height: 42,
+    borderRadius: radius.sm,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 18,
-    borderWidth: 4,
-    borderColor: '#FFFFFF',
   },
 });

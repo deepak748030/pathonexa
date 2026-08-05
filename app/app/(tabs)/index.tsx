@@ -4,13 +4,13 @@ import { router } from 'expo-router';
 import { LineChart } from 'react-native-chart-kit';
 import {
   Menu, Bell, ClipboardList, IndianRupee, Hourglass, Wallet, Users, Receipt,
-  UserPlus, FlaskConical, CreditCard, Stethoscope, LayoutGrid,
+  UserPlus, FlaskConical, CreditCard, Stethoscope, LayoutGrid, ChevronRight,
 } from 'lucide-react-native';
 import ScreenHeader from '@/components/ScreenHeader';
 import StatCard from '@/components/StatCard';
 import Avatar from '@/components/Avatar';
-import { Card, SectionTitle } from '@/components/UI';
-import { colors, fonts, radius, spacing, shadow } from '@/lib/theme';
+import { Card, SectionTitle, GridPanel, FadeIn, ListRow } from '@/components/UI';
+import { colors, fonts, radius, spacing } from '@/lib/theme';
 import { chart, dashboardStats, lab, reports } from '@/lib/labData';
 
 const icons: Record<string, any> = {
@@ -28,10 +28,12 @@ const quickActions = [
 
 export default function Dashboard() {
   const width = Dimensions.get('window').width;
+  const recent = reports.slice(0, 3);
+
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={styles.screen}>
       <ScreenHeader
-        title="Good Morning, Ravi 👋"
+        title="Good Morning, Ravi"
         subtitle={lab.shortName}
         left={<Menu size={22} color="#FFFFFF" />}
         onLeftPress={() => router.push('/menu' as any)}
@@ -44,108 +46,130 @@ export default function Dashboard() {
       />
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        <View style={styles.grid}>
-          {dashboardStats.map((s) => {
-            const Icon = icons[s.key];
-            return (
-              <View key={s.key} style={styles.gridItem}>
+        <FadeIn>
+          <GridPanel columns={3}>
+            {dashboardStats.map((s) => {
+              const Icon = icons[s.key];
+              return (
                 <StatCard
+                  key={s.key}
                   label={s.label}
                   value={s.value}
                   sub={s.sub}
                   tone={s.tone}
-                  icon={<Icon size={15} color={colors[s.tone === 'primary' ? 'primary' : s.tone]} />}
+                  icon={<Icon size={14} color={colors[s.tone === 'primary' ? 'primary' : s.tone]} />}
                   onPress={() => router.push('/(tabs)/reports' as any)}
                 />
-              </View>
-            );
-          })}
-        </View>
+              );
+            })}
+          </GridPanel>
+        </FadeIn>
 
         <SectionTitle title="Quick Actions" action="View All" onAction={() => router.push('/(tabs)/more' as any)} />
-        <View style={styles.actions}>
-          {quickActions.map((a) => (
-            <Pressable key={a.label} style={styles.action} onPress={() => router.push(a.href as any)}>
-              <a.Icon size={18} color={colors.primary} />
-              <Text style={styles.actionText} numberOfLines={1}>{a.label}</Text>
-            </Pressable>
-          ))}
-        </View>
+        <FadeIn delay={60}>
+          <GridPanel columns={5}>
+            {quickActions.map((a) => (
+              <Pressable
+                key={a.label}
+                style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}
+                onPress={() => router.push(a.href as any)}
+              >
+                <a.Icon size={18} color={colors.primary} />
+                <Text style={styles.actionText} numberOfLines={2}>{a.label}</Text>
+              </Pressable>
+            ))}
+          </GridPanel>
+        </FadeIn>
 
         <SectionTitle title="Reports Overview" />
-        <Card>
-          <LineChart
-            data={{ labels: chart.labels, datasets: [{ data: chart.values }] }}
-            width={width - spacing.hPad * 2 - 24}
-            height={170}
-            withInnerLines={false}
-            chartConfig={{
-              backgroundGradientFrom: '#FFFFFF',
-              backgroundGradientTo: '#FFFFFF',
-              decimalPlaces: 0,
-              color: () => colors.primary,
-              labelColor: () => colors.mutedForeground,
-              propsForDots: { r: '3' },
-              propsForLabels: { fontSize: 9 },
-            }}
-            bezier
-            style={{ marginLeft: -14 }}
-          />
-          <View style={styles.chartFooter}>
-            <View style={styles.chartCell}>
-              <Text style={styles.chartLabel}>Total Reports</Text>
-              <Text style={styles.chartValue}>{chart.totalReports}</Text>
+        <FadeIn delay={120}>
+          <Card style={{ padding: 0 }}>
+            <View style={styles.chartWrap}>
+              <LineChart
+                data={{ labels: chart.labels, datasets: [{ data: chart.values }] }}
+                width={width - spacing.hPad * 2 - 2}
+                height={170}
+                withInnerLines={false}
+                withVerticalLines={false}
+                chartConfig={{
+                  backgroundGradientFrom: '#FFFFFF',
+                  backgroundGradientTo: '#FFFFFF',
+                  decimalPlaces: 0,
+                  color: () => colors.primary,
+                  labelColor: () => colors.mutedForeground,
+                  propsForDots: { r: '3' },
+                  propsForLabels: { fontSize: 9 },
+                }}
+                bezier
+                style={styles.chart}
+              />
             </View>
-            <View style={[styles.chartCell, styles.chartDivider]}>
-              <Text style={styles.chartLabel}>Total Revenue</Text>
-              <Text style={[styles.chartValue, { color: colors.green }]}>{chart.totalRevenue}</Text>
+            <View style={styles.chartFooter}>
+              <View style={styles.chartCell}>
+                <Text style={styles.chartLabel}>Total Reports</Text>
+                <Text style={styles.chartValue}>{chart.totalReports}</Text>
+              </View>
+              <View style={[styles.chartCell, styles.chartDivider]}>
+                <Text style={styles.chartLabel}>Total Revenue</Text>
+                <Text style={[styles.chartValue, { color: colors.green }]}>{chart.totalRevenue}</Text>
+              </View>
+              <View style={styles.chartCell}>
+                <Text style={styles.chartLabel}>Avg. Per Day</Text>
+                <Text style={styles.chartValue}>{chart.avgPerDay}</Text>
+              </View>
             </View>
-            <View style={styles.chartCell}>
-              <Text style={styles.chartLabel}>Avg. Per Day</Text>
-              <Text style={styles.chartValue}>{chart.avgPerDay}</Text>
-            </View>
-          </View>
-        </Card>
+          </Card>
+        </FadeIn>
 
         <SectionTitle title="Recent Reports" action="View All" onAction={() => router.push('/(tabs)/reports' as any)} />
-        <Card style={{ padding: 0 }}>
-          {reports.slice(0, 3).map((r) => (
-            <Pressable key={r.id} style={styles.recent} onPress={() => router.push('/report-preview' as any)}>
-              <Avatar name={r.patient} color={r.color} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.recentName}>{r.patient}</Text>
-                <Text style={styles.recentMeta}>PID: {r.pid}  |  {r.test}</Text>
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.recentAmount}>₹{r.amount}</Text>
-                <Text style={[styles.recentPaid, { color: r.paid ? colors.green : colors.red }]}>{r.paid ? 'Paid' : 'Unpaid'}</Text>
-              </View>
-              <Text style={styles.recentTime}>{r.time}</Text>
-            </Pressable>
-          ))}
-        </Card>
+        <FadeIn delay={180}>
+          <Card style={{ padding: 0 }}>
+            {recent.map((r, i) => (
+              <ListRow key={r.id} last={i === recent.length - 1} onPress={() => router.push('/report-preview' as any)}>
+                <View style={styles.recentRow}>
+                  <Avatar name={r.patient} color={r.color} size={34} />
+                  <View style={styles.recentCol}>
+                    <Text style={styles.recentName} numberOfLines={1}>{r.patient}</Text>
+                    <Text style={styles.recentMeta} numberOfLines={1}>{r.pid} · {r.test}</Text>
+                    <Text style={styles.recentTime}>{r.time}</Text>
+                  </View>
+                  <View style={styles.recentRight}>
+                    <Text style={styles.recentAmount}>₹{r.amount}</Text>
+                    <Text style={[styles.recentPaid, { color: r.paid ? colors.green : colors.red }]}>
+                      {r.paid ? 'Paid' : 'Unpaid'}
+                    </Text>
+                  </View>
+                  <ChevronRight size={16} color={colors.mutedForeground} />
+                </View>
+              </ListRow>
+            ))}
+          </Card>
+        </FadeIn>
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  logo: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#FFFFFF' },
-  body: { paddingHorizontal: spacing.hPad, paddingBottom: 24, marginTop: -14 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.gap },
-  gridItem: { width: '31.5%' },
-  actions: { flexDirection: 'row', gap: 6 },
-  action: { flex: 1, backgroundColor: colors.card, borderRadius: radius.md, alignItems: 'center', gap: 4, paddingVertical: 10, ...shadow },
-  actionText: { color: colors.foreground, fontFamily: fonts.medium, fontSize: 9 },
-  chartFooter: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, paddingTop: 8, marginTop: 4 },
+  screen: { flex: 1, backgroundColor: colors.background },
+  logo: { width: 28, height: 28, borderRadius: radius.xs, backgroundColor: '#FFFFFF' },
+  body: { paddingHorizontal: spacing.hPad, paddingTop: 14, paddingBottom: 28 },
+  action: { alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, paddingHorizontal: 4, backgroundColor: colors.card },
+  actionPressed: { backgroundColor: colors.muted },
+  actionText: { color: colors.foreground, fontFamily: fonts.medium, fontSize: 9, textAlign: 'center' },
+  chartWrap: { overflow: 'hidden', paddingTop: 10 },
+  chart: { marginLeft: -18, paddingRight: 0 },
+  chartFooter: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.border, paddingVertical: 10 },
   chartCell: { flex: 1, alignItems: 'center' },
-  chartDivider: { borderLeftWidth: StyleSheet.hairlineWidth, borderRightWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+  chartDivider: { borderLeftWidth: 1, borderRightWidth: 1, borderColor: colors.border },
   chartLabel: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 10 },
-  chartValue: { color: colors.foreground, fontFamily: fonts.bold, fontSize: 15 },
-  recent: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
-  recentName: { color: colors.foreground, fontFamily: fonts.semibold, fontSize: 12 },
+  chartValue: { color: colors.foreground, fontFamily: fonts.bold, fontSize: 15, marginTop: 2 },
+  recentRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  recentCol: { flex: 1, minWidth: 0 },
+  recentRight: { alignItems: 'flex-end' },
+  recentName: { color: colors.foreground, fontFamily: fonts.semibold, fontSize: 13 },
   recentMeta: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 10, marginTop: 1 },
-  recentAmount: { color: colors.foreground, fontFamily: fonts.bold, fontSize: 12 },
-  recentPaid: { fontFamily: fonts.medium, fontSize: 9 },
-  recentTime: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 9 },
+  recentAmount: { color: colors.foreground, fontFamily: fonts.bold, fontSize: 13 },
+  recentPaid: { fontFamily: fonts.medium, fontSize: 9, marginTop: 2 },
+  recentTime: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 9, marginTop: 1 },
 });

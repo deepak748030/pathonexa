@@ -26,7 +26,8 @@ export const colors = {
   danger: '#EF4444',
 };
 
-export const radius = { xs: 6, sm: 8, md: 10, lg: 14, xl: 18, pill: 999 };
+// Minimal radii — flat, clean, near-square surfaces.
+export const radius = { xs: 2, sm: 4, md: 6, lg: 6, xl: 8, pill: 999 };
 
 export const spacing = { hPad: 14, gap: 10 };
 
@@ -38,10 +39,16 @@ export const fonts = {
   extrabold: 'Poppins_800ExtraBold',
 };
 
-export const shadow = {
-  shadowColor: '#0F172A',
-  shadowOpacity: 0.06,
-  shadowRadius: 8,
-  shadowOffset: { width: 0, height: 2 },
-  elevation: 2,
+/**
+ * No shadows anywhere in the app. Surfaces are separated with hairline
+ * borders instead of elevation. `shadow` is kept as an alias so existing
+ * spreads stay valid, but it never produces elevation.
+ */
+export const flat = {
+  borderWidth: 1,
+  borderColor: colors.border,
 };
+
+export const shadow = flat;
+
+export const hairline = { borderBottomWidth: 1, borderBottomColor: colors.border };

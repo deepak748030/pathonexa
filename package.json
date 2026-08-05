@@ -1,0 +1,11 @@
+{
+  "name": "pathonexa-root",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "postinstall": "cd app && npm install --legacy-peer-deps",
+    "dev": "cd app && EXPO_NO_TELEMETRY=1 npx expo start --web --port 8080",
+    "build": "cd app && npm run build",
+    "typecheck": "cd app && npm run typecheck"
+  }
+}

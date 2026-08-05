@@ -67,10 +67,10 @@ export default function AddPatient() {
 }
 
 const styles = StyleSheet.create({
-  body: { paddingHorizontal: spacing.hPad, paddingBottom: 30, marginTop: -14 },
+  body: { paddingHorizontal: spacing.hPad, paddingTop: 14, paddingBottom: 30 },
   section: { color: colors.foreground, fontFamily: fonts.bold, fontSize: 12, marginBottom: 8 },
   photo: { alignItems: 'center', gap: 4, marginBottom: 10 },
-  photoCircle: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  photoCircle: { width: 52, height: 52, borderRadius: radius.sm, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
   photoText: { color: colors.primary, fontFamily: fonts.medium, fontSize: 10 },
   row: { flexDirection: 'row', gap: 8 },
   label: { color: colors.mutedForeground, fontFamily: fonts.medium, fontSize: 10, marginTop: 8 },

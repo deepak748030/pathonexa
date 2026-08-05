@@ -50,42 +50,48 @@ export default function MenuDrawer() {
   return (
     <View style={styles.overlay}>
       <View style={styles.panel}>
-        <LinearGradient colors={[colors.primary, colors.primaryGradientEnd]} style={[styles.head, { paddingTop: insets.top + 12 }]}>
+        <LinearGradient colors={[colors.primary, colors.primaryGradientEnd]} style={[styles.head, { paddingTop: insets.top + 14 }]}>
           <View style={styles.headRow}>
             <Image source={require('../assets/images/icon.png')} style={styles.logo} />
-            <View style={{ flex: 1 }}>
+            <View style={styles.headCol}>
               <Text style={styles.labName} numberOfLines={1}>{lab.shortName}</Text>
-              <Text style={styles.labMeta}>{lab.city}</Text>
-              <Text style={styles.labMeta}>Lab ID: {lab.labId}</Text>
+              <Text style={styles.labMeta} numberOfLines={1}>{lab.city}</Text>
+              <Text style={styles.labMeta} numberOfLines={1}>Lab ID: {lab.labId}</Text>
             </View>
             <View style={styles.activePill}><Text style={styles.activeText}>Active</Text></View>
           </View>
           <View style={styles.userCard}>
-            <Avatar name={lab.admin} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.userName}>{lab.admin}</Text>
-              <Text style={styles.userRole}>{lab.role}</Text>
-              <Text style={styles.online}>● Online</Text>
+            <Avatar name={lab.admin} size={34} />
+            <View style={styles.headCol}>
+              <Text style={styles.userName} numberOfLines={1}>{lab.admin}</Text>
+              <Text style={styles.userRole} numberOfLines={1}>{lab.role}</Text>
             </View>
+            <Text style={styles.online}>Online</Text>
             <ChevronRight size={16} color={colors.mutedForeground} />
           </View>
         </LinearGradient>
 
-        <ScrollView contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 24 }} showsVerticalScrollIndicator={false}>
           {sections.map((s) => (
             <View key={s.title}>
               <Text style={styles.section}>{s.title}</Text>
-              {s.items.map((it) => (
-                <Pressable key={it.title} style={styles.row} onPress={() => go((it as any).href)}>
-                  <it.Icon size={16} color={colors.primary} />
-                  <Text style={styles.rowText}>{it.title}</Text>
-                  <ChevronRight size={15} color={colors.mutedForeground} />
-                </Pressable>
-              ))}
+              <View style={styles.group}>
+                {s.items.map((it, i) => (
+                  <Pressable
+                    key={it.title}
+                    style={({ pressed }) => [styles.row, i === s.items.length - 1 && styles.rowLast, pressed && styles.rowPressed]}
+                    onPress={() => go((it as any).href)}
+                  >
+                    <it.Icon size={16} color={colors.primary} />
+                    <Text style={styles.rowText} numberOfLines={1}>{it.title}</Text>
+                    <ChevronRight size={15} color={colors.mutedForeground} />
+                  </Pressable>
+                ))}
+              </View>
             </View>
           ))}
 
-          <Pressable style={styles.logout} onPress={() => router.back()}>
+          <Pressable style={({ pressed }) => [styles.logout, pressed && { opacity: 0.8 }]} onPress={() => router.back()}>
             <LogOut size={16} color={colors.danger} />
             <View>
               <Text style={styles.logoutText}>Logout</Text>
@@ -103,23 +109,27 @@ export default function MenuDrawer() {
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, flexDirection: 'row', backgroundColor: 'rgba(15,23,42,0.45)' },
-  panel: { width: '80%', backgroundColor: colors.card },
-  head: { paddingHorizontal: 12, paddingBottom: 12 },
+  panel: { width: '82%', backgroundColor: colors.background, borderRightWidth: 1, borderRightColor: colors.border },
+  head: { paddingHorizontal: 14, paddingBottom: 14 },
   headRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logo: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFFFFF' },
+  headCol: { flex: 1, minWidth: 0 },
+  logo: { width: 38, height: 38, borderRadius: radius.xs, backgroundColor: '#FFFFFF' },
   labName: { color: '#FFFFFF', fontFamily: fonts.bold, fontSize: 13 },
-  labMeta: { color: 'rgba(255,255,255,0.85)', fontFamily: fonts.regular, fontSize: 10 },
-  activePill: { backgroundColor: colors.green, paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.pill },
+  labMeta: { color: 'rgba(255,255,255,0.85)', fontFamily: fonts.regular, fontSize: 10, marginTop: 1 },
+  activePill: { backgroundColor: colors.green, paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.xs },
   activeText: { color: '#FFFFFF', fontFamily: fonts.semibold, fontSize: 9 },
-  userCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFFFFF', borderRadius: radius.md, padding: 8, marginTop: 12 },
+  userCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFFFFF', borderRadius: radius.sm, padding: 10, marginTop: 14 },
   userName: { color: colors.foreground, fontFamily: fonts.semibold, fontSize: 12 },
-  userRole: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 10 },
+  userRole: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 10, marginTop: 1 },
   online: { color: colors.green, fontFamily: fonts.medium, fontSize: 9 },
-  section: { color: colors.mutedForeground, fontFamily: fonts.semibold, fontSize: 9, letterSpacing: 0.6, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 4 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 9 },
+  section: { color: colors.mutedForeground, fontFamily: fonts.semibold, fontSize: 9, letterSpacing: 0.6, paddingHorizontal: 14, paddingTop: 16, paddingBottom: 6 },
+  group: { backgroundColor: colors.card, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.border },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.border },
+  rowLast: { borderBottomWidth: 0 },
+  rowPressed: { backgroundColor: colors.muted },
   rowText: { flex: 1, color: colors.foreground, fontFamily: fonts.medium, fontSize: 12 },
-  logout: { flexDirection: 'row', alignItems: 'center', gap: 10, margin: 12, padding: 10, borderRadius: radius.md, backgroundColor: colors.redLight },
+  logout: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 14, marginTop: 18, padding: 12, borderRadius: radius.sm, backgroundColor: colors.redLight, borderWidth: 1, borderColor: colors.red },
   logoutText: { color: colors.danger, fontFamily: fonts.semibold, fontSize: 12 },
-  logoutSub: { color: colors.danger, fontFamily: fonts.regular, fontSize: 9, opacity: 0.8 },
-  version: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 10, paddingHorizontal: 14 },
+  logoutSub: { color: colors.danger, fontFamily: fonts.regular, fontSize: 9, opacity: 0.8, marginTop: 1 },
+  version: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 10, textAlign: 'center', marginTop: 14 },
 });

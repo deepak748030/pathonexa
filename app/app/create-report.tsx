@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, Pressable } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ChevronLeft, Search, Plus, Check, User, Stethoscope, FlaskConical } from 'lucide-react-native';
 import ScreenHeader from '@/components/ScreenHeader';
@@ -11,6 +12,7 @@ import { patients, doctors, tests, cbcParams } from '@/lib/labData';
 const steps = ['Select Details', 'Enter Report Values', 'Preview & Save'];
 
 export default function CreateReport() {
+  const insets = useSafeAreaInsets();
   const [step, setStep] = useState(0);
   const [patient, setPatient] = useState(patients[0].id);
   const [doctor, setDoctor] = useState(doctors[0].id);
@@ -146,7 +148,7 @@ export default function CreateReport() {
         )}
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
         <Pressable style={styles.cancel} onPress={() => (step === 0 ? router.back() : setStep(step - 1))}>
           <Text style={styles.cancelText}>{step === 0 ? 'Cancel' : 'Back'}</Text>
         </Pressable>
@@ -168,38 +170,38 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  stepper: { flexDirection: 'row', backgroundColor: colors.card, paddingVertical: 10, paddingHorizontal: spacing.hPad, marginHorizontal: spacing.hPad, borderRadius: radius.md, marginTop: -14 },
+  stepper: { flexDirection: 'row', backgroundColor: colors.card, paddingVertical: 12, paddingHorizontal: spacing.hPad, borderBottomWidth: 1, borderBottomColor: colors.border },
   stepItem: { flex: 1, alignItems: 'center', gap: 4 },
-  stepDot: { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  stepDot: { width: 20, height: 20, borderRadius: radius.xs, backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   stepNum: { color: colors.mutedForeground, fontFamily: fonts.bold, fontSize: 10 },
   stepLabel: { color: colors.mutedForeground, fontFamily: fonts.medium, fontSize: 9 },
-  body: { paddingHorizontal: spacing.hPad, paddingTop: 10, paddingBottom: 20 },
+  body: { paddingHorizontal: spacing.hPad, paddingTop: 14, paddingBottom: 20 },
   secRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   section: { flex: 1, color: colors.foreground, fontFamily: fonts.bold, fontSize: 12 },
   newBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: colors.primaryLight, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.sm },
   newText: { color: colors.primary, fontFamily: fonts.semibold, fontSize: 10 },
   searchBox: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: radius.sm, paddingHorizontal: 8, marginBottom: 8 },
   searchInput: { flex: 1, height: 36, color: colors.foreground, fontFamily: fonts.regular, fontSize: 12 },
-  pick: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 8, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, marginBottom: 6 },
-  pickActive: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
+  pick: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  pickActive: { backgroundColor: colors.primaryLight },
   pickTitle: { color: colors.foreground, fontFamily: fonts.semibold, fontSize: 12 },
   pickMeta: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 9, marginTop: 1 },
-  check: { width: 18, height: 18, borderRadius: 3, borderWidth: 1.5, borderColor: colors.inputBorder, alignItems: 'center', justifyContent: 'center' },
+  check: { width: 18, height: 18, borderRadius: radius.xs, borderWidth: 1.5, borderColor: colors.inputBorder, alignItems: 'center', justifyContent: 'center' },
   price: { color: colors.foreground, fontFamily: fonts.bold, fontSize: 12 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.primaryLight, padding: 10, borderRadius: radius.sm, marginTop: 4 },
   totalLabel: { color: colors.primary, fontFamily: fonts.medium, fontSize: 11 },
   totalValue: { color: colors.primary, fontFamily: fonts.bold, fontSize: 14 },
   tableHead: { flexDirection: 'row', backgroundColor: colors.primaryLight, paddingVertical: 8, paddingHorizontal: 8 },
   th: { color: colors.primary, fontFamily: fonts.semibold, fontSize: 10 },
-  tr: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  tr: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.border },
   td: { color: colors.foreground, fontFamily: fonts.regular, fontSize: 10 },
   cellInput: { height: 32, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: radius.sm, paddingHorizontal: 6, marginRight: 6, color: colors.foreground, fontFamily: fonts.medium, fontSize: 11 },
-  sumRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 7, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  sumRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: colors.border },
   sumLabel: { color: colors.mutedForeground, fontFamily: fonts.medium, fontSize: 11 },
   sumValue: { flex: 1, textAlign: 'right', color: colors.foreground, fontFamily: fonts.semibold, fontSize: 11 },
   previewBtn: { alignItems: 'center', paddingVertical: 10, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.primary, marginTop: 12 },
   previewText: { color: colors.primary, fontFamily: fonts.semibold, fontSize: 12 },
-  footer: { flexDirection: 'row', gap: 10, padding: spacing.hPad, backgroundColor: colors.card, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  footer: { flexDirection: 'row', gap: 10, padding: spacing.hPad, backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border },
   cancel: { flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.primary },
   cancelText: { color: colors.primary, fontFamily: fonts.semibold, fontSize: 13 },
   next: { flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: radius.sm, backgroundColor: colors.primary },
