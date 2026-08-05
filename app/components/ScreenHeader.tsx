@@ -1,32 +1,45 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft } from 'lucide-react-native';
-import { router } from 'expo-router';
-import { colors, fonts } from '@/lib/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { colors, fonts, radius, spacing } from '@/lib/theme';
 
-type Props = { title: string; showBack?: boolean; right?: React.ReactNode };
+type Props = {
+  title: string;
+  subtitle?: string;
+  left?: React.ReactNode;
+  right?: React.ReactNode;
+  onLeftPress?: () => void;
+};
 
-export default function ScreenHeader({ title, showBack = true, right }: Props) {
+export default function ScreenHeader({ title, subtitle, left, right, onLeftPress }: Props) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.wrap, { paddingTop: insets.top + 8 }]}>
+    <LinearGradient
+      colors={[colors.primary, colors.primaryGradientEnd]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={[styles.wrap, { paddingTop: insets.top + 10 }]}
+    >
       <View style={styles.row}>
-        {showBack ? (
-          <Pressable onPress={() => router.back()} style={styles.iconBtn} hitSlop={10}>
-            <ChevronLeft size={24} color="#FFFFFF" />
-          </Pressable>
-        ) : <View style={styles.iconBtn} />}
-        <Text style={styles.title}>{title}</Text>
-        <View style={styles.iconBtn}>{right}</View>
+        {left ? (
+          <Pressable onPress={onLeftPress} hitSlop={10} style={styles.leftBtn}>{left}</Pressable>
+        ) : null}
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title} numberOfLines={1}>{title}</Text>
+          {!!subtitle && <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>}
+        </View>
+        <View style={styles.rightRow}>{right}</View>
       </View>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { backgroundColor: colors.primary, paddingHorizontal: 6, paddingBottom: 10 },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  iconBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  title: { color: '#FFFFFF', fontSize: 16, fontFamily: fonts.bold, flex: 1, textAlign: 'center', letterSpacing: 0.3 },
+  wrap: { paddingHorizontal: spacing.hPad, paddingBottom: 26, borderBottomLeftRadius: radius.xl, borderBottomRightRadius: radius.xl },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  leftBtn: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
+  rightRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  title: { color: '#FFFFFF', fontFamily: fonts.bold, fontSize: 18 },
+  subtitle: { color: 'rgba(255,255,255,0.85)', fontFamily: fonts.medium, fontSize: 11, marginTop: 1 },
 });
