@@ -5,7 +5,8 @@
   "scripts": {
     "postinstall": "cd app && npm install --legacy-peer-deps",
     "dev": "cd app && EXPO_NO_TELEMETRY=1 npx expo start --web --port 8080",
-    "build": "cd app && npm run build",
-    "typecheck": "cd app && npm run typecheck"
+    "build": "cd app && npm run build && cd .. && rm -rf dist && cp -r app/dist dist",
+    "typecheck": "cd app && npm run typecheck",
+    "build:dev": "cd app && npm run build && cd .. && rm -rf dist && cp -r app/dist dist"
   }
 }

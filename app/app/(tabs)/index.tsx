@@ -153,7 +153,7 @@ export default function Dashboard() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   logo: { width: 28, height: 28, borderRadius: radius.xs, backgroundColor: '#FFFFFF' },
-  body: { paddingHorizontal: spacing.hPad, paddingTop: 14, paddingBottom: 28 },
+  body: { paddingHorizontal: spacing.hPad, paddingTop: 4, paddingBottom: 28 },
   action: { alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, paddingHorizontal: 4, backgroundColor: colors.card },
   actionPressed: { backgroundColor: colors.muted },
   actionText: { color: colors.foreground, fontFamily: fonts.medium, fontSize: 9, textAlign: 'center' },

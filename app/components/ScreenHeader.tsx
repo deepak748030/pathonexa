@@ -21,7 +21,7 @@ export default function ScreenHeader({ title, subtitle, left, right, actions, on
       colors={[colors.primary, colors.primaryGradientEnd]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      style={[styles.wrap, { paddingTop: insets.top + 12 }]}
+      style={[styles.wrap, { paddingTop: insets.top + 10 }]}
     >
       <View style={styles.row}>
         {left ? (
@@ -39,13 +39,13 @@ export default function ScreenHeader({ title, subtitle, left, right, actions, on
 }
 
 const styles = StyleSheet.create({
-  // Flat header: no rounded corners, no shadow, no negative overlap below.
-  wrap: { paddingHorizontal: spacing.hPad, paddingBottom: 12 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  leftBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
+  // Compact flat header: minimal vertical space, no shadow, no rounded corners.
+  wrap: { paddingHorizontal: 10, paddingBottom: 10 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  leftBtn: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
   titleCol: { flex: 1, minWidth: 0 },
-  rightRow: { flexDirection: 'row', alignItems: 'center', gap: 14, flexShrink: 0 },
-  actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
-  title: { color: '#FFFFFF', fontFamily: fonts.bold, fontSize: 17 },
-  subtitle: { color: 'rgba(255,255,255,0.85)', fontFamily: fonts.medium, fontSize: 11, marginTop: 2 },
+  rightRow: { flexDirection: 'row', alignItems: 'center', gap: 12, flexShrink: 0 },
+  actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+  title: { color: '#FFFFFF', fontFamily: fonts.bold, fontSize: 16, lineHeight: 21 },
+  subtitle: { color: 'rgba(255,255,255,0.85)', fontFamily: fonts.medium, fontSize: 10, lineHeight: 13 },
 });

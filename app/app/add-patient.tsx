@@ -67,7 +67,7 @@ export default function AddPatient() {
 }
 
 const styles = StyleSheet.create({
-  body: { paddingHorizontal: spacing.hPad, paddingTop: 14, paddingBottom: 30 },
+  body: { paddingHorizontal: spacing.hPad, paddingTop: 4, paddingBottom: 30 },
   section: { color: colors.foreground, fontFamily: fonts.bold, fontSize: 12, marginBottom: 8 },
   photo: { alignItems: 'center', gap: 4, marginBottom: 10 },
   photoCircle: { width: 52, height: 52, borderRadius: radius.sm, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },

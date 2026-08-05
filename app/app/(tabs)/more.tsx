@@ -95,7 +95,7 @@ export default function More() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  body: { paddingHorizontal: spacing.hPad, paddingTop: 14, paddingBottom: 28 },
+  body: { paddingHorizontal: spacing.hPad, paddingTop: 4, paddingBottom: 28 },
   labCard: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   labCol: { flex: 1, minWidth: 0 },
   logo: { width: 40, height: 40, borderRadius: radius.xs },

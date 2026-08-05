@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
   stepDot: { width: 20, height: 20, borderRadius: radius.xs, backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   stepNum: { color: colors.mutedForeground, fontFamily: fonts.bold, fontSize: 10 },
   stepLabel: { color: colors.mutedForeground, fontFamily: fonts.medium, fontSize: 9 },
-  body: { paddingHorizontal: spacing.hPad, paddingTop: 14, paddingBottom: 20 },
+  body: { paddingHorizontal: spacing.hPad, paddingTop: 4, paddingBottom: 20 },
   secRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   section: { flex: 1, color: colors.foreground, fontFamily: fonts.bold, fontSize: 12 },
   newBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: colors.primaryLight, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.sm },

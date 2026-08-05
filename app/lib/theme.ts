@@ -29,7 +29,7 @@ export const colors = {
 // Minimal radii — flat, clean, near-square surfaces.
 export const radius = { xs: 2, sm: 4, md: 6, lg: 6, xl: 8, pill: 999 };
 
-export const spacing = { hPad: 14, gap: 10 };
+export const spacing = { hPad: 3, gap: 10 };
 
 export const fonts = {
   regular: 'Poppins_400Regular',

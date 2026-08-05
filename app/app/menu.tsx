@@ -8,7 +8,7 @@ import {
   CreditCard, DatabaseBackup, Trash2, Building, Settings, ShieldCheck, HelpCircle, Info, LogOut, ChevronRight,
 } from 'lucide-react-native';
 import Avatar from '@/components/Avatar';
-import { colors, fonts, radius } from '@/lib/theme';
+import { colors, fonts, radius, spacing } from '@/lib/theme';
 import { lab } from '@/lib/labData';
 
 const sections = [
@@ -110,7 +110,7 @@ export default function MenuDrawer() {
 const styles = StyleSheet.create({
   overlay: { flex: 1, flexDirection: 'row', backgroundColor: 'rgba(15,23,42,0.45)' },
   panel: { width: '82%', backgroundColor: colors.background, borderRightWidth: 1, borderRightColor: colors.border },
-  head: { paddingHorizontal: 14, paddingBottom: 14 },
+  head: { paddingHorizontal: spacing.hPad, paddingBottom: 14 },
   headRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   headCol: { flex: 1, minWidth: 0 },
   logo: { width: 38, height: 38, borderRadius: radius.xs, backgroundColor: '#FFFFFF' },
@@ -122,9 +122,9 @@ const styles = StyleSheet.create({
   userName: { color: colors.foreground, fontFamily: fonts.semibold, fontSize: 12 },
   userRole: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 10, marginTop: 1 },
   online: { color: colors.green, fontFamily: fonts.medium, fontSize: 9 },
-  section: { color: colors.mutedForeground, fontFamily: fonts.semibold, fontSize: 9, letterSpacing: 0.6, paddingHorizontal: 14, paddingTop: 16, paddingBottom: 6 },
+  section: { color: colors.mutedForeground, fontFamily: fonts.semibold, fontSize: 9, letterSpacing: 0.6, paddingHorizontal: spacing.hPad, paddingTop: 16, paddingBottom: 6 },
   group: { backgroundColor: colors.card, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.border },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.border },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: spacing.hPad, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.border },
   rowLast: { borderBottomWidth: 0 },
   rowPressed: { backgroundColor: colors.muted },
   rowText: { flex: 1, color: colors.foreground, fontFamily: fonts.medium, fontSize: 12 },

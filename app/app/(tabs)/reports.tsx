@@ -134,11 +134,11 @@ export default function Reports() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSearch: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: radius.sm, paddingHorizontal: 10, height: 36 },
+  headerSearch: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: radius.sm, paddingHorizontal: 10, height: 32 },
   headerInput: { flex: 1, color: '#FFFFFF', fontFamily: fonts.regular, fontSize: 12, padding: 0 },
-  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFFFFF', paddingHorizontal: 10, height: 36, borderRadius: radius.sm },
+  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFFFFF', paddingHorizontal: 10, height: 32, borderRadius: radius.sm },
   addBtnText: { color: colors.primary, fontFamily: fonts.semibold, fontSize: 12 },
-  body: { paddingHorizontal: spacing.hPad, paddingTop: 14, paddingBottom: 28 },
+  body: { paddingHorizontal: spacing.hPad, paddingTop: 4, paddingBottom: 28 },
   rangeChip: { alignItems: 'center', justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 4, backgroundColor: colors.card },
   rangeChipActive: { backgroundColor: colors.primaryLight },
   rangeText: { color: colors.foreground, fontFamily: fonts.semibold, fontSize: 10, textAlign: 'center' },

@@ -97,7 +97,7 @@ function InfoRow({ label, value, label2, value2 }: { label: string; value: strin
 }
 
 const styles = StyleSheet.create({
-  body: { paddingHorizontal: spacing.hPad, paddingTop: 14, paddingBottom: 24 },
+  body: { paddingHorizontal: spacing.hPad, paddingTop: 4, paddingBottom: 24 },
   letterhead: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderBottomWidth: 2, borderBottomColor: colors.primary },
   logo: { width: 44, height: 44 },
   labName: { color: colors.primary, fontFamily: fonts.bold, fontSize: 13 },

@@ -33,6 +33,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
         <Stack.Screen name="index" />
+        <Stack.Screen name="login" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="add-patient" />
         <Stack.Screen name="create-report" />
