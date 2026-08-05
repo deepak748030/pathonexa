@@ -18,6 +18,7 @@ export const colors = {
   foreground: '#0F172A',
   mutedForeground: '#64748B',
   border: '#E2E8F0',
+  muted: '#F1F5F9',
   inputBg: '#FFFFFF',
   inputBorder: '#CBD5E1',
   success: '#16A34A',

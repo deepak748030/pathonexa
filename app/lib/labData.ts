@@ -38,6 +38,10 @@ export const lab = {
   labId: 'LAB123456',
   admin: 'Amit Mishra',
   role: 'Lab Admin',
+  address: '12, Vikas Nagar, Hazratganj, Lucknow, UP - 226001',
+  phone: '+91 98765 43210',
+  email: 'care@pathonexa.in',
+  pathologist: 'Dr. Rakesh Kumar, MD (Pathology)',
 };
 
 export const dashboardStats = [
@@ -131,3 +135,5 @@ export const cbcParameters = [
     { name: 'P-LCR', value: '60.8', unit: '%', range: '13.0 - 43.0', flag: 'H' },
   ]},
 ];
+
+export const cbcParams = cbcParameters.flatMap((g) => g.rows);

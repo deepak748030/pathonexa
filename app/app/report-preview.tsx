@@ -49,7 +49,7 @@ export default function ReportPreview() {
           {cbcParams.map((c) => (
             <View key={c.name} style={styles.tr}>
               <Text style={[styles.td, { flex: 2 }]}>{c.name}</Text>
-              <Text style={[styles.td, { flex: 1, fontFamily: fonts.semibold }]}>{c.sample}</Text>
+              <Text style={[styles.td, { flex: 1, fontFamily: fonts.semibold }]}>{c.value}</Text>
               <Text style={[styles.td, { flex: 1 }]}>{c.unit}</Text>
               <Text style={[styles.td, { flex: 1.4 }]}>{c.range}</Text>
             </View>

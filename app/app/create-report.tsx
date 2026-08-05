@@ -78,7 +78,7 @@ export default function CreateReport() {
                   <Avatar name={d.name} color={colors.primary} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.pickTitle}>{d.name}</Text>
-                    <Text style={styles.pickMeta}>{d.speciality}</Text>
+                    <Text style={styles.pickMeta}>{d.degree}</Text>
                   </View>
                   {doctor === d.id ? <Check size={16} color={colors.primary} strokeWidth={3} /> : null}
                 </Pressable>
@@ -97,7 +97,7 @@ export default function CreateReport() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.pickTitle}>{t.name}</Text>
-                    <Text style={styles.pickMeta}>{t.code}  |  {t.sample}</Text>
+                    <Text style={styles.pickMeta}>{t.group}</Text>
                   </View>
                   <Text style={styles.price}>₹{t.price}</Text>
                 </Pressable>
