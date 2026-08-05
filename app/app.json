@@ -1,0 +1,96 @@
+{
+  "expo": {
+    "name": "Tractor Wala",
+    "slug": "tractor-wala",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "tractorwaladealers",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/images/icon.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#0F172A"
+    },
+    "android": {
+      "package": "com.tractorwala.application",
+      "versionCode": 1,
+      "enableProguardInReleaseBuilds": true,
+      "enableShrinkResourcesInReleaseBuilds": true,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.VIBRATE",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tractorwala.application",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Tractor Wala needs camera access to upload bid proof.",
+        "NSPhotoLibraryUsageDescription": "Tractor Wala needs photo library access to upload bid proof."
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/images/icon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-web-browser",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "minSdkVersion": 24,
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "enableMinifyInReleaseBuilds": true
+          }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#4338CA"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Tractor Wala needs camera access to capture bid items."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Tractor Wala needs photo library access to upload bid items.",
+          "cameraPermission": "Tractor Wala needs camera access to capture bid items."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "newArchEnabled": true,
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "26c48fd1-f926-4a9c-be2a-60c1f4a01114"
+      }
+    }
+  }
+}
