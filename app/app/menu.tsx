@@ -10,6 +10,7 @@ import {
 import Avatar from '@/components/Avatar';
 import { colors, fonts, radius, spacing } from '@/lib/theme';
 import { lab } from '@/lib/labData';
+import { useAuth } from '@/lib/auth';
 
 const sections = [
   { title: 'MAIN', items: [
@@ -42,9 +43,14 @@ const sections = [
 
 export default function MenuDrawer() {
   const insets = useSafeAreaInsets();
+  const logout = useAuth((s) => s.logout);
   const go = (href?: string) => {
     router.back();
     if (href) setTimeout(() => router.push(href as any), 60);
+  };
+  const onLogout = async () => {
+    await logout();
+    router.replace('/login');
   };
 
   return (
@@ -91,7 +97,7 @@ export default function MenuDrawer() {
             </View>
           ))}
 
-          <Pressable style={({ pressed }) => [styles.logout, pressed && { opacity: 0.8 }]} onPress={() => router.back()}>
+          <Pressable style={({ pressed }) => [styles.logout, pressed && { opacity: 0.8 }]} onPress={onLogout}>
             <LogOut size={16} color={colors.danger} />
             <View>
               <Text style={styles.logoutText}>Logout</Text>

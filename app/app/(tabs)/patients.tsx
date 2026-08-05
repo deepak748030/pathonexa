@@ -74,21 +74,19 @@ export default function Patients() {
             {list.map((p, i) => (
               <ListRow key={p.id} last={i === list.length - 1}>
                 <View style={styles.row}>
-                  <Avatar name={p.name} color={p.color} size={38} />
+                  <Avatar name={p.name} color={p.color} size={32} />
                   <View style={styles.col}>
                     <Text style={styles.name} numberOfLines={1}>{p.name}</Text>
-                    <Text style={styles.meta} numberOfLines={1}>{p.pid}</Text>
-                    <Text style={styles.meta} numberOfLines={1}>{p.age} Yrs · {p.gender} · {p.blood}</Text>
+                    <Text style={styles.meta} numberOfLines={1}>{p.pid} · {p.age} Yrs · {p.gender} · {p.blood}</Text>
                   </View>
                   <View style={styles.right}>
                     <View style={styles.phoneRow}>
                       <Phone size={11} color={colors.primary} />
                       <Text style={styles.phone}>{p.mobile}</Text>
                     </View>
-                    <Text style={styles.test} numberOfLines={1}>{p.lastTest}</Text>
-                    <Text style={styles.meta} numberOfLines={1}>{p.lastTestDate}</Text>
+                    <Text style={styles.test} numberOfLines={1}>{p.lastTest} · {p.lastTestDate}</Text>
                   </View>
-                  <ChevronRight size={16} color={colors.mutedForeground} />
+                  <ChevronRight size={14} color={colors.mutedForeground} />
                 </View>
               </ListRow>
             ))}
@@ -119,11 +117,11 @@ const styles = StyleSheet.create({
   addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFFFFF', paddingHorizontal: 10, height: 32, borderRadius: radius.sm },
   addBtnText: { color: colors.primary, fontFamily: fonts.semibold, fontSize: 12 },
   body: { paddingHorizontal: spacing.hPad, paddingTop: 4, paddingBottom: 28 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   col: { flex: 1, minWidth: 0 },
-  right: { alignItems: 'flex-end', gap: 2 },
-  name: { color: colors.foreground, fontFamily: fonts.semibold, fontSize: 13 },
-  meta: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 10, marginTop: 1 },
+  right: { alignItems: 'flex-end', gap: 1, maxWidth: '42%' },
+  name: { color: colors.foreground, fontFamily: fonts.semibold, fontSize: 12.5 },
+  meta: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 9.5, marginTop: 1 },
   phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   phone: { color: colors.foreground, fontFamily: fonts.medium, fontSize: 10 },
   test: { color: colors.primary, fontFamily: fonts.medium, fontSize: 10 },

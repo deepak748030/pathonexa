@@ -21,6 +21,7 @@ export const colors = {
   muted: '#F1F5F9',
   inputBg: '#FFFFFF',
   inputBorder: '#CBD5E1',
+  placeholder: '#94A3B8',
   success: '#16A34A',
   warning: '#F59E0B',
   danger: '#EF4444',
@@ -32,11 +33,11 @@ export const radius = { xs: 2, sm: 4, md: 6, lg: 6, xl: 8, pill: 999 };
 export const spacing = { hPad: 3, gap: 10 };
 
 export const fonts = {
-  regular: 'Poppins_400Regular',
-  medium: 'Poppins_500Medium',
-  semibold: 'Poppins_600SemiBold',
-  bold: 'Poppins_700Bold',
-  extrabold: 'Poppins_800ExtraBold',
+  regular: 'PlusJakartaSans_400Regular',
+  medium: 'PlusJakartaSans_500Medium',
+  semibold: 'PlusJakartaSans_600SemiBold',
+  bold: 'PlusJakartaSans_700Bold',
+  extrabold: 'PlusJakartaSans_800ExtraBold',
 };
 
 /**

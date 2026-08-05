@@ -9,6 +9,7 @@ import ScreenHeader from '@/components/ScreenHeader';
 import { Card, MenuRow, FadeIn } from '@/components/UI';
 import { colors, fonts, radius, spacing } from '@/lib/theme';
 import { lab } from '@/lib/labData';
+import { useAuth } from '@/lib/auth';
 
 const groups = [
   {
@@ -44,6 +45,11 @@ const groups = [
 ];
 
 export default function More() {
+  const logout = useAuth((s) => s.logout);
+  const onLogout = async () => {
+    await logout();
+    router.replace('/login');
+  };
   return (
     <View style={styles.screen}>
       <ScreenHeader title="More" subtitle="Manage your lab, settings and more" right={<Bell size={20} color="#FFFFFF" />} />
@@ -84,7 +90,7 @@ export default function More() {
 
         <FadeIn delay={240}>
           <Card style={{ padding: 0, marginTop: 16, backgroundColor: colors.redLight, borderColor: colors.red }}>
-            <MenuRow last danger title="Logout" subtitle="Logout from your account" icon={<LogOut size={16} color={colors.danger} />} />
+            <MenuRow last danger title="Logout" subtitle="Logout from your account" icon={<LogOut size={16} color={colors.danger} />} onPress={onLogout} />
           </Card>
         </FadeIn>
         <Text style={styles.version}>App Version 1.0.0</Text>

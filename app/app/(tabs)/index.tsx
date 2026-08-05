@@ -127,11 +127,10 @@ export default function Dashboard() {
             {recent.map((r, i) => (
               <ListRow key={r.id} last={i === recent.length - 1} onPress={() => router.push('/report-preview' as any)}>
                 <View style={styles.recentRow}>
-                  <Avatar name={r.patient} color={r.color} size={34} />
+                  <Avatar name={r.patient} color={r.color} size={30} />
                   <View style={styles.recentCol}>
                     <Text style={styles.recentName} numberOfLines={1}>{r.patient}</Text>
-                    <Text style={styles.recentMeta} numberOfLines={1}>{r.pid} · {r.test}</Text>
-                    <Text style={styles.recentTime}>{r.time}</Text>
+                    <Text style={styles.recentMeta} numberOfLines={1}>{r.pid} · {r.test} · {r.time}</Text>
                   </View>
                   <View style={styles.recentRight}>
                     <Text style={styles.recentAmount}>₹{r.amount}</Text>
@@ -139,7 +138,7 @@ export default function Dashboard() {
                       {r.paid ? 'Paid' : 'Unpaid'}
                     </Text>
                   </View>
-                  <ChevronRight size={16} color={colors.mutedForeground} />
+                  <ChevronRight size={14} color={colors.mutedForeground} />
                 </View>
               </ListRow>
             ))}
@@ -164,12 +163,12 @@ const styles = StyleSheet.create({
   chartDivider: { borderLeftWidth: 1, borderRightWidth: 1, borderColor: colors.border },
   chartLabel: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 10 },
   chartValue: { color: colors.foreground, fontFamily: fonts.bold, fontSize: 15, marginTop: 2 },
-  recentRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  recentRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   recentCol: { flex: 1, minWidth: 0 },
   recentRight: { alignItems: 'flex-end' },
-  recentName: { color: colors.foreground, fontFamily: fonts.semibold, fontSize: 13 },
-  recentMeta: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 10, marginTop: 1 },
-  recentAmount: { color: colors.foreground, fontFamily: fonts.bold, fontSize: 13 },
+  recentName: { color: colors.foreground, fontFamily: fonts.semibold, fontSize: 12.5 },
+  recentMeta: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 9.5, marginTop: 1 },
+  recentAmount: { color: colors.foreground, fontFamily: fonts.bold, fontSize: 12.5 },
   recentPaid: { fontFamily: fonts.medium, fontSize: 9, marginTop: 2 },
   recentTime: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 9, marginTop: 1 },
 });

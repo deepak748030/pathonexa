@@ -10,7 +10,7 @@ function Field({ label, placeholder, required, flex }: { label: string; placehol
   return (
     <View style={{ flex: flex ?? 1 }}>
       <Text style={styles.label}>{label} {required ? <Text style={{ color: colors.danger }}>*</Text> : null}</Text>
-      <TextInput placeholder={placeholder} placeholderTextColor={colors.mutedForeground} style={styles.input} />
+      <TextInput placeholder={placeholder} placeholderTextColor={colors.placeholder} style={styles.input} />
     </View>
   );
 }

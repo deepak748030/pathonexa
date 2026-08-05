@@ -34,6 +34,7 @@ export default function CreateReport() {
       <View style={styles.stepper}>
         {steps.map((s, i) => (
           <View key={s} style={styles.stepItem}>
+            {i > 0 && <View style={[styles.stepLine, i <= step && { backgroundColor: colors.primary }]} />}
             <View style={[styles.stepDot, i <= step && { backgroundColor: colors.primary }]}>
               {i < step ? <Check size={11} color="#FFFFFF" strokeWidth={3} /> : <Text style={[styles.stepNum, i <= step && { color: '#FFFFFF' }]}>{i + 1}</Text>}
             </View>
@@ -56,14 +57,14 @@ export default function CreateReport() {
               </View>
               <View style={styles.searchBox}>
                 <Search size={15} color={colors.mutedForeground} />
-                <TextInput placeholder="Search patient by name, ID or mobile" placeholderTextColor={colors.mutedForeground} style={styles.searchInput} />
+                <TextInput placeholder="Search patient by name, ID or mobile" placeholderTextColor={colors.placeholder} style={styles.searchInput} />
               </View>
-              {patients.slice(0, 3).map((p) => (
-                <Pressable key={p.id} style={[styles.pick, patient === p.id && styles.pickActive]} onPress={() => setPatient(p.id)}>
-                  <Avatar name={p.name} color={p.color} />
+              {patients.slice(0, 3).map((p, i, arr) => (
+                <Pressable key={p.id} style={[styles.pick, i === arr.length - 1 && styles.pickLast, patient === p.id && styles.pickActive]} onPress={() => setPatient(p.id)}>
+                  <Avatar name={p.name} color={p.color} size={30} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.pickTitle}>{p.name}</Text>
-                    <Text style={styles.pickMeta}>PID: {p.pid}  |  {p.age} Yrs  |  {p.gender}  |  {p.mobile}</Text>
+                    <Text style={styles.pickTitle} numberOfLines={1}>{p.name}</Text>
+                    <Text style={styles.pickMeta} numberOfLines={1}>{p.pid} · {p.age} Yrs · {p.gender} · {p.mobile}</Text>
                   </View>
                   {patient === p.id ? <Check size={16} color={colors.primary} strokeWidth={3} /> : null}
                 </Pressable>
@@ -75,12 +76,12 @@ export default function CreateReport() {
                 <Stethoscope size={14} color={colors.primary} />
                 <Text style={styles.section}>Referring Doctor</Text>
               </View>
-              {doctors.map((d) => (
-                <Pressable key={d.id} style={[styles.pick, doctor === d.id && styles.pickActive]} onPress={() => setDoctor(d.id)}>
-                  <Avatar name={d.name} color={colors.primary} />
+              {doctors.map((d, i, arr) => (
+                <Pressable key={d.id} style={[styles.pick, i === arr.length - 1 && styles.pickLast, doctor === d.id && styles.pickActive]} onPress={() => setDoctor(d.id)}>
+                  <Avatar name={d.name} color={colors.primary} size={30} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.pickTitle}>{d.name}</Text>
-                    <Text style={styles.pickMeta}>{d.degree}</Text>
+                    <Text style={styles.pickTitle} numberOfLines={1}>{d.name}</Text>
+                    <Text style={styles.pickMeta} numberOfLines={1}>{d.degree}</Text>
                   </View>
                   {doctor === d.id ? <Check size={16} color={colors.primary} strokeWidth={3} /> : null}
                 </Pressable>
@@ -126,7 +127,7 @@ export default function CreateReport() {
                   onChangeText={(v) => setValues((s) => ({ ...s, [p.name]: v }))}
                   placeholder="—"
                   keyboardType="numeric"
-                  placeholderTextColor={colors.mutedForeground}
+                  placeholderTextColor={colors.placeholder}
                   style={[styles.cellInput, { flex: 1 }]}
                 />
                 <Text style={[styles.td, { flex: 1 }]}>{p.unit}</Text>
@@ -170,9 +171,10 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  stepper: { flexDirection: 'row', backgroundColor: colors.card, paddingVertical: 12, paddingHorizontal: spacing.hPad, borderBottomWidth: 1, borderBottomColor: colors.border },
+  stepper: { flexDirection: 'row', backgroundColor: colors.card, paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   stepItem: { flex: 1, alignItems: 'center', gap: 4 },
-  stepDot: { width: 20, height: 20, borderRadius: radius.xs, backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  stepLine: { position: 'absolute', top: 11, right: '50%', left: '-50%', height: 2, backgroundColor: colors.border },
+  stepDot: { width: 22, height: 22, borderRadius: 11, backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   stepNum: { color: colors.mutedForeground, fontFamily: fonts.bold, fontSize: 10 },
   stepLabel: { color: colors.mutedForeground, fontFamily: fonts.medium, fontSize: 9 },
   body: { paddingHorizontal: spacing.hPad, paddingTop: 4, paddingBottom: 20 },
@@ -182,10 +184,11 @@ const styles = StyleSheet.create({
   newText: { color: colors.primary, fontFamily: fonts.semibold, fontSize: 10 },
   searchBox: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: radius.sm, paddingHorizontal: 8, marginBottom: 8 },
   searchInput: { flex: 1, height: 36, color: colors.foreground, fontFamily: fonts.regular, fontSize: 12 },
-  pick: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
-  pickActive: { backgroundColor: colors.primaryLight },
+  pick: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingHorizontal: 8, marginHorizontal: -4, borderRadius: radius.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
+  pickLast: { borderBottomWidth: 0 },
+  pickActive: { backgroundColor: colors.primaryLight, borderBottomColor: 'transparent' },
   pickTitle: { color: colors.foreground, fontFamily: fonts.semibold, fontSize: 12 },
-  pickMeta: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 9, marginTop: 1 },
+  pickMeta: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 9.5, marginTop: 1 },
   check: { width: 18, height: 18, borderRadius: radius.xs, borderWidth: 1.5, borderColor: colors.inputBorder, alignItems: 'center', justifyContent: 'center' },
   price: { color: colors.foreground, fontFamily: fonts.bold, fontSize: 12 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.primaryLight, padding: 10, borderRadius: radius.sm, marginTop: 4 },

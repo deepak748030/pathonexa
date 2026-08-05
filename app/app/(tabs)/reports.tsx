@@ -106,20 +106,18 @@ export default function Reports() {
             {list.map((r, i) => (
               <ListRow key={r.id} last={i === list.length - 1} onPress={() => router.push('/report-preview' as any)}>
                 <View style={styles.row}>
-                  <Avatar name={r.patient} color={r.color} size={38} />
+                  <Avatar name={r.patient} color={r.color} size={32} />
                   <View style={styles.col}>
                     <Text style={styles.name} numberOfLines={1}>{r.patient}</Text>
-                    <Text style={styles.meta} numberOfLines={1}>{r.pid} · {r.age} Yrs · {r.gender}</Text>
                     <Text style={[styles.test, { color: statusTone[r.status] }]} numberOfLines={1}>{r.test}</Text>
-                    <Text style={styles.meta} numberOfLines={1}>Ref. {r.doctor}</Text>
+                    <Text style={styles.meta} numberOfLines={1}>{r.pid} · {r.age}Y · {r.gender} · Ref. {r.doctor}</Text>
                   </View>
                   <View style={styles.right}>
                     <Text style={styles.amount}>₹{r.amount}</Text>
                     <Text style={[styles.status, { color: statusTone[r.status] }]}>{r.status}</Text>
-                    <Text style={styles.meta} numberOfLines={1}>{r.date}</Text>
-                    <Text style={styles.meta} numberOfLines={1}>{r.reportId}</Text>
+                    <Text style={styles.meta} numberOfLines={1}>{r.date} · {r.reportId}</Text>
                   </View>
-                  <ChevronRight size={16} color={colors.mutedForeground} />
+                  <ChevronRight size={14} color={colors.mutedForeground} />
                 </View>
               </ListRow>
             ))}
@@ -148,13 +146,13 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: colors.primary },
   tabText: { color: colors.mutedForeground, fontFamily: fonts.semibold, fontSize: 10 },
   tabTextActive: { color: '#FFFFFF' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   col: { flex: 1, minWidth: 0 },
-  right: { alignItems: 'flex-end' },
-  name: { color: colors.foreground, fontFamily: fonts.semibold, fontSize: 13 },
+  right: { alignItems: 'flex-end', maxWidth: '40%' },
+  name: { color: colors.foreground, fontFamily: fonts.semibold, fontSize: 12.5 },
   meta: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 9, marginTop: 1 },
   test: { fontFamily: fonts.medium, fontSize: 10, marginTop: 1 },
-  amount: { color: colors.foreground, fontFamily: fonts.bold, fontSize: 13 },
+  amount: { color: colors.foreground, fontFamily: fonts.bold, fontSize: 12.5 },
   status: { fontFamily: fonts.medium, fontSize: 9, marginTop: 1 },
   empty: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 12, textAlign: 'center', paddingVertical: 24 },
   footer: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 10, textAlign: 'center', marginTop: 10 },
