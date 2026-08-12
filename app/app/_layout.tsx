@@ -40,7 +40,7 @@ export default function RootLayout() {
         <Stack.Screen name="report-preview" />
         <Stack.Screen name="menu" options={{ presentation: 'transparentModal', animation: 'fade' }} />
       </Stack>
-      <StatusBar style="light" backgroundColor={colors.primary} translucent={true} />
+      <StatusBar style="dark" backgroundColor={colors.background} translucent={true} />
     </SafeAreaProvider>
   );
 }

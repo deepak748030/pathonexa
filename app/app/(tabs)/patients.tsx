@@ -1,109 +1,147 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Pressable } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
-import { Menu, Search, SlidersHorizontal, Plus, ChevronRight, Phone, Users, UserPlus, ClipboardList, IndianRupee, Download, Upload, Layers, Copy } from 'lucide-react-native';
+import { Search, UserPlus, SlidersHorizontal, ChevronRight, Phone, Calendar, Users, TrendingUp, FlaskConical, IndianRupee } from 'lucide-react-native';
 import ScreenHeader from '@/components/ScreenHeader';
 import StatCard from '@/components/StatCard';
 import Avatar from '@/components/Avatar';
-import { Card, GridPanel, FadeIn, ListRow, SectionTitle } from '@/components/UI';
+import { Card, SectionTitle, GridPanel, FadeIn, ListRow } from '@/components/UI';
 import { colors, fonts, radius, spacing } from '@/lib/theme';
-import { patients, patientStats } from '@/lib/labData';
+import { patientStats, patients as localPatients } from '@/lib/labData';
+import { endpoints } from '@/lib/api';
 
-const statIcons = [Users, UserPlus, ClipboardList, IndianRupee];
-const tools = [
-  { label: 'Import', Icon: Download },
-  { label: 'Export', Icon: Upload },
-  { label: 'Groups', Icon: Layers },
-  { label: 'Duplicates', Icon: Copy },
-];
+const statIcons: Record<string, any> = {
+  'Total Patients': Users,
+  'New This Week': TrendingUp,
+  'Tests This Week': FlaskConical,
+  'This Week Collection': IndianRupee,
+};
 
 export default function Patients() {
-  const [q, setQ] = useState('');
-  const list = patients.filter((p) => (p.name + p.mobile + p.pid).toLowerCase().includes(q.toLowerCase()));
+  const [search, setSearch] = React.useState('');
+  const [patients, setPatients] = React.useState<any[]>([]);
+  const [stats, setStats] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    async function loadData() {
+      setLoading(true);
+      try {
+        const [data, remoteStats] = await Promise.all([
+          endpoints.patients.getAll(),
+          endpoints.patients.getStats(),
+        ]);
+        if (data) setPatients(data);
+        if (remoteStats) setStats(remoteStats);
+      } catch (e: any) {
+        console.warn('Failed to load patients from backend, showing local data');
+        console.error('Failed to load patients:', e.message || e);
+        setPatients(localPatients);
+        setStats(patientStats);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  const filtered = patients.filter(p => 
+    p.name.toLowerCase().includes(search.toLowerCase()) || 
+    (p.pid && p.pid.toLowerCase().includes(search.toLowerCase())) ||
+    (p.mobile && p.mobile.includes(search))
+  );
+
+  if (loading) {
+    return (
+      <View style={[styles.screen, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.screen}>
-      <ScreenHeader
-        title="Patients"
-        subtitle="Manage all patient records"
-        left={<Menu size={22} color="#FFFFFF" />}
-        onLeftPress={() => router.push('/menu' as any)}
-        right={<SlidersHorizontal size={19} color="#FFFFFF" />}
-        actions={
-          <>
-            <View style={styles.headerSearch}>
-              <Search size={15} color="rgba(255,255,255,0.9)" />
-              <TextInput
-                value={q}
-                onChangeText={setQ}
-                placeholder="Search name, mobile or patient ID"
-                placeholderTextColor="rgba(255,255,255,0.75)"
-                style={styles.headerInput}
-              />
-            </View>
-            <Pressable style={styles.addBtn} onPress={() => router.push('/add-patient' as any)}>
-              <Plus size={14} color={colors.primary} strokeWidth={3} />
-              <Text style={styles.addBtnText}>Add</Text>
-            </Pressable>
-          </>
+      <ScreenHeader 
+        title="Patients" 
+        subtitle="Manage your patient records"
+        right={
+          <Pressable style={styles.addBtn} onPress={() => router.push('/add-patient')}>
+            <UserPlus size={18} color="#FFFFFF" />
+          </Pressable>
         }
       />
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <FadeIn>
           <GridPanel columns={2}>
-            {patientStats.map((s, i) => {
-              const Icon = statIcons[i];
-              return (
-                <StatCard
-                  key={s.label}
-                  compact
-                  label={s.label}
-                  value={s.value}
-                  tone={s.tone}
-                  icon={<Icon size={15} color={colors[s.tone === 'primary' ? 'primary' : s.tone]} />}
-                />
-              );
-            })}
+              {(stats.length > 0 ? stats : patientStats).map(s => {
+                const Icon = statIcons[s.label] || Users;
+                return (
+                  <StatCard 
+                    key={s.label} 
+                    label={s.label} 
+                    value={s.value} 
+                    tone={s.tone} 
+                    compact 
+                    icon={<Icon size={14} color={colors[s.tone === 'primary' ? 'primary' : s.tone as keyof typeof colors] || colors.primary} />}
+                  />
+                );
+              })}
           </GridPanel>
         </FadeIn>
 
-        <SectionTitle title={`All Patients (${list.length})`} />
+        <SectionTitle title="Patient List" />
         <FadeIn delay={60}>
-          <Card style={{ padding: 0 }}>
-            {list.map((p, i) => (
-              <ListRow key={p.id} last={i === list.length - 1}>
-                <View style={styles.row}>
-                  <Avatar name={p.name} color={p.color} size={32} />
-                  <View style={styles.col}>
-                    <Text style={styles.name} numberOfLines={1}>{p.name}</Text>
-                    <Text style={styles.meta} numberOfLines={1}>{p.pid} · {p.age} Yrs · {p.gender} · {p.blood}</Text>
-                  </View>
-                  <View style={styles.right}>
-                    <View style={styles.phoneRow}>
-                      <Phone size={11} color={colors.primary} />
-                      <Text style={styles.phone}>{p.mobile}</Text>
-                    </View>
-                    <Text style={styles.test} numberOfLines={1}>{p.lastTest} · {p.lastTestDate}</Text>
-                  </View>
-                  <ChevronRight size={14} color={colors.mutedForeground} />
-                </View>
-              </ListRow>
-            ))}
-            {list.length === 0 && <Text style={styles.empty}>No patients match your search.</Text>}
-          </Card>
+          <View style={styles.searchBar}>
+            <View style={styles.searchInputWrap}>
+              <Search size={18} color={colors.mutedForeground} />
+              <TextInput 
+                style={styles.searchInput}
+                placeholder="Search name, ID or mobile..."
+                placeholderTextColor={colors.mutedForeground}
+                value={search}
+                onChangeText={setSearch}
+              />
+            </View>
+            <Pressable style={styles.filterBtn}>
+              <SlidersHorizontal size={18} color={colors.foreground} />
+            </Pressable>
+          </View>
         </FadeIn>
 
-        <SectionTitle title="Tools" />
         <FadeIn delay={120}>
-          <GridPanel columns={4}>
-            {tools.map((t) => (
-              <Pressable key={t.label} style={({ pressed }) => [styles.tool, pressed && styles.toolPressed]}>
-                <t.Icon size={17} color={colors.primary} />
-                <Text style={styles.toolText} numberOfLines={1}>{t.label}</Text>
-              </Pressable>
-            ))}
-          </GridPanel>
+          <Card style={{ padding: 0 }}>
+            {filtered.length === 0 ? (
+              <View style={styles.empty}>
+                <Text style={styles.emptyText}>{search ? 'No patients found matching search' : 'No patients found'}</Text>
+              </View>
+            ) : (
+              filtered.map((p, i) => (
+                <ListRow key={p.id || p._id} last={i === filtered.length - 1} onPress={() => {}}>
+                  <View style={styles.patientRow}>
+                    <Avatar name={p.name} color={p.color} size={40} />
+                    <View style={styles.patientInfo}>
+                      <Text style={styles.patientName}>{p.name}</Text>
+                      <Text style={styles.patientMeta}>{p.pid} · {p.age}y · {p.gender}</Text>
+                      <View style={styles.patientContact}>
+                        <View style={styles.contactItem}>
+                          <Phone size={10} color={colors.mutedForeground} />
+                          <Text style={styles.contactText}>{p.mobile}</Text>
+                        </View>
+                        {p.lastTestDate && (
+                          <View style={styles.contactItem}>
+                            <Calendar size={10} color={colors.mutedForeground} />
+                            <Text style={styles.contactText}>{p.lastTestDate}</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                    <ChevronRight size={16} color={colors.mutedForeground} />
+                  </View>
+                </ListRow>
+              ))
+            )}
+          </Card>
         </FadeIn>
       </ScrollView>
     </View>
@@ -112,21 +150,19 @@ export default function Patients() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSearch: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: radius.sm, paddingHorizontal: 10, height: 32 },
-  headerInput: { flex: 1, color: '#FFFFFF', fontFamily: fonts.regular, fontSize: 12, padding: 0 },
-  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFFFFF', paddingHorizontal: 10, height: 32, borderRadius: radius.sm },
-  addBtnText: { color: colors.primary, fontFamily: fonts.semibold, fontSize: 12 },
   body: { paddingHorizontal: spacing.hPad, paddingTop: 4, paddingBottom: 28 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  col: { flex: 1, minWidth: 0 },
-  right: { alignItems: 'flex-end', gap: 1, maxWidth: '42%' },
-  name: { color: colors.foreground, fontFamily: fonts.semibold, fontSize: 12.5 },
-  meta: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 9.5, marginTop: 1 },
-  phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  phone: { color: colors.foreground, fontFamily: fonts.medium, fontSize: 10 },
-  test: { color: colors.primary, fontFamily: fonts.medium, fontSize: 10 },
-  empty: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 12, textAlign: 'center', paddingVertical: 24 },
-  tool: { alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 14, backgroundColor: colors.card },
-  toolPressed: { backgroundColor: colors.muted },
-  toolText: { color: colors.foreground, fontFamily: fonts.medium, fontSize: 10 },
+  addBtn: { width: 36, height: 36, borderRadius: radius.xs, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  searchBar: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  searchInputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', height: 44, backgroundColor: colors.card, borderRadius: radius.sm, paddingHorizontal: 12, borderWidth: 1, borderColor: colors.border },
+  searchInput: { flex: 1, height: '100%', marginLeft: 8, fontFamily: fonts.medium, fontSize: 13, color: colors.foreground },
+  filterBtn: { width: 44, height: 44, backgroundColor: colors.card, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+  patientRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  patientInfo: { flex: 1 },
+  patientName: { fontSize: 14, fontFamily: fonts.bold, color: colors.foreground },
+  patientMeta: { fontSize: 11, fontFamily: fonts.medium, color: colors.mutedForeground, marginTop: 1 },
+  patientContact: { flexDirection: 'row', gap: 12, marginTop: 4 },
+  contactItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  contactText: { fontSize: 10, fontFamily: fonts.regular, color: colors.mutedForeground },
+  empty: { padding: 40, alignItems: 'center' },
+  emptyText: { fontFamily: fonts.medium, color: colors.mutedForeground, fontSize: 14 },
 });
