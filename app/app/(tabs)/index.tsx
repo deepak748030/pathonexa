@@ -28,7 +28,6 @@ const quickActions = [
   { label: 'Report', Icon: FlaskConical, href: '/create-report' },
   { label: 'Payment', Icon: CreditCard, href: '/(tabs)/reports' },
   { label: 'Doctor', Icon: Stethoscope, href: '/manage/doctors' },
-  { label: 'More', Icon: LayoutGrid, href: '/(tabs)/more' },
 ];
 
 export default function Dashboard() {
