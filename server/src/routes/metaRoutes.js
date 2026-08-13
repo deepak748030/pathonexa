@@ -30,5 +30,6 @@ keys.forEach((key) => {
 
 router.get('/deleted', (req, res) => res.json(store.meta.deleted()));
 router.get('/lab', (req, res) => res.json(store.meta.lab()));
+router.patch('/lab', (req, res) => res.json(store.meta.updateLab(req.body)));
 
 module.exports = router;

@@ -7,7 +7,6 @@ import StatCard from '@/components/StatCard';
 import Avatar from '@/components/Avatar';
 import { Card, SectionTitle, GridPanel, FadeIn, ListRow, Chip, OfflineBanner, EmptyState } from '@/components/UI';
 import { colors, fonts, radius, spacing } from '@/lib/theme';
-import { reportStats, reports as localReports } from '@/lib/labData';
 import { endpoints } from '@/lib/api';
 import { useServerStatus } from '@/lib/serverStatus';
 
@@ -108,7 +107,7 @@ export default function Reports() {
 
         <FadeIn>
           <GridPanel columns={2}>
-            {reportStats.map((s) => (
+            {stats.map((s) => (
               <StatCard key={s.label} label={s.label} value={s.value} tone={s.tone} compact />
             ))}
           </GridPanel>

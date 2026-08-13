@@ -9,6 +9,7 @@
  * All route handlers talk to this module; they never touch models directly.
  */
 const crypto = require('crypto');
+const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const db = require('../config/db');
 const Patient = require('../models/Patient');
@@ -34,6 +35,11 @@ const mem = {
   deleted: [],
   seeded: false,
 };
+
+function byIdOrPid(id) {
+  if (mongoose.isValidObjectId(id)) return { $or: [{ _id: id }, { pid: id }, { reportId: id }] };
+  return { $or: [{ pid: id }, { reportId: id }] };
+}
 
 const makeId = () => crypto.randomBytes(12).toString('hex');
 const pad = (n, w = 3) => String(n).padStart(w, '0');
@@ -164,7 +170,54 @@ const patients = {
       }
       return p;
     }
-    const p = await Patient.findOne({ $or: [{ _id: id }, { pid: id }] }).lean();
+    const p = await Patient.findOne(byIdOrPid(id)).lean();
+    if (!p) {
+      const err = new Error('Patient not found');
+      err.status = 404;
+      throw err;
+    }
+    return p;
+  },
+
+  async update(id, patch) {
+    ensureSeeded();
+    const allowed = {};
+    ['name', 'age', 'gender', 'blood', 'mobile', 'address', 'lastTest', 'lastTestDate'].forEach((k) => {
+      if (patch[k] !== undefined) allowed[k] = patch[k];
+    });
+    if (useMemory()) {
+      const p = mem.patients.find((x) => x._id === id || x.pid === id);
+      if (!p) {
+        const err = new Error('Patient not found');
+        err.status = 404;
+        throw err;
+      }
+      Object.assign(p, allowed, { updatedAt: new Date() });
+      return p;
+    }
+    const p = await Patient.findOneAndUpdate(byIdOrPid(id), { $set: allowed }, { new: true }).lean();
+    if (!p) {
+      const err = new Error('Patient not found');
+      err.status = 404;
+      throw err;
+    }
+    return p;
+  },
+
+  async remove(id) {
+    ensureSeeded();
+    if (useMemory()) {
+      const i = mem.patients.findIndex((x) => x._id === id || x.pid === id);
+      if (i < 0) {
+        const err = new Error('Patient not found');
+        err.status = 404;
+        throw err;
+      }
+      const [removed] = mem.patients.splice(i, 1);
+      mem.deleted.unshift({ ...removed, kind: 'patients', deletedAt: new Date() });
+      return removed;
+    }
+    const p = await Patient.findOneAndDelete(byIdOrPid(id)).lean();
     if (!p) {
       const err = new Error('Patient not found');
       err.status = 404;
@@ -269,7 +322,7 @@ const reports = {
       }
       return r;
     }
-    const r = await Report.findOne({ $or: [{ _id: id }, { reportId: id }] }).populate('patient').lean();
+    const r = await Report.findOne(byIdOrPid(id)).populate('patient').lean();
     if (!r) {
       const err = new Error('Report not found');
       err.status = 404;
@@ -300,10 +353,14 @@ const reports = {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
+      p.lastTest = data.test;
+      p.lastTestDate = data.date || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
       mem.reports.unshift(doc);
       return doc;
     }
     const doc = await Report.create({ ...data, patient });
+    const dateStr = data.date || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    await Patient.findOneAndUpdate(byIdOrPid(String(patient)), { $set: { lastTest: data.test, lastTestDate: dateStr } });
     return Report.populate(doc, { path: 'patient' });
   },
 
@@ -324,7 +381,7 @@ const reports = {
       return r;
     }
     const r = await Report.findOneAndUpdate(
-      { $or: [{ _id: id }, { reportId: id }] },
+      byIdOrPid(id),
       { $set: allowed },
       { new: true }
     ).populate('patient').lean();
@@ -487,7 +544,7 @@ const meta = {
     ensureSeeded();
     return [...mem.deleted];
   },
-  lab: () => ({
+  _lab: {
     name: 'PathoNexa Diagnostics Pvt. Ltd.',
     city: 'Lucknow, Uttar Pradesh',
     labId: 'LAB123456',
@@ -495,7 +552,14 @@ const meta = {
     email: 'care@pathonexa.in',
     address: '12, Vikas Nagar, Hazratganj, Lucknow, UP - 226001',
     pathologist: 'Dr. Rakesh Kumar, MD (Pathology)',
-  }),
+  },
+  lab() {
+    return { ...this._lab };
+  },
+  updateLab(data) {
+    Object.assign(this._lab, data || {});
+    return { ...this._lab };
+  },
 };
 
 module.exports = { auth, patients, reports, dashboard, meta, useMemory };

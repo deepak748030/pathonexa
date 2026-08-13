@@ -66,7 +66,7 @@ export default function Patients() {
     React.useCallback(() => {
       check();
       loadData(true);
-    }, [check, loadData, patients.length])
+    }, [check, loadData])
   );
 
   const onRefresh = React.useCallback(async () => {

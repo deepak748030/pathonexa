@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import { ChevronLeft, Phone, FlaskConical } from 'lucide-react-native';
+import { ChevronLeft, Phone, FlaskConical, Pencil, Trash2 } from 'lucide-react-native';
 import ScreenHeader from '@/components/ScreenHeader';
 import Avatar from '@/components/Avatar';
+import Field from '@/components/Field';
 import { Card, FadeIn, ListRow, EmptyState, OfflineBanner } from '@/components/UI';
 import { colors, fonts, radius, spacing } from '@/lib/theme';
 import { endpoints } from '@/lib/api';
@@ -14,12 +15,22 @@ export default function PatientDetail() {
   const [reports, setReports] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [refreshing, setRefreshing] = React.useState(false);
+  const [editing, setEditing] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+  const [form, setForm] = React.useState({ name: '', age: '', mobile: '', blood: '', address: '' });
 
   const load = React.useCallback(async () => {
     if (!id) return;
     try {
       const [p, all] = await Promise.all([endpoints.patients.getById(id), endpoints.reports.getAll()]);
       setPatient(p);
+      setForm({
+        name: p?.name || '',
+        age: String(p?.age ?? ''),
+        mobile: p?.mobile || '',
+        blood: p?.blood || '',
+        address: p?.address || '',
+      });
       const list = Array.isArray(all) ? all : [];
       setReports(list.filter((r) => {
         const pid = r.patient?._id || r.patient?.id || r.patient;
@@ -33,6 +44,44 @@ export default function PatientDetail() {
   }, [id]);
 
   useFocusEffect(React.useCallback(() => { load(); }, [load]));
+
+  const save = async () => {
+    if (!id) return;
+    setSaving(true);
+    try {
+      const updated = await endpoints.patients.update(id, {
+        name: form.name,
+        age: Number(form.age),
+        mobile: form.mobile,
+        blood: form.blood,
+        address: form.address,
+      });
+      setPatient(updated);
+      setEditing(false);
+    } catch (e: any) {
+      Alert.alert('Could not save', e?.message || 'Server error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = () => {
+    Alert.alert('Delete patient', 'This removes the patient from your lab list.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await endpoints.patients.remove(String(id));
+            router.back();
+          } catch (e: any) {
+            Alert.alert('Could not delete', e?.message || 'Server error');
+          }
+        },
+      },
+    ]);
+  };
 
   if (loading) {
     return (
@@ -58,9 +107,20 @@ export default function PatientDetail() {
         subtitle={patient.pid}
         left={<ChevronLeft size={24} color="#fff" />}
         onLeftPress={() => router.back()}
+        right={
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Pressable style={styles.headBtn} onPress={() => setEditing((v) => !v)}>
+              <Pencil size={16} color="#fff" />
+            </Pressable>
+            <Pressable style={styles.headBtn} onPress={remove}>
+              <Trash2 size={16} color="#fff" />
+            </Pressable>
+          </View>
+        }
       />
       <ScrollView
         contentContainerStyle={styles.body}
+        keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.primary} />}
       >
         <OfflineBanner />
@@ -77,6 +137,19 @@ export default function PatientDetail() {
             </View>
           </Card>
         </FadeIn>
+
+        {editing && (
+          <Card style={{ marginTop: 10 }}>
+            <Field label="Name" value={form.name} onChangeText={(t) => setForm((f) => ({ ...f, name: t }))} />
+            <Field label="Age" value={form.age} keyboardType="number-pad" onChangeText={(t) => setForm((f) => ({ ...f, age: t }))} />
+            <Field label="Mobile" value={form.mobile} keyboardType="number-pad" onChangeText={(t) => setForm((f) => ({ ...f, mobile: t }))} />
+            <Field label="Blood" value={form.blood} onChangeText={(t) => setForm((f) => ({ ...f, blood: t }))} />
+            <Field label="Address" value={form.address} onChangeText={(t) => setForm((f) => ({ ...f, address: t }))} multiline />
+            <Pressable style={styles.cta} onPress={save} disabled={saving}>
+              {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>Save changes</Text>}
+            </Pressable>
+          </Card>
+        )}
 
         <Pressable
           style={styles.cta}
@@ -113,6 +186,7 @@ export default function PatientDetail() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   body: { paddingHorizontal: spacing.hPad, paddingTop: 10, paddingBottom: 32 },
+  headBtn: { width: 34, height: 34, borderRadius: radius.xs, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
   hero: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   name: { fontFamily: fonts.bold, fontSize: 16, color: colors.foreground },
   meta: { fontFamily: fonts.medium, fontSize: 12, color: colors.mutedForeground, marginTop: 2 },

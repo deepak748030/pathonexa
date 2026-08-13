@@ -94,7 +94,9 @@ export default function Dashboard() {
         onLeftPress={() => router.push('/menu' as any)}
         right={
           <>
+            <Pressable onPress={() => router.push('/notifications' as any)} hitSlop={8}>
             <Bell size={20} color="#FFFFFF" />
+          </Pressable>
             <Image source={require('../../assets/images/icon.png')} style={styles.logo} />
           </>
         }
@@ -157,8 +159,8 @@ export default function Dashboard() {
             <View style={styles.chartWrap}>
               <LineChart
                 data={{
-                  labels: chartData?.labels || localChart.labels,
-                  datasets: [{ data: chartData?.values || localChart.values }],
+                  labels: chartData?.labels || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                  datasets: [{ data: chartData?.values?.length ? chartData.values : [0, 0, 0, 0, 0, 0, 0] }],
                 }}
                 width={width - spacing.hPad * 2 - 2}
                 height={170}

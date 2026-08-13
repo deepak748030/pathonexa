@@ -114,6 +114,8 @@ export const endpoints = {
     getStats: () => apiFetch('/patients/stats'),
     getById: (id: string) => apiFetch(`/patients/${id}`),
     create: (data: any) => apiFetch('/patients', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: any) => apiFetch(`/patients/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    remove: (id: string) => apiFetch(`/patients/${id}`, { method: 'DELETE' }),
   },
   reports: {
     getAll: () => apiFetch('/reports'),
@@ -129,6 +131,7 @@ export const endpoints = {
     tests: () => apiFetch('/tests'),
     doctors: () => apiFetch('/doctors'),
     lab: () => apiFetch('/lab'),
+    updateLab: (data: any) => apiFetch('/lab', { method: 'PATCH', body: JSON.stringify(data) }),
     deleted: () => apiFetch('/deleted'),
   },
 };

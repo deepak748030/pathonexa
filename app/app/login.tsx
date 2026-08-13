@@ -141,7 +141,7 @@ export default function Login() {
                   <View style={styles.line} />
                 </View>
 
-                <Pressable style={styles.socialBtn}>
+                <Pressable style={styles.socialBtn} onPress={() => alert('Google sign-in is coming soon. Use your 10-digit mobile + OTP 123456.')}>
                   <Ionicons name="logo-google" size={18} color="#4285F4" />
                   <Text style={styles.socialText}>Continue with Google</Text>
                 </Pressable>

@@ -40,4 +40,20 @@ router.post('/', async (req, res, next) => {
   }
 });
 
+router.patch('/:id', async (req, res, next) => {
+  try {
+    res.json(await store.patients.update(req.params.id, req.body));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/:id', async (req, res, next) => {
+  try {
+    res.json(await store.patients.remove(req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

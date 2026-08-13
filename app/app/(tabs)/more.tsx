@@ -64,7 +64,15 @@ export default function More() {
 
   return (
     <View style={styles.screen}>
-      <ScreenHeader title="More" subtitle="Manage your lab, settings and more" right={<Bell size={20} color="#FFFFFF" />} />
+      <ScreenHeader
+        title="More"
+        subtitle="Manage your lab, settings and more"
+        right={
+          <Pressable onPress={() => router.push('/notifications' as any)} hitSlop={8}>
+            <Bell size={20} color="#FFFFFF" />
+          </Pressable>
+        }
+      />
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <FadeIn>
