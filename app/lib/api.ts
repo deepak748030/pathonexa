@@ -1,40 +1,106 @@
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://pathonexa-server.vercel.app/api';
+export const TOKEN_KEY = 'pathonexa.token';
 
-export async function apiFetch(endpoint: string, options: RequestInit = {}) {
-  const token = await AsyncStorage.getItem('pathonexa.token');
-  
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-    ...options.headers,
-  };
+/**
+ * Resolves the backend base URL for wherever the app is running:
+ *  1. EXPO_PUBLIC_API_URL  → explicit override (see app/.env.example)
+ *  2. Metro host URI       → physical device on the same Wi-Fi (Expo Go)
+ *  3. Platform defaults    → Android emulator uses 10.0.2.2, everything
+ *                            else (web / iOS simulator) uses localhost.
+ */
+function resolveBaseUrl(): string {
+  const fromEnv = process.env.EXPO_PUBLIC_API_URL;
+  if (fromEnv) return fromEnv.replace(/\/+$/, '');
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
-
-  if (!response.ok) {
-    let errorMessage = 'Something went wrong';
-    try {
-      const error = await response.json();
-      errorMessage = error.message || errorMessage;
-    } catch (e) {
-      // If it's not JSON, try text
-      try {
-        const text = await response.text();
-        errorMessage = text || errorMessage;
-      } catch (t) {}
+  // Web running on a remote host (cloud preview / deployment): assume the API
+  // is served on the same host with port 5000 (previews proxy every port).
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.hostname) {
+    const h = window.location.hostname;
+    if (h && !['localhost', '127.0.0.1'].includes(h)) {
+      const portMatch = h.match(/^(\d+)-/);
+      if (portMatch) {
+        // e.g. https://8080-sandbox.e2b.app → https://5000-sandbox.e2b.app/api
+        return `${window.location.protocol}//${h.replace(/^\d+-/, '5000-')}/api`;
+      }
+      return `${window.location.protocol}//${h}:5000/api`;
     }
-    throw new Error(errorMessage);
   }
 
-  return response.json();
+  const hostUri: string | undefined =
+    Constants.expoConfig?.hostUri || (Constants as any).expoGoConfig?.debuggerHost;
+  const host = hostUri ? hostUri.split(':')[0] : undefined;
+  if (host && !['localhost', '127.0.0.1'].includes(host)) {
+    // Phone on LAN → the PC running Metro also runs the API.
+    return `http://${host}:5000/api`;
+  }
+  if (Platform.OS === 'android') return 'http://10.0.2.2:5000/api';
+  return 'http://localhost:5000/api';
+}
+
+export const API_URL = resolveBaseUrl();
+export const REQUEST_TIMEOUT_MS = 12000;
+
+/**
+ * Central fetch wrapper: attaches the JWT, enforces a timeout and throws
+ * readable errors so every screen gets consistent behaviour.
+ */
+export async function apiFetch(endpoint: string, options: RequestInit = {}) {
+  const token = await AsyncStorage.getItem(TOKEN_KEY);
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...((options.headers as Record<string, string>) || {}),
+  };
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      let message = `Request failed (${response.status})`;
+      try {
+        const body = await response.json();
+        message = body.message || message;
+      } catch {
+        try {
+          const text = await response.text();
+          if (text) message = text;
+        } catch {
+          /* ignore */
+        }
+      }
+      throw new Error(message);
+    }
+
+    const text = await response.text();
+    return text ? JSON.parse(text) : null;
+  } catch (e: any) {
+    if (e?.name === 'AbortError') {
+      throw new Error(`Server request timed out (${API_URL}). Check that the backend is running.`);
+    }
+    if (/Network request failed|Failed to fetch|Load failed/i.test(e?.message || '')) {
+      throw new Error(
+        `Cannot reach the PathoNexa server at ${API_URL}. Start it with "npm run dev" inside the server/ folder.`
+      );
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export const endpoints = {
+  health: () => apiFetch('/health'),
   auth: {
     login: (mobile: string) => apiFetch('/auth/login', { method: 'POST', body: JSON.stringify({ mobile }) }),
     verify: (mobile: string, otp: string) => apiFetch('/auth/verify', { method: 'POST', body: JSON.stringify({ mobile, otp }) }),
@@ -46,10 +112,16 @@ export const endpoints = {
   patients: {
     getAll: () => apiFetch('/patients'),
     getStats: () => apiFetch('/patients/stats'),
+    getById: (id: string) => apiFetch(`/patients/${id}`),
     create: (data: any) => apiFetch('/patients', { method: 'POST', body: JSON.stringify(data) }),
   },
   reports: {
     getAll: () => apiFetch('/reports'),
+    getById: (id: string) => apiFetch(`/reports/${id}`),
     create: (data: any) => apiFetch('/reports', { method: 'POST', body: JSON.stringify(data) }),
+  },
+  meta: {
+    tests: () => apiFetch('/tests'),
+    doctors: () => apiFetch('/doctors'),
   },
 };

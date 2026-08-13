@@ -4,7 +4,8 @@ import {
   Platform, Image, ActivityIndicator, Keyboard, ScrollView,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Phone, ArrowRight, ShieldCheck, RefreshCw, ChevronLeft } from 'lucide-react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { Phone, ShieldCheck, ChevronLeft, WifiOff } from 'lucide-react-native';
 import { useAuth, DEMO_OTP } from '@/lib/auth';
 import { colors, fonts, radius, spacing } from '@/lib/theme';
 import { FadeIn } from '@/components/UI';
@@ -14,15 +15,27 @@ export default function Login() {
   const [otp, setOtp] = React.useState('');
   const [step, setStep] = React.useState<'mobile' | 'otp'>('mobile');
   const [loading, setLoading] = React.useState(false);
-  const { login, verifyOtp } = useAuth();
+  const [timer, setTimer] = React.useState(30);
+  const { login, verifyOtp, offline } = useAuth();
+
+  React.useEffect(() => {
+    if (step !== 'otp' || timer === 0) return;
+    const t = setTimeout(() => setTimer((s) => Math.max(0, s - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [step, timer]);
 
   const handleMobileSubmit = async () => {
     if (mobile.length !== 10) return;
     setLoading(true);
     try {
       await login(mobile);
-      setStep('otp');
+    } catch (e: any) {
+      // Server unreachable → continue in offline demo mode (clearly flagged).
+      console.warn('Offline login:', e?.message || e);
     } finally {
+      setTimer(30);
+      setOtp('');
+      setStep('otp');
       setLoading(false);
     }
   };
@@ -34,57 +47,69 @@ export default function Login() {
       await verifyOtp(mobile, otp);
       router.replace('/(tabs)');
     } catch (e: any) {
-      alert(e.message || 'Verification failed');
+      alert(e?.message || 'Verification failed');
     } finally {
       setLoading(false);
     }
   };
 
-  const renderOTPInputs = () => {
-    return (
-      <View style={styles.otpContainer}>
-        {[0, 1, 2, 3, 4, 5].map((index) => (
-          <View key={index} style={[styles.otpBox, otp.length === index && styles.otpBoxActive]}>
-            <Text style={styles.otpText}>{otp[index] || ''}</Text>
-          </View>
-        ))}
-        <TextInput
-          style={styles.hiddenInput}
-          keyboardType="number-pad"
-          maxLength={6}
-          value={otp}
-          onChangeText={setOtp}
-          autoFocus
-        />
-      </View>
-    );
+  const handleResend = async () => {
+    setLoading(true);
+    try {
+      await login(mobile);
+      setTimer(30);
+      setOtp('');
+    } catch (e: any) {
+      alert(e?.message || 'Could not resend OTP');
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const renderOTPInputs = () => (
+    <View style={styles.otpContainer}>
+      {[0, 1, 2, 3, 4, 5].map((index) => (
+        <View key={index} style={[styles.otpBox, otp.length === index && styles.otpBoxActive]}>
+          <Text style={styles.otpText}>{otp[index] || ''}</Text>
+        </View>
+      ))}
+      <TextInput
+        style={styles.hiddenInput}
+        keyboardType="number-pad"
+        maxLength={6}
+        value={otp}
+        onChangeText={setOtp}
+        autoFocus
+      />
+    </View>
+  );
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.screen}
-    >
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.screen}>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} bounces={false} keyboardShouldPersistTaps="handled">
         <Pressable style={styles.content} onPress={Keyboard.dismiss}>
           {step === 'otp' && (
             <Pressable style={styles.backBtn} onPress={() => setStep('mobile')}>
-              <ChevronLeft size={24} color="#000" />
+              <ChevronLeft size={24} color="#0F172A" />
             </Pressable>
           )}
 
           <View style={styles.header}>
-            <Image 
-              source={{ uri: 'https://img.freepik.com/free-vector/doctor-character-background_1270-84.jpg' }} 
-              style={styles.heroImage} 
-            />
-
-            
-            <Text style={styles.mainHeadline}>India's fastest app</Text>
-            <Text style={styles.subHeadline}>Log in or sign up</Text>
+            <Image source={require('../assets/login-illustration.png')} style={styles.heroImage} resizeMode="cover" />
+            <Text style={styles.mainHeadline}>India's fastest lab app</Text>
+            <Text style={styles.subHeadline}>Log in or sign up to manage your lab</Text>
           </View>
 
           <View style={styles.formContainer}>
+            {offline && step === 'mobile' && (
+              <View style={styles.offlineBox}>
+                <WifiOff size={13} color="#92400E" />
+                <Text style={styles.offlineText}>
+                  Server unreachable — you can still enter with demo OTP {DEMO_OTP}.
+                </Text>
+              </View>
+            )}
+
             {step === 'mobile' ? (
               <>
                 <View style={styles.inputOuter}>
@@ -117,7 +142,7 @@ export default function Login() {
                 </View>
 
                 <Pressable style={styles.socialBtn}>
-                  <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/2991/2991148.png' }} style={styles.socialIcon} />
+                  <Ionicons name="logo-google" size={18} color="#4285F4" />
                   <Text style={styles.socialText}>Continue with Google</Text>
                 </Pressable>
               </>
@@ -129,7 +154,20 @@ export default function Login() {
 
                 {renderOTPInputs()}
 
-                <Text style={styles.resendTimer}>Resend OTP in 27s</Text>
+                {timer > 0 ? (
+                  <Text style={styles.resendTimer}>Resend OTP in {timer}s</Text>
+                ) : (
+                  <Pressable onPress={handleResend} hitSlop={8} disabled={loading}>
+                    <Text style={styles.resendLink}>Resend OTP</Text>
+                  </Pressable>
+                )}
+
+                {offline && (
+                  <View style={styles.offlineBox}>
+                    <WifiOff size={13} color="#92400E" />
+                    <Text style={styles.offlineText}>Offline mode — demo OTP is {DEMO_OTP}.</Text>
+                  </View>
+                )}
 
                 <Pressable
                   style={[styles.continueBtn, (otp.length !== 6 || loading) && styles.btnDisabled]}
@@ -138,12 +176,17 @@ export default function Login() {
                 >
                   {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.continueText}>Verify & Login</Text>}
                 </Pressable>
+
+                <View style={styles.trustRow}>
+                  <ShieldCheck size={13} color={colors.green} />
+                  <Text style={styles.trustText}>Your data is secure with PathoNexa Cloud</Text>
+                </View>
               </FadeIn>
             )}
           </View>
 
           <View style={styles.footerInfo}>
-             <Text style={styles.version}>v1.0.0 · PathoNexa Cloud</Text>
+            <Text style={styles.version}>v1.0.0 · PathoNexa Cloud</Text>
           </View>
         </Pressable>
       </ScrollView>
@@ -153,46 +196,49 @@ export default function Login() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#FFFFFF' },
-  content: { flex: 1, paddingHorizontal: 0, paddingVertical: 15 },
+  content: { flex: 1, paddingHorizontal: spacing.hPad, paddingVertical: 15 },
   backBtn: { position: 'absolute', top: 40, left: 10, zIndex: 10, padding: 10 },
-  header: { alignItems: 'center', marginTop: 30, marginBottom: 25 },
-  heroImage: { width: '100%', height: 200, borderRadius: 0, marginBottom: 20, resizeMode: 'cover' },
-  mainHeadline: { fontSize: 26, fontFamily: fonts.extrabold, color: '#000', textAlign: 'center' },
-  subHeadline: { fontSize: 14, fontFamily: fonts.medium, color: '#64748B', marginTop: 4, textAlign: 'center' },
-  formContainer: { paddingHorizontal: 5 },
+  header: { alignItems: 'center', marginTop: 10, marginBottom: 25 },
+  heroImage: { width: '100%', height: 190, marginBottom: 20 },
+  mainHeadline: { fontSize: 26, fontFamily: fonts.extrabold, color: colors.foreground, textAlign: 'center' },
+  subHeadline: { fontSize: 14, fontFamily: fonts.medium, color: colors.mutedForeground, marginTop: 4, textAlign: 'center' },
+  formContainer: { paddingHorizontal: spacing.hPad },
   inputOuter: {
     flexDirection: 'row', alignItems: 'center', height: 48,
-    borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
+    borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm,
     paddingHorizontal: 15, marginBottom: 15, backgroundColor: '#FFF',
   },
-  countryCode: { borderRightWidth: 1, borderColor: '#E2E8F0', paddingRight: 12, marginRight: 12 },
-  countryText: { fontFamily: fonts.semibold, color: '#000', fontSize: 15 },
-  phoneInput: { flex: 1, height: '100%', fontFamily: fonts.medium, fontSize: 15, color: '#000' },
+  countryCode: { borderRightWidth: 1, borderColor: colors.border, paddingRight: 12, marginRight: 12 },
+  countryText: { fontFamily: fonts.semibold, color: colors.foreground, fontSize: 15 },
+  phoneInput: { flex: 1, height: '100%', fontFamily: fonts.medium, fontSize: 15, color: colors.foreground },
   continueBtn: {
     height: 48, backgroundColor: colors.primary,
-    borderRadius: 12, alignItems: 'center', justifyContent: 'center',
-    shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4,
+    borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center',
   },
   continueText: { color: '#FFFFFF', fontFamily: fonts.bold, fontSize: 15 },
   btnDisabled: { opacity: 0.6 },
   divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
-  line: { flex: 1, height: 1, backgroundColor: '#E2E8F0' },
-  orText: { marginHorizontal: 15, color: '#94A3B8', fontSize: 11, fontFamily: fonts.bold },
+  line: { flex: 1, height: 1, backgroundColor: colors.border },
+  orText: { marginHorizontal: 15, color: colors.placeholder, fontSize: 11, fontFamily: fonts.bold },
   socialBtn: {
-    flexDirection: 'row', height: 48, borderWidth: 1, borderColor: '#E2E8F0',
-    borderRadius: 12, alignItems: 'center', justifyContent: 'center', gap: 10,
+    flexDirection: 'row', height: 48, borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', gap: 10,
   },
-  socialIcon: { width: 18, height: 18 },
   socialText: { color: '#475569', fontFamily: fonts.semibold, fontSize: 14 },
   otpTitle: { fontSize: 20, fontFamily: fonts.bold, textAlign: 'center', marginBottom: 5 },
-  otpSub: { fontSize: 13, fontFamily: fonts.regular, color: '#64748B', textAlign: 'center' },
-  otpTarget: { fontSize: 13, fontFamily: fonts.bold, color: '#000', textAlign: 'center', marginBottom: 25 },
+  otpSub: { fontSize: 13, fontFamily: fonts.regular, color: colors.mutedForeground, textAlign: 'center' },
+  otpTarget: { fontSize: 13, fontFamily: fonts.bold, color: colors.foreground, textAlign: 'center', marginBottom: 25 },
   otpContainer: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 20 },
-  otpBox: { width: 45, height: 48, borderBottomWidth: 2, borderColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+  otpBox: { width: 45, height: 48, borderBottomWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   otpBoxActive: { borderColor: colors.primary },
-  otpText: { fontSize: 20, fontFamily: fonts.bold, color: '#000' },
+  otpText: { fontSize: 20, fontFamily: fonts.bold, color: colors.foreground },
   hiddenInput: { position: 'absolute', opacity: 0, width: '100%', height: '100%' },
-  resendTimer: { textAlign: 'center', color: '#94A3B8', fontSize: 12, marginBottom: 25, fontFamily: fonts.medium },
+  resendTimer: { textAlign: 'center', color: colors.placeholder, fontSize: 12, marginBottom: 20, fontFamily: fonts.medium },
+  resendLink: { textAlign: 'center', color: colors.primary, fontSize: 12, marginBottom: 20, fontFamily: fonts.semibold },
+  offlineBox: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 14 },
+  offlineText: { flex: 1, color: '#92400E', fontFamily: fonts.medium, fontSize: 10.5 },
+  trustRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 18 },
+  trustText: { color: colors.mutedForeground, fontFamily: fonts.medium, fontSize: 11 },
   footerInfo: { marginTop: 'auto', paddingVertical: 30, alignItems: 'center' },
-  version: { color: '#CBD5E1', fontSize: 11, marginTop: 4, fontFamily: fonts.regular },
+  version: { color: colors.border, fontSize: 11, marginTop: 4, fontFamily: fonts.regular },
 });

@@ -40,7 +40,7 @@ export default function ScreenHeader({ title, subtitle, left, right, actions, on
 
 const styles = StyleSheet.create({
   // Compact flat header: minimal vertical space, no shadow, no rounded corners.
-  wrap: { paddingHorizontal: 10, paddingBottom: 10 },
+  wrap: { paddingHorizontal: spacing.headerPad, paddingBottom: 10 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   leftBtn: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
   titleCol: { flex: 1, minWidth: 0 },

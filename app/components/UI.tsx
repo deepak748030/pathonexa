@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, Animated, Easing } from 'react-native';
-import { ChevronRight } from 'lucide-react-native';
+import { ChevronRight, WifiOff } from 'lucide-react-native';
 import { colors, fonts, radius } from '@/lib/theme';
+import { useServerStatus } from '@/lib/serverStatus';
 
 /** Flat panel: hairline border, minimal radius, never a shadow. */
 export function Card({ children, style }: { children: React.ReactNode; style?: any }) {
@@ -33,8 +34,8 @@ export function FadeIn({ children, delay = 0, style }: { children: React.ReactNo
 }
 
 /**
- * Seamless grid: children sit edge to edge with zero gaps, separated only by
- * hairline dividers so nothing floats or overlaps.
+ * Seamless grid: children sit edge to edge with ZERO gaps (gap: 0),
+ * separated only by hairline dividers so nothing floats or overlaps.
  */
 export function GridPanel({ children, columns = 3 }: { children: React.ReactNode; columns?: number }) {
   const items = React.Children.toArray(children);
@@ -88,7 +89,7 @@ export function MenuRow({ icon, title, subtitle, onPress, danger, last }: { icon
   );
 }
 
-/** Contiguous list row: zero gap between rows, single hairline divider. */
+/** Contiguous list row: ZERO gap between rows, single hairline divider. */
 export function ListRow({ children, onPress, last }: { children: React.ReactNode; onPress?: () => void; last?: boolean }) {
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.listRow, last && styles.noDivider, pressed && styles.rowPressed]}>
@@ -112,6 +113,51 @@ export function Badge({ text, tone }: { text: string; tone: 'green' | 'orange' |
   );
 }
 
+/**
+ * Selectable filter chip. Render a row of chips with gap 0 inside a Card
+ * (use `segmented` + index > 0 divider) so they read as one control.
+ */
+export function Chip({ label, active, onPress, divider }: { label: string; active: boolean; onPress?: () => void; divider?: boolean }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.chip,
+        divider && styles.chipDivider,
+        active && styles.chipActive,
+        pressed && styles.rowPressed,
+      ]}
+    >
+      <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** Empty list placeholder. */
+export function EmptyState({ title, subtitle }: { title: string; subtitle?: string }) {
+  return (
+    <View style={styles.empty}>
+      <Text style={styles.emptyTitle}>{title}</Text>
+      {!!subtitle && <Text style={styles.emptySub}>{subtitle}</Text>}
+    </View>
+  );
+}
+
+/**
+ * Slim amber banner shown whenever the backend is unreachable and the
+ * screen is therefore rendering sample data.
+ */
+export function OfflineBanner() {
+  const online = useServerStatus((s) => s.online);
+  if (online !== false) return null;
+  return (
+    <View style={styles.banner}>
+      <WifiOff size={13} color="#92400E" />
+      <Text style={styles.bannerText}>Server offline — showing sample data</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   card: { backgroundColor: colors.card, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, padding: 12, overflow: 'hidden' },
   gridPanel: { flexDirection: 'row', flexWrap: 'wrap', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, overflow: 'hidden' },
@@ -131,4 +177,14 @@ const styles = StyleSheet.create({
   listRow: { paddingVertical: 8, paddingHorizontal: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.xs },
   badgeText: { fontFamily: fonts.semibold, fontSize: 10 },
+  chip: { flex: 1, paddingVertical: 8, alignItems: 'center', justifyContent: 'center' },
+  chipDivider: { borderLeftWidth: 1, borderLeftColor: colors.border },
+  chipActive: { backgroundColor: colors.primaryLight },
+  chipText: { color: colors.mutedForeground, fontFamily: fonts.semibold, fontSize: 11 },
+  chipTextActive: { color: colors.primary },
+  empty: { paddingVertical: 40, paddingHorizontal: 16, alignItems: 'center' },
+  emptyTitle: { fontFamily: fonts.semibold, color: colors.mutedForeground, fontSize: 13, textAlign: 'center' },
+  emptySub: { fontFamily: fonts.regular, color: colors.placeholder, fontSize: 11, marginTop: 3, textAlign: 'center' },
+  banner: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 8 },
+  bannerText: { color: '#92400E', fontFamily: fonts.medium, fontSize: 10.5, flex: 1 },
 });

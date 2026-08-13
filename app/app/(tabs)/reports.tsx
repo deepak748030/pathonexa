@@ -1,49 +1,74 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, ActivityIndicator } from 'react-native';
-import { router } from 'expo-router';
-import { Search, FlaskConical, SlidersHorizontal, ChevronRight, CheckCircle2, Clock, XCircle, IndianRupee } from 'lucide-react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { Search, FlaskConical, SlidersHorizontal, CheckCircle2, Clock, XCircle, IndianRupee } from 'lucide-react-native';
 import ScreenHeader from '@/components/ScreenHeader';
 import StatCard from '@/components/StatCard';
 import Avatar from '@/components/Avatar';
-import { Card, SectionTitle, GridPanel, FadeIn, ListRow } from '@/components/UI';
+import { Card, SectionTitle, GridPanel, FadeIn, ListRow, Chip, OfflineBanner, EmptyState } from '@/components/UI';
 import { colors, fonts, radius, spacing } from '@/lib/theme';
 import { reportStats, reports as localReports } from '@/lib/labData';
 import { endpoints } from '@/lib/api';
+import { useServerStatus } from '@/lib/serverStatus';
+
+const STATUSES = ['All', 'Completed', 'Pending', 'Cancelled'];
 
 export default function Reports() {
+  const check = useServerStatus((s) => s.check);
   const [search, setSearch] = React.useState('');
+  const [status, setStatus] = React.useState('All');
   const [reports, setReports] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [refreshing, setRefreshing] = React.useState(false);
 
-  React.useEffect(() => {
-    async function loadReports() {
-      setLoading(true);
-      try {
-        const data = await endpoints.reports.getAll();
-        if (data) setReports(data);
-      } catch (e: any) {
-        console.warn('Failed to load reports from backend, showing local data');
-        console.error('Failed to load reports:', e.message || e);
-        setReports(localReports);
-      } finally {
-        setLoading(false);
-      }
+  const loadData = React.useCallback(async (initial = false) => {
+    if (initial) setLoading(true);
+    try {
+      const data = await endpoints.reports.getAll();
+      if (data) setReports(data);
+    } catch (e: any) {
+      console.warn('Failed to load reports from backend, showing sample data:', e?.message || e);
+      setReports(localReports);
+    } finally {
+      setLoading(false);
     }
-    loadReports();
   }, []);
 
-  const filtered = reports.filter(r => 
-    (r.patient?.name || r.patient).toLowerCase().includes(search.toLowerCase()) || 
-    r.reportId.toLowerCase().includes(search.toLowerCase()) ||
-    r.test.toLowerCase().includes(search.toLowerCase())
+  useFocusEffect(
+    React.useCallback(() => {
+      check();
+      loadData(reports.length === 0);
+    }, [check, loadData, reports.length])
   );
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'Completed': return <CheckCircle2 size={12} color={colors.green} />;
-      case 'Pending': return <Clock size={12} color={colors.orange} />;
-      case 'Cancelled': return <XCircle size={12} color={colors.red} />;
-      default: return null;
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([loadData(), check()]);
+    setRefreshing(false);
+  }, [loadData, check]);
+
+  const filtered = reports.filter((r) => {
+    const name = (r.patient?.name || r.patient || '').toLowerCase();
+    const q = search.toLowerCase().trim();
+    const matchQ =
+      !q ||
+      name.includes(q) ||
+      (r.reportId || '').toLowerCase().includes(q) ||
+      (r.test || '').toLowerCase().includes(q);
+    const matchS = status === 'All' || r.status === status;
+    return matchQ && matchS;
+  });
+
+  const getStatus = (s: string) => {
+    switch (s) {
+      case 'Completed':
+        return { Icon: CheckCircle2, color: colors.green };
+      case 'Pending':
+        return { Icon: Clock, color: colors.orange };
+      case 'Cancelled':
+        return { Icon: XCircle, color: colors.red };
+      default:
+        return { Icon: Clock, color: colors.mutedForeground };
     }
   };
 
@@ -57,8 +82,8 @@ export default function Reports() {
 
   return (
     <View style={styles.screen}>
-      <ScreenHeader 
-        title="Reports" 
+      <ScreenHeader
+        title="Reports"
         subtitle="Track laboratory investigations"
         right={
           <Pressable style={styles.addBtn} onPress={() => router.push('/create-report')}>
@@ -67,10 +92,17 @@ export default function Reports() {
         }
       />
 
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.body}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+      >
+        <OfflineBanner />
+
         <FadeIn>
           <GridPanel columns={2}>
-            {reportStats.map(s => (
+            {reportStats.map((s) => (
               <StatCard key={s.label} label={s.label} value={s.value} tone={s.tone} compact />
             ))}
           </GridPanel>
@@ -81,7 +113,7 @@ export default function Reports() {
           <View style={styles.searchBar}>
             <View style={styles.searchInputWrap}>
               <Search size={18} color={colors.mutedForeground} />
-              <TextInput 
+              <TextInput
                 style={styles.searchInput}
                 placeholder="Search patient, ID or test..."
                 placeholderTextColor={colors.mutedForeground}
@@ -89,47 +121,66 @@ export default function Reports() {
                 onChangeText={setSearch}
               />
             </View>
-            <Pressable style={styles.filterBtn}>
+            <Pressable style={styles.filterBtn} onPress={() => setStatus('All')}>
               <SlidersHorizontal size={18} color={colors.foreground} />
             </Pressable>
+          </View>
+
+          {/* Segmented status filter — mapped with gap 0 + hairline dividers */}
+          <View style={styles.segment}>
+            {STATUSES.map((s, i) => (
+              <Chip
+                key={s}
+                label={s}
+                active={status === s}
+                divider={i > 0}
+                onPress={() => setStatus(s)}
+              />
+            ))}
           </View>
         </FadeIn>
 
         <FadeIn delay={120}>
           <Card style={{ padding: 0 }}>
             {filtered.length === 0 ? (
-              <View style={styles.empty}>
-                <Text style={styles.emptyText}>{search ? 'No reports found matching search' : 'No reports found'}</Text>
-              </View>
+              <EmptyState
+                title={search ? 'No reports match your search' : 'No reports found'}
+                subtitle={search ? 'Try a different patient, ID or test name.' : 'Create a report with the flask button above.'}
+              />
             ) : (
-              filtered.map((r, i) => (
-                <ListRow key={r.id || r._id} last={i === filtered.length - 1} onPress={() => router.push('/report-preview')}>
-                  <View style={styles.reportRow}>
-                    <Avatar name={r.patient?.name || r.patient} color={r.color} size={36} />
-                    <View style={styles.reportInfo}>
-                      <Text style={styles.reportPatient}>{r.patient?.name || r.patient}</Text>
-                      <Text style={styles.reportTest} numberOfLines={1}>{r.test}</Text>
-                      <View style={styles.reportMeta}>
-                        <Text style={styles.metaText}>{r.reportId} · {r.date}</Text>
+              filtered.map((r, i) => {
+                const { Icon, color } = getStatus(r.status);
+                return (
+                  <ListRow
+                    key={r.id || r._id}
+                    last={i === filtered.length - 1}
+                    onPress={() =>
+                      router.push({ pathname: '/report-preview', params: { id: r._id || r.id } } as any)
+                    }
+                  >
+                    <View style={styles.reportRow}>
+                      <Avatar name={r.patient?.name || r.patient} color={r.color || r.patient?.color} size={36} />
+                      <View style={styles.reportInfo}>
+                        <Text style={styles.reportPatient}>{r.patient?.name || r.patient}</Text>
+                        <Text style={styles.reportTest} numberOfLines={1}>{r.test}</Text>
+                        <Text style={styles.metaText} numberOfLines={1}>{r.reportId} · {r.date}</Text>
+                      </View>
+                      <View style={styles.reportStatus}>
+                        <View style={styles.statusBadge}>
+                          <Icon size={12} color={color} />
+                          <Text style={[styles.statusText, { color }]}>{r.status}</Text>
+                        </View>
+                        <View style={styles.paymentRow}>
+                          <IndianRupee size={10} color={r.paid ? colors.green : colors.red} />
+                          <Text style={[styles.paymentText, { color: r.paid ? colors.green : colors.red }]}>
+                            ₹{r.amount}
+                          </Text>
+                        </View>
                       </View>
                     </View>
-                    <View style={styles.reportStatus}>
-                      <View style={styles.statusBadge}>
-                        {getStatusIcon(r.status)}
-                        <Text style={[styles.statusText, { color: r.status === 'Completed' ? colors.green : r.status === 'Pending' ? colors.orange : colors.red }]}>
-                          {r.status}
-                        </Text>
-                      </View>
-                      <View style={styles.paymentRow}>
-                        <IndianRupee size={10} color={r.paid ? colors.green : colors.red} />
-                        <Text style={[styles.paymentText, { color: r.paid ? colors.green : colors.red }]}>
-                          ₹{r.amount}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                </ListRow>
-              ))
+                  </ListRow>
+                );
+              })
             )}
           </Card>
         </FadeIn>
@@ -142,21 +193,19 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   body: { paddingHorizontal: spacing.hPad, paddingTop: 4, paddingBottom: 28 },
   addBtn: { width: 36, height: 36, borderRadius: radius.xs, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
-  searchBar: { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  searchInputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', height: 44, backgroundColor: colors.card, borderRadius: radius.sm, paddingHorizontal: 12, borderWeight: 1, borderColor: colors.border },
+  searchBar: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  searchInputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', height: 44, backgroundColor: colors.card, borderRadius: radius.sm, paddingHorizontal: 12, borderWidth: 1, borderColor: colors.border },
   searchInput: { flex: 1, height: '100%', marginLeft: 8, fontFamily: fonts.medium, fontSize: 13, color: colors.foreground },
-  filterBtn: { width: 44, height: 44, backgroundColor: colors.card, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', borderWeight: 1, borderColor: colors.border },
+  filterBtn: { width: 44, height: 44, backgroundColor: colors.card, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+  segment: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', marginBottom: 10 },
   reportRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   reportInfo: { flex: 1, minWidth: 0 },
   reportPatient: { fontSize: 13, fontFamily: fonts.bold, color: colors.foreground },
   reportTest: { fontSize: 11, fontFamily: fonts.semibold, color: colors.primary, marginTop: 1 },
-  reportMeta: { marginTop: 2 },
-  metaText: { fontSize: 10, fontFamily: fonts.regular, color: colors.mutedForeground },
+  metaText: { fontSize: 10, fontFamily: fonts.regular, color: colors.mutedForeground, marginTop: 2 },
   reportStatus: { alignItems: 'flex-end', gap: 4 },
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   statusText: { fontSize: 10, fontFamily: fonts.bold },
   paymentRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   paymentText: { fontSize: 11, fontFamily: fonts.bold },
-  empty: { padding: 40, alignItems: 'center' },
-  emptyText: { fontFamily: fonts.medium, color: colors.mutedForeground, fontSize: 14 },
 });
