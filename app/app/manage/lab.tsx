@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { ChevronLeft, Building, Phone, Mail, MapPin, UserRound } from 'lucide-react-native';
 import ScreenHeader from '@/components/ScreenHeader';
 import Field from '@/components/Field';
+import PrimaryButton from '@/components/PrimaryButton';
 import { Card, FadeIn } from '@/components/UI';
 import { colors, fonts, radius, spacing } from '@/lib/theme';
 import { endpoints } from '@/lib/api';
@@ -43,9 +44,7 @@ export default function LabProfile() {
             <Field label="Phone" value={form.phone} onChangeText={(t) => setForm((f) => ({ ...f, phone: t }))} icon={<Phone size={16} color={colors.primary} />} />
             <Field label="Email" value={form.email} onChangeText={(t) => setForm((f) => ({ ...f, email: t }))} icon={<Mail size={16} color={colors.primary} />} />
             <Field label="Pathologist" value={form.pathologist} onChangeText={(t) => setForm((f) => ({ ...f, pathologist: t }))} icon={<UserRound size={16} color={colors.primary} />} />
-            <Pressable style={styles.save} onPress={save} disabled={saving}>
-              {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Save lab profile</Text>}
-            </Pressable>
+            <PrimaryButton title="Save lab profile" onPress={save} loading={saving} />
           </Card>
         </FadeIn>
       </ScrollView>

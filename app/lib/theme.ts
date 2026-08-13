@@ -38,6 +38,15 @@ export const radius = { xs: 2, sm: 4, md: 6, lg: 6, xl: 8, pill: 999 };
  */
 export const spacing = { hPad: 4, gap: 0, headerPad: 4 };
 
+/** Change once — every Field, SearchBar, PrimaryButton follows these. */
+export const sizes = {
+  input: 38,
+  inputIcon: 16,
+  search: 38,
+  button: 42,
+  headerIcon: 34,
+};
+
 export const fonts = {
   regular: 'PlusJakartaSans_400Regular',
   medium: 'PlusJakartaSans_500Medium',

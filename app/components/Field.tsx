@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, Text, TextInput, StyleSheet, Pressable } from 'react-native';
-import { colors, fonts, radius } from '@/lib/theme';
+import { colors, fonts, radius, sizes } from '@/lib/theme';
 
 type Props = {
-  label: string;
+  label?: string;
   value: string;
   onChangeText?: (t: string) => void;
   placeholder?: string;
@@ -19,14 +19,14 @@ export default function Field({
   label, value, onChangeText, placeholder, icon, keyboardType, multiline, editable = true, onPress, right,
 }: Props) {
   const filled = !!value;
-  const inner = (
+  const box = (
     <View style={[styles.wrap, filled && styles.filled, multiline && styles.multi]}>
-      {icon ? <View style={styles.icon}>{icon}</View> : null}
+      {icon}
       {onPress ? (
         <Text style={[styles.text, !value && styles.ph]} numberOfLines={1}>{value || placeholder}</Text>
       ) : (
         <TextInput
-          style={[styles.input, multiline && { height: 56, textAlignVertical: 'top' }]}
+          style={[styles.input, multiline && { height: sizes.input * 1.6, textAlignVertical: 'top' }]}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -42,24 +42,29 @@ export default function Field({
 
   return (
     <View style={styles.group}>
-      <Text style={styles.label}>{label}</Text>
-      {onPress ? <Pressable onPress={onPress}>{inner}</Pressable> : inner}
+      {!!label && <Text style={styles.label}>{label}</Text>}
+      {onPress ? <Pressable onPress={onPress}>{box}</Pressable> : box}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  group: { marginBottom: 14 },
-  label: { fontSize: 11, fontFamily: fonts.semibold, color: colors.mutedForeground, marginBottom: 6, letterSpacing: 0.3, textTransform: 'uppercase' },
+  group: { marginBottom: 12 },
+  label: { fontSize: 11, fontFamily: fonts.semibold, color: colors.mutedForeground, marginBottom: 5, letterSpacing: 0.3, textTransform: 'uppercase' },
   wrap: {
-    flexDirection: 'row', alignItems: 'center', minHeight: 52,
-    backgroundColor: colors.inputBg, borderRadius: radius.md,
-    paddingHorizontal: 8, borderWidth: 1.5, borderColor: colors.inputBorder,
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: sizes.input,
+    backgroundColor: colors.inputBg,
+    borderRadius: radius.md,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+    gap: 8,
   },
-  filled: { borderColor: '#93C5FD', backgroundColor: '#F8FBFF' },
-  multi: { alignItems: 'flex-start', paddingVertical: 8 },
-  icon: { width: 34, height: 34, borderRadius: radius.sm, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
-  input: { flex: 1, marginLeft: 10, height: 50, fontFamily: fonts.medium, fontSize: 14, color: colors.foreground, outlineStyle: 'none' as any },
-  text: { flex: 1, marginLeft: 10, fontFamily: fonts.medium, fontSize: 14, color: colors.foreground },
+  filled: { borderColor: '#93C5FD' },
+  multi: { height: undefined, minHeight: sizes.input, alignItems: 'flex-start', paddingVertical: 8 },
+  input: { flex: 1, height: sizes.input, fontFamily: fonts.medium, fontSize: 13, color: colors.foreground, outlineStyle: 'none' as any, padding: 0 },
+  text: { flex: 1, fontFamily: fonts.medium, fontSize: 13, color: colors.foreground },
   ph: { color: colors.placeholder },
 });

@@ -26,6 +26,17 @@ export default function HeaderUser({ showBell = true }: { showBell?: boolean }) 
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  bell: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  bell: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
+  avatarRing: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    backgroundColor: '#DBEAFE',
+  },
 });

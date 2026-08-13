@@ -1,8 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import { ChevronLeft, Plus, Trash2, Search } from 'lucide-react-native';
+import { ChevronLeft, Plus, Trash2 } from 'lucide-react-native';
 import ScreenHeader from '@/components/ScreenHeader';
+import Field from '@/components/Field';
+import PrimaryButton from '@/components/PrimaryButton';
+import SearchBar from '@/components/SearchBar';
 import { Card, FadeIn, ListRow, EmptyState, OfflineBanner } from '@/components/UI';
 import { colors, fonts, radius, spacing } from '@/lib/theme';
 import { endpoints } from '@/lib/api';
@@ -174,28 +177,22 @@ export default function ManageScreen() {
           <FadeIn>
             <Card style={styles.form}>
               {cfg.fields.map((f) => (
-                <View key={f.key} style={styles.inputGroup}>
-                  <Text style={styles.label}>{f.label}</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder={f.placeholder}
-                    placeholderTextColor={colors.placeholder}
-                    value={form[f.key] || ''}
-                    keyboardType={f.keyboard || 'default'}
-                    onChangeText={(t) => setForm((prev) => ({ ...prev, [f.key]: t }))}
-                  />
-                </View>
+                <Field
+                  key={f.key}
+                  label={f.label}
+                  placeholder={f.placeholder}
+                  value={form[f.key] || ''}
+                  keyboardType={f.keyboard || 'default'}
+                  onChangeText={(t) => setForm((prev) => ({ ...prev, [f.key]: t }))}
+                />
               ))}
-              <Pressable style={styles.save} onPress={onSave} disabled={saving}>
-                {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Save</Text>}
-              </Pressable>
+              <PrimaryButton title="Save" onPress={onSave} loading={saving} />
             </Card>
           </FadeIn>
         )}
 
-        <View style={styles.search}>
-          <Search size={16} color={colors.mutedForeground} />
-          <TextInput style={styles.searchInput} placeholder="Search..." placeholderTextColor={colors.placeholder} value={q} onChangeText={setQ} />
+        <View style={{ marginBottom: 10 }}>
+          <SearchBar value={q} onChangeText={setQ} />
         </View>
 
         {loading ? (
@@ -233,13 +230,6 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: spacing.hPad, paddingTop: 8, paddingBottom: 32 },
   addBtn: { width: 36, height: 36, borderRadius: radius.xs, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
   form: { marginBottom: 12 },
-  inputGroup: { marginBottom: 10 },
-  label: { fontSize: 11, fontFamily: fonts.semibold, color: colors.mutedForeground, marginBottom: 5 },
-  input: { height: 40, borderWidth: 1.5, borderColor: colors.inputBorder, borderRadius: radius.md, paddingHorizontal: 10, fontFamily: fonts.medium, fontSize: 13, color: colors.foreground, backgroundColor: colors.inputBg },
-  save: { height: 42, backgroundColor: colors.primary, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
-  saveText: { color: '#fff', fontFamily: fonts.bold, fontSize: 14 },
-  search: { flexDirection: 'row', alignItems: 'center', height: 40, backgroundColor: colors.card, borderRadius: radius.md, paddingHorizontal: 10, borderWidth: 1, borderColor: colors.border, marginBottom: 10 },
-  searchInput: { flex: 1, marginLeft: 8, fontFamily: fonts.medium, fontSize: 13, color: colors.foreground },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   rowTitle: { fontFamily: fonts.semibold, fontSize: 13, color: colors.foreground },
   rowSub: { fontFamily: fonts.regular, fontSize: 11, color: colors.mutedForeground, marginTop: 2 },

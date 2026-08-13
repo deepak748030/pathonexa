@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { Search, FlaskConical, SlidersHorizontal, CheckCircle2, Clock, XCircle, IndianRupee } from 'lucide-react-native';
+import { FlaskConical, SlidersHorizontal, CheckCircle2, Clock, XCircle, IndianRupee } from 'lucide-react-native';
 import ScreenHeader from '@/components/ScreenHeader';
+import SearchBar from '@/components/SearchBar';
 import StatCard from '@/components/StatCard';
 import Avatar from '@/components/Avatar';
 import { Card, SectionTitle, GridPanel, FadeIn, ListRow, Chip, OfflineBanner, EmptyState } from '@/components/UI';
@@ -116,18 +117,9 @@ export default function Reports() {
         <SectionTitle title="All Reports" />
         <FadeIn delay={60}>
           <View style={styles.searchBar}>
-            <View style={styles.searchInputWrap}>
-              <Search size={18} color={colors.mutedForeground} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search patient, ID or test..."
-                placeholderTextColor={colors.mutedForeground}
-                value={search}
-                onChangeText={setSearch}
-              />
-            </View>
+            <SearchBar value={search} onChangeText={setSearch} placeholder="Search patient, ID or test..." />
             <Pressable style={styles.filterBtn} onPress={() => setStatus('All')}>
-              <SlidersHorizontal size={18} color={colors.foreground} />
+              <SlidersHorizontal size={16} color={colors.foreground} />
             </Pressable>
           </View>
 
@@ -199,9 +191,7 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: spacing.hPad, paddingTop: 4, paddingBottom: 28 },
   addBtn: { width: 36, height: 36, borderRadius: radius.xs, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
   searchBar: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  searchInputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', height: 40, backgroundColor: colors.card, borderRadius: radius.sm, paddingHorizontal: 10, borderWidth: 1, borderColor: colors.border },
-  searchInput: { flex: 1, height: '100%', marginLeft: 8, fontFamily: fonts.medium, fontSize: 13, color: colors.foreground },
-  filterBtn: { width: 44, height: 44, backgroundColor: colors.card, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+  filterBtn: { width: 38, height: 38, backgroundColor: colors.card, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
   segment: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', marginBottom: 10 },
   reportRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   reportInfo: { flex: 1, minWidth: 0 },
