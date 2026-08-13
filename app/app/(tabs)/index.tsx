@@ -141,11 +141,15 @@ export default function Dashboard() {
             {quickActions.map((a, i) => (
               <Pressable
                 key={a.label}
-                style={({ pressed }) => [styles.action, i === quickActions.length - 1 && { borderRightWidth: 0 }, pressed && styles.actionPressed]}
+                style={({ pressed }) => [
+                  styles.action,
+                  i > 0 && styles.actionDivider,
+                  pressed && styles.actionPressed,
+                ]}
                 onPress={() => router.push(a.href as any)}
               >
                 <View style={styles.actionIcon}>
-                  <a.Icon size={15} color={colors.primary} />
+                  <a.Icon size={16} color={colors.primary} strokeWidth={2.2} />
                 </View>
                 <Text style={styles.actionText} numberOfLines={1}>{a.label}</Text>
               </Pressable>
