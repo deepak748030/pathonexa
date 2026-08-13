@@ -8,6 +8,7 @@ import {
 } from 'lucide-react-native';
 import ScreenHeader from '@/components/ScreenHeader';
 import Avatar from '@/components/Avatar';
+import Field from '@/components/Field';
 import { Card, FadeIn, ListRow, EmptyState } from '@/components/UI';
 import { colors, fonts, radius, spacing } from '@/lib/theme';
 import { tests as localTests, doctors as localDoctors, patients as localPatients } from '@/lib/labData';
@@ -38,12 +39,12 @@ export default function CreateReport() {
           endpoints.meta.tests(),
           endpoints.meta.doctors(),
         ]);
-        if (p?.length) setPatients(p);
+        setPatients(Array.isArray(p) ? p : []);
         if (t?.length) setTests(t);
         if (d?.length) setDoctors(d);
       } catch (e: any) {
-        console.warn('Using local test/doctor lists:', e?.message || e);
-        setPatients(localPatients);
+        console.warn('Could not load catalogues:', e?.message || e);
+        setPatients([]);
       }
     }
     fetchData();
@@ -93,18 +94,14 @@ export default function CreateReport() {
   };
 
   const SelectBox = ({ label, icon: Icon, placeholder, value, onPress }: any) => (
-    <View style={styles.inputGroup}>
-      <Text style={styles.label}>{label}</Text>
-      <Pressable style={[styles.inputWrap, value && styles.inputWrapFilled]} onPress={onPress}>
-        <View style={styles.leadIcon}>
-          <Icon size={16} color={colors.primary} />
-        </View>
-        <Text style={[styles.inputText, !value && { color: colors.placeholder }]} numberOfLines={1}>
-          {value || placeholder}
-        </Text>
-        <ChevronDown size={16} color={colors.mutedForeground} />
-      </Pressable>
-    </View>
+    <Field
+      label={label}
+      value={value || ''}
+      placeholder={placeholder}
+      icon={<Icon size={16} color={colors.primary} />}
+      onPress={onPress}
+      right={<ChevronDown size={16} color={colors.mutedForeground} />}
+    />
   );
 
   const openSheet = (kind: SheetKind) => {
@@ -184,20 +181,14 @@ export default function CreateReport() {
               onPress={() => openSheet('doctor')}
             />
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Test Amount (₹)</Text>
-              <View style={styles.inputWrap}>
-                <CreditCard size={16} color={colors.mutedForeground} />
-                <TextInput
-                  style={styles.input}
-                  value={form.amount}
-                  onChangeText={(t) => setForm((f) => ({ ...f, amount: t }))}
-                  placeholder="0.00"
-                  placeholderTextColor={colors.mutedForeground}
-                  keyboardType="number-pad"
-                />
-              </View>
-            </View>
+            <Field
+              label="Test Amount (₹)"
+              value={form.amount}
+              onChangeText={(t) => setForm((f) => ({ ...f, amount: t }))}
+              placeholder="Enter amount"
+              icon={<CreditCard size={16} color={colors.primary} />}
+              keyboardType="number-pad"
+            />
 
             <View style={styles.paymentToggle}>
               <Text style={styles.label}>Mark as Paid</Text>

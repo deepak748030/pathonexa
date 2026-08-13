@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, ActivityIndic
 import { router } from 'expo-router';
 import { ChevronLeft, User, Phone, MapPin, Droplets, Calendar } from 'lucide-react-native';
 import ScreenHeader from '@/components/ScreenHeader';
+import Field from '@/components/Field';
 import { Card, FadeIn } from '@/components/UI';
 import { colors, fonts, radius, spacing } from '@/lib/theme';
 import { endpoints } from '@/lib/api';
@@ -58,39 +59,13 @@ export default function AddPatient() {
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <FadeIn>
           <Card style={styles.formCard}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Full Name</Text>
-              <View style={styles.inputWrap}>
-                <User size={16} color={colors.mutedForeground} />
-                <TextInput
-                  style={styles.input}
-                  value={form.name}
-                  onChangeText={(t) => setForm((f) => ({ ...f, name: t }))}
-                  placeholder="Enter patient's full name"
-                  placeholderTextColor={colors.mutedForeground}
-                />
-              </View>
-            </View>
+            <Field label="Full Name" value={form.name} onChangeText={(t) => setForm((f) => ({ ...f, name: t }))} placeholder="Patient's full name" icon={<User size={16} color={colors.primary} />} />
 
             <View style={styles.row}>
               <View style={{ flex: 1 }}>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Age</Text>
-                  <View style={styles.inputWrap}>
-                    <Calendar size={16} color={colors.mutedForeground} />
-                    <TextInput
-                      style={styles.input}
-                      value={form.age}
-                      onChangeText={(t) => setForm((f) => ({ ...f, age: t }))}
-                      placeholder="e.g. 25"
-                      placeholderTextColor={colors.mutedForeground}
-                      keyboardType="number-pad"
-                      maxLength={3}
-                    />
-                  </View>
-                </View>
+                <Field label="Age" value={form.age} onChangeText={(t) => setForm((f) => ({ ...f, age: t }))} placeholder="e.g. 25" icon={<Calendar size={16} color={colors.primary} />} keyboardType="number-pad" />
               </View>
-              <View style={{ flex: 1, marginLeft: 16 }}>
+              <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={styles.label}>Gender</Text>
                 <View style={styles.genderWrap}>
                   {(['Male', 'Female'] as const).map((g) => (
@@ -106,51 +81,9 @@ export default function AddPatient() {
               </View>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Mobile Number</Text>
-              <View style={styles.inputWrap}>
-                <Phone size={16} color={colors.mutedForeground} />
-                <TextInput
-                  style={styles.input}
-                  value={form.mobile}
-                  onChangeText={(t) => setForm((f) => ({ ...f, mobile: t }))}
-                  placeholder="10-digit mobile number"
-                  placeholderTextColor={colors.mutedForeground}
-                  keyboardType="number-pad"
-                  maxLength={10}
-                />
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Blood Group</Text>
-              <View style={styles.inputWrap}>
-                <Droplets size={16} color={colors.mutedForeground} />
-                <TextInput
-                  style={styles.input}
-                  value={form.blood}
-                  onChangeText={(t) => setForm((f) => ({ ...f, blood: t }))}
-                  placeholder="e.g. O+, AB-"
-                  placeholderTextColor={colors.mutedForeground}
-                />
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Address (Optional)</Text>
-              <View style={styles.inputWrapMultiline}>
-                <MapPin size={16} color={colors.mutedForeground} style={{ marginTop: 14 }} />
-                <TextInput
-                  style={styles.input}
-                  value={form.address}
-                  onChangeText={(t) => setForm((f) => ({ ...f, address: t }))}
-                  placeholder="Current residence address"
-                  placeholderTextColor={colors.mutedForeground}
-                  multiline
-                  numberOfLines={2}
-                />
-              </View>
-            </View>
+            <Field label="Mobile Number" value={form.mobile} onChangeText={(t) => setForm((f) => ({ ...f, mobile: t.replace(/\D/g, '').slice(0, 10) }))} placeholder="10-digit mobile" icon={<Phone size={16} color={colors.primary} />} keyboardType="number-pad" />
+            <Field label="Blood Group" value={form.blood} onChangeText={(t) => setForm((f) => ({ ...f, blood: t }))} placeholder="e.g. O+, AB-" icon={<Droplets size={16} color={colors.primary} />} />
+            <Field label="Address (optional)" value={form.address} onChangeText={(t) => setForm((f) => ({ ...f, address: t }))} placeholder="Residence address" icon={<MapPin size={16} color={colors.primary} />} multiline />
 
             <Pressable
               style={[styles.submitBtn, loading && styles.btnDisabled]}

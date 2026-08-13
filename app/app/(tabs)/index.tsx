@@ -66,7 +66,7 @@ export default function Dashboard() {
     React.useCallback(() => {
       check();
       loadData(true);
-    }, [check, loadData, stats.length])
+    }, [check, loadData])
   );
 
   const onRefresh = React.useCallback(async () => {
@@ -135,18 +135,20 @@ export default function Dashboard() {
 
         <SectionTitle title="Quick Actions" action="View All" onAction={() => router.push('/(tabs)/more' as any)} />
         <FadeIn delay={60}>
-          <GridPanel columns={5}>
-            {quickActions.map((a) => (
+          <View style={styles.actionRow}>
+            {quickActions.map((a, i) => (
               <Pressable
                 key={a.label}
-                style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}
+                style={({ pressed }) => [styles.action, i === quickActions.length - 1 && { borderRightWidth: 0 }, pressed && styles.actionPressed]}
                 onPress={() => router.push(a.href as any)}
               >
-                <a.Icon size={18} color={colors.primary} />
-                <Text style={styles.actionText} numberOfLines={2}>{a.label}</Text>
+                <View style={styles.actionIcon}>
+                  <a.Icon size={15} color={colors.primary} />
+                </View>
+                <Text style={styles.actionText} numberOfLines={1}>{a.label}</Text>
               </Pressable>
             ))}
-          </GridPanel>
+          </View>
         </FadeIn>
 
         <SectionTitle title="Reports Overview" />

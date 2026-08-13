@@ -36,7 +36,7 @@ export const radius = { xs: 2, sm: 4, md: 6, lg: 6, xl: 8, pill: 999 };
  * gap  = 0 → all mapped lists/grids sit edge-to-edge with zero gaps
  *            (separated only by hairline dividers).
  */
-export const spacing = { hPad: 4, gap: 0, headerPad: 10 };
+export const spacing = { hPad: 12, gap: 0, headerPad: 14 };
 
 export const fonts = {
   regular: 'PlusJakartaSans_400Regular',

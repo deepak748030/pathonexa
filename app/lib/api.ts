@@ -120,6 +120,7 @@ export const endpoints = {
     getStats: () => apiFetch('/reports/stats'),
     getById: (id: string) => apiFetch(`/reports/${id}`),
     create: (data: any) => apiFetch('/reports', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: any) => apiFetch(`/reports/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   },
   meta: {
     list: (key: string) => apiFetch(`/${key}`),

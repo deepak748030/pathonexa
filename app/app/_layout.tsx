@@ -36,6 +36,7 @@ export default function RootLayout() {
         <Stack.Screen name="login" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="add-patient" />
+        <Stack.Screen name="patient/[id]" />
         <Stack.Screen name="create-report" />
         <Stack.Screen name="report-preview" />
         <Stack.Screen name="manage/[slug]" />

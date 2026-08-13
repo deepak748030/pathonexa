@@ -178,7 +178,7 @@ export default function Patients() {
                   key={p.id || p._id}
                   last={i === filtered.length - 1}
                   onPress={() =>
-                    router.push({ pathname: '/create-report', params: { patientId: p._id || p.id } } as any)
+                    router.push({ pathname: '/patient/[id]', params: { id: p._id || p.id } } as any)
                   }
                 >
                   <View style={styles.patientRow}>

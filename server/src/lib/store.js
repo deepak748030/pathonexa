@@ -306,6 +306,53 @@ const reports = {
     const doc = await Report.create({ ...data, patient });
     return Report.populate(doc, { path: 'patient' });
   },
+
+  async update(id, patch) {
+    ensureSeeded();
+    const allowed = {};
+    if (patch.status) allowed.status = patch.status;
+    if (typeof patch.paid === 'boolean') allowed.paid = patch.paid;
+    if (patch.amount !== undefined) allowed.amount = patch.amount;
+    if (useMemory()) {
+      const r = mem.reports.find((x) => x._id === id || x.reportId === id);
+      if (!r) {
+        const err = new Error('Report not found');
+        err.status = 404;
+        throw err;
+      }
+      Object.assign(r, allowed, { updatedAt: new Date() });
+      return r;
+    }
+    const r = await Report.findOneAndUpdate(
+      { $or: [{ _id: id }, { reportId: id }] },
+      { $set: allowed },
+      { new: true }
+    ).populate('patient').lean();
+    if (!r) {
+      const err = new Error('Report not found');
+      err.status = 404;
+      throw err;
+    }
+    return r;
+  },
+
+  async stats() {
+    ensureSeeded();
+    await ensureMongoSeeded();
+    const list = useMemory() ? mem.reports : await Report.find().lean();
+    const start = startOfToday();
+    const today = list.filter((r) => new Date(r.createdAt) >= start);
+    const pending = list.filter((r) => r.status === 'Pending');
+    const completed = list.filter((r) => r.status === 'Completed');
+    const todayRev = today.reduce((s, r) => s + (r.amount || 0), 0);
+    const fmt = (n) => n.toLocaleString('en-IN');
+    return [
+      { label: "Today's Reports", value: fmt(today.length), tone: 'primary' },
+      { label: 'Pending Reports', value: fmt(pending.length), tone: 'orange' },
+      { label: 'Completed', value: fmt(completed.length), tone: 'green' },
+      { label: "Today's Collection", value: `₹${fmt(todayRev)}`, tone: 'purple' },
+    ];
+  },
 };
 
 /* ------------------------------------------------------------------ */
