@@ -28,7 +28,7 @@ export default function StatCard({ label, value, sub, tone = 'primary', icon, co
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
       <View style={styles.top}>
-        <View style={[styles.iconBox, { backgroundColor: t.bg }]}>{icon}</View>
+        {icon ? <View style={[styles.iconBox, { backgroundColor: t.bg }]}>{icon}</View> : <View style={[styles.dot, { backgroundColor: t.fg }]} />}
         {onPress ? <ChevronRight size={13} color={colors.mutedForeground} /> : null}
       </View>
       <Text style={styles.value} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
@@ -39,11 +39,12 @@ export default function StatCard({ label, value, sub, tone = 'primary', icon, co
 }
 
 const styles = StyleSheet.create({
-  // Flat cell: no radius, no shadow. Dividers come from the grid wrapper.
+  // Flat cell: no radius, no shadow, no gap — dividers come from the grid wrapper.
   card: { flex: 1, backgroundColor: colors.card, paddingHorizontal: 10, paddingVertical: 10, justifyContent: 'flex-start' },
   pressed: { backgroundColor: colors.muted },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   iconBox: { width: 26, height: 26, borderRadius: radius.xs, alignItems: 'center', justifyContent: 'center' },
+  dot: { width: 8, height: 8, borderRadius: radius.xs },
   value: { color: colors.foreground, fontFamily: fonts.bold, fontSize: 16 },
   label: { color: colors.mutedForeground, fontFamily: fonts.medium, fontSize: 10, marginTop: 2, lineHeight: 13 },
   sub: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 9, marginTop: 1 },

@@ -1,6 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Image, Dimensions, ActivityIndicator } from 'react-native';
-import { router } from 'expo-router';
+import {
+  View, Text, StyleSheet, ScrollView, Pressable, Image, Dimensions,
+  ActivityIndicator, RefreshControl,
+} from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
 import { LineChart } from 'react-native-chart-kit';
 import {
   Menu, Bell, ClipboardList, IndianRupee, Hourglass, Wallet, Users, Receipt,
@@ -9,10 +12,11 @@ import {
 import ScreenHeader from '@/components/ScreenHeader';
 import StatCard from '@/components/StatCard';
 import Avatar from '@/components/Avatar';
-import { Card, SectionTitle, GridPanel, FadeIn, ListRow } from '@/components/UI';
+import { Card, SectionTitle, GridPanel, FadeIn, ListRow, OfflineBanner, EmptyState } from '@/components/UI';
 import { colors, fonts, radius, spacing } from '@/lib/theme';
 import { chart as localChart, dashboardStats as localStats, lab, reports as localReports } from '@/lib/labData';
 import { endpoints } from '@/lib/api';
+import { useServerStatus } from '@/lib/serverStatus';
 
 const icons: Record<string, any> = {
   reports: ClipboardList, revenue: IndianRupee, pending: Hourglass,
@@ -29,35 +33,48 @@ const quickActions = [
 
 export default function Dashboard() {
   const width = Dimensions.get('window').width;
+  const check = useServerStatus((s) => s.check);
   const [stats, setStats] = React.useState<any[]>([]);
   const [reports, setReports] = React.useState<any[]>([]);
   const [chartData, setChartData] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
+  const [refreshing, setRefreshing] = React.useState(false);
 
-  React.useEffect(() => {
-    async function loadData() {
-      setLoading(true);
-      try {
-        const [remoteStats, remoteReports, remoteChart] = await Promise.all([
-          endpoints.dashboard.getStats(),
-          endpoints.reports.getAll(),
-          endpoints.dashboard.getChart(),
-        ]);
-        if (remoteStats) setStats(remoteStats);
-        if (remoteReports) setReports(remoteReports.slice(0, 3));
-        if (remoteChart) setChartData(remoteChart);
-      } catch (e: any) {
-        console.warn('Backend data load failed, showing mock data');
-        console.error('Backend data load failed:', e.message || e);
-        setStats(localStats);
-        setReports(localReports.slice(0, 3));
-        setChartData(localChart);
-      } finally {
-        setLoading(false);
-      }
+  const loadData = React.useCallback(async (initial = false) => {
+    if (initial) setLoading(true);
+    try {
+      const [remoteStats, remoteReports, remoteChart] = await Promise.all([
+        endpoints.dashboard.getStats(),
+        endpoints.reports.getAll(),
+        endpoints.dashboard.getChart(),
+      ]);
+      if (remoteStats?.length) setStats(remoteStats);
+      if (remoteReports) setReports(remoteReports.slice(0, 3));
+      if (remoteChart) setChartData(remoteChart);
+    } catch (e: any) {
+      console.warn('Backend data load failed, showing sample data:', e?.message || e);
+      setStats(localStats);
+      setReports(localReports.slice(0, 3));
+      setChartData(localChart);
+    } finally {
+      setLoading(false);
     }
-    loadData();
   }, []);
+
+  // Strictly server-first: refresh every time the screen gains focus so
+  // newly created patients/reports appear immediately.
+  useFocusEffect(
+    React.useCallback(() => {
+      check();
+      loadData(stats.length === 0);
+    }, [check, loadData, stats.length])
+  );
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([loadData(), check()]);
+    setRefreshing(false);
+  }, [loadData, check]);
 
   const recent = reports;
 
@@ -84,27 +101,34 @@ export default function Dashboard() {
         }
       />
 
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.body}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+      >
+        <OfflineBanner />
+
         <FadeIn>
           <GridPanel columns={3}>
             {stats.length > 0 ? (
               stats.map((s) => {
                 const Icon = icons[s.key] || ClipboardList;
+                const tone = (s.tone || 'primary') as keyof typeof colors;
                 return (
                   <StatCard
-                    key={s.key}
+                    key={s.key || s.label}
                     label={s.label}
                     value={s.value}
                     sub={s.sub}
                     tone={s.tone as any}
-                    icon={<Icon size={14} color={colors[s.tone === 'primary' ? 'primary' : s.tone as keyof typeof colors] || colors.primary} />}
+                    icon={<Icon size={14} color={tone === 'primary' ? colors.primary : colors[tone]} />}
                     onPress={() => router.push('/(tabs)/reports' as any)}
                   />
                 );
               })
             ) : (
-              <View style={{ padding: 20, alignItems: 'center', gridColumnEnd: 'span 3' }}>
-                <Text style={{ color: colors.mutedForeground, fontFamily: fonts.medium }}>No stats available</Text>
+              <View style={{ width: '100%' }}>
+                <EmptyState title="No stats available" subtitle="Create your first report to see numbers here." />
               </View>
             )}
           </GridPanel>
@@ -131,9 +155,9 @@ export default function Dashboard() {
           <Card style={{ padding: 0 }}>
             <View style={styles.chartWrap}>
               <LineChart
-                data={{ 
-                  labels: chartData?.labels || localChart.labels, 
-                  datasets: [{ data: chartData?.values || localChart.values }] 
+                data={{
+                  labels: chartData?.labels || localChart.labels,
+                  datasets: [{ data: chartData?.values || localChart.values }],
                 }}
                 width={width - spacing.hPad * 2 - 2}
                 height={170}
@@ -174,9 +198,13 @@ export default function Dashboard() {
           <Card style={{ padding: 0 }}>
             {recent.length > 0 ? (
               recent.map((r: any, i) => (
-                <ListRow key={r.id || r._id} last={i === recent.length - 1} onPress={() => router.push('/report-preview' as any)}>
+                <ListRow
+                  key={r.id || r._id}
+                  last={i === recent.length - 1}
+                  onPress={() => router.push({ pathname: '/report-preview', params: { id: r._id || r.id } } as any)}
+                >
                   <View style={styles.recentRow}>
-                    <Avatar name={r.patient?.name || r.patient} color={r.color} size={30} />
+                    <Avatar name={r.patient?.name || r.patient} color={r.color || r.patient?.color} size={30} />
                     <View style={styles.recentCol}>
                       <Text style={styles.recentName} numberOfLines={1}>{r.patient?.name || r.patient}</Text>
                       <Text style={styles.recentMeta} numberOfLines={1}>{r.reportId || r.pid} · {r.test} · {r.time || r.date}</Text>
@@ -192,13 +220,10 @@ export default function Dashboard() {
                 </ListRow>
               ))
             ) : (
-              <View style={{ padding: 40, alignItems: 'center' }}>
-                <Text style={{ color: colors.mutedForeground, fontFamily: fonts.medium }}>No recent reports</Text>
-              </View>
+              <EmptyState title="No recent reports" subtitle="Reports you create will show up here." />
             )}
           </Card>
         </FadeIn>
-
       </ScrollView>
     </View>
   );
@@ -208,9 +233,9 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   logo: { width: 28, height: 28, borderRadius: radius.xs, backgroundColor: '#FFFFFF' },
   body: { paddingHorizontal: spacing.hPad, paddingTop: 4, paddingBottom: 28 },
-  action: { alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, paddingHorizontal: 4, backgroundColor: colors.card },
+  action: { alignItems: 'center', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 4, backgroundColor: colors.card },
   actionPressed: { backgroundColor: colors.muted },
-  actionText: { color: colors.foreground, fontFamily: fonts.medium, fontSize: 9, textAlign: 'center' },
+  actionText: { color: colors.foreground, fontFamily: fonts.medium, fontSize: 9, textAlign: 'center', marginTop: 6 },
   chartWrap: { overflow: 'hidden', paddingTop: 10 },
   chart: { marginLeft: -18, paddingRight: 0 },
   chartFooter: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.border, paddingVertical: 10 },
@@ -225,5 +250,4 @@ const styles = StyleSheet.create({
   recentMeta: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 9.5, marginTop: 1 },
   recentAmount: { color: colors.foreground, fontFamily: fonts.bold, fontSize: 12.5 },
   recentPaid: { fontFamily: fonts.medium, fontSize: 9, marginTop: 2 },
-  recentTime: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 9, marginTop: 1 },
 });

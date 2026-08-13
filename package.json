@@ -3,10 +3,11 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "postinstall": "cd app && npm install --legacy-peer-deps",
+    "postinstall": "cd server && npm install && cd ../app && npm install --legacy-peer-deps",
     "dev": "cd app && EXPO_NO_TELEMETRY=1 npx expo start --web --port 8080",
+    "web": "cd app && EXPO_NO_TELEMETRY=1 npx expo start --web --port 8080",
+    "dev:server": "cd server && npm run dev",
     "build": "cd app && npm run build && cd .. && rm -rf dist && cp -r app/dist dist",
-    "typecheck": "cd app && npm run typecheck",
-    "build:dev": "cd app && npm run build && cd .. && rm -rf dist && cp -r app/dist dist"
+    "typecheck": "cd app && npm run typecheck"
   }
 }

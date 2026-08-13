@@ -1,22 +1,33 @@
 const express = require('express');
 const router = express.Router();
-const Report = require('../models/Report');
+const store = require('../lib/store');
 
-router.get('/', async (req, res) => {
+/**
+ * GET  /api/reports     → list all reports (patient populated, newest first)
+ * GET  /api/reports/:id → single report (by _id or reportId)
+ * POST /api/reports     → create a report
+ */
+router.get('/', async (req, res, next) => {
   try {
-    const reports = await Report.find().populate('patient').sort({ createdAt: -1 });
-    res.json(reports);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.json(await store.reports.list());
+  } catch (err) {
+    next(err);
   }
 });
 
-router.post('/', async (req, res) => {
+router.get('/:id', async (req, res, next) => {
   try {
-    const report = await Report.create(req.body);
-    res.status(201).json(report);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.json(await store.reports.getById(req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/', async (req, res, next) => {
+  try {
+    res.status(201).json(await store.reports.create(req.body));
+  } catch (err) {
+    next(err);
   }
 });
 

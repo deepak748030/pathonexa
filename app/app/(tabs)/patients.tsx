@@ -1,14 +1,15 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, ActivityIndicator } from 'react-native';
-import { router } from 'expo-router';
+import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
 import { Search, UserPlus, SlidersHorizontal, ChevronRight, Phone, Calendar, Users, TrendingUp, FlaskConical, IndianRupee } from 'lucide-react-native';
 import ScreenHeader from '@/components/ScreenHeader';
 import StatCard from '@/components/StatCard';
 import Avatar from '@/components/Avatar';
-import { Card, SectionTitle, GridPanel, FadeIn, ListRow } from '@/components/UI';
+import { Card, SectionTitle, GridPanel, FadeIn, ListRow, Chip, OfflineBanner, EmptyState } from '@/components/UI';
 import { colors, fonts, radius, spacing } from '@/lib/theme';
 import { patientStats, patients as localPatients } from '@/lib/labData';
 import { endpoints } from '@/lib/api';
+import { useServerStatus } from '@/lib/serverStatus';
 
 const statIcons: Record<string, any> = {
   'Total Patients': Users,
@@ -17,39 +18,58 @@ const statIcons: Record<string, any> = {
   'This Week Collection': IndianRupee,
 };
 
+const GENDERS = ['All', 'Male', 'Female'];
+
 export default function Patients() {
+  const check = useServerStatus((s) => s.check);
   const [search, setSearch] = React.useState('');
+  const [gender, setGender] = React.useState('All');
   const [patients, setPatients] = React.useState<any[]>([]);
   const [stats, setStats] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [refreshing, setRefreshing] = React.useState(false);
 
-  React.useEffect(() => {
-    async function loadData() {
-      setLoading(true);
-      try {
-        const [data, remoteStats] = await Promise.all([
-          endpoints.patients.getAll(),
-          endpoints.patients.getStats(),
-        ]);
-        if (data) setPatients(data);
-        if (remoteStats) setStats(remoteStats);
-      } catch (e: any) {
-        console.warn('Failed to load patients from backend, showing local data');
-        console.error('Failed to load patients:', e.message || e);
-        setPatients(localPatients);
-        setStats(patientStats);
-      } finally {
-        setLoading(false);
-      }
+  const loadData = React.useCallback(async (initial = false) => {
+    if (initial) setLoading(true);
+    try {
+      const [data, remoteStats] = await Promise.all([
+        endpoints.patients.getAll(),
+        endpoints.patients.getStats(),
+      ]);
+      if (data) setPatients(data);
+      if (remoteStats?.length) setStats(remoteStats);
+    } catch (e: any) {
+      console.warn('Failed to load patients from backend, showing sample data:', e?.message || e);
+      setPatients(localPatients);
+      setStats(patientStats);
+    } finally {
+      setLoading(false);
     }
-    loadData();
   }, []);
 
-  const filtered = patients.filter(p => 
-    p.name.toLowerCase().includes(search.toLowerCase()) || 
-    (p.pid && p.pid.toLowerCase().includes(search.toLowerCase())) ||
-    (p.mobile && p.mobile.includes(search))
+  useFocusEffect(
+    React.useCallback(() => {
+      check();
+      loadData(patients.length === 0);
+    }, [check, loadData, patients.length])
   );
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([loadData(), check()]);
+    setRefreshing(false);
+  }, [loadData, check]);
+
+  const filtered = patients.filter((p) => {
+    const q = search.toLowerCase().trim();
+    const matchQ =
+      !q ||
+      (p.name || '').toLowerCase().includes(q) ||
+      (p.pid || '').toLowerCase().includes(q) ||
+      (p.mobile || '').includes(q);
+    const matchG = gender === 'All' || p.gender === gender;
+    return matchQ && matchG;
+  });
 
   if (loading) {
     return (
@@ -61,8 +81,8 @@ export default function Patients() {
 
   return (
     <View style={styles.screen}>
-      <ScreenHeader 
-        title="Patients" 
+      <ScreenHeader
+        title="Patients"
         subtitle="Manage your patient records"
         right={
           <Pressable style={styles.addBtn} onPress={() => router.push('/add-patient')}>
@@ -71,22 +91,30 @@ export default function Patients() {
         }
       />
 
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.body}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+      >
+        <OfflineBanner />
+
         <FadeIn>
           <GridPanel columns={2}>
-              {(stats.length > 0 ? stats : patientStats).map(s => {
-                const Icon = statIcons[s.label] || Users;
-                return (
-                  <StatCard 
-                    key={s.label} 
-                    label={s.label} 
-                    value={s.value} 
-                    tone={s.tone} 
-                    compact 
-                    icon={<Icon size={14} color={colors[s.tone === 'primary' ? 'primary' : s.tone as keyof typeof colors] || colors.primary} />}
-                  />
-                );
-              })}
+            {(stats.length > 0 ? stats : patientStats).map((s) => {
+              const Icon = statIcons[s.label] || Users;
+              const tone = (s.tone || 'primary') as keyof typeof colors;
+              return (
+                <StatCard
+                  key={s.label}
+                  label={s.label}
+                  value={s.value}
+                  tone={s.tone as any}
+                  compact
+                  icon={<Icon size={14} color={tone === 'primary' ? colors.primary : colors[tone]} />}
+                />
+              );
+            })}
           </GridPanel>
         </FadeIn>
 
@@ -95,7 +123,7 @@ export default function Patients() {
           <View style={styles.searchBar}>
             <View style={styles.searchInputWrap}>
               <Search size={18} color={colors.mutedForeground} />
-              <TextInput 
+              <TextInput
                 style={styles.searchInput}
                 placeholder="Search name, ID or mobile..."
                 placeholderTextColor={colors.mutedForeground}
@@ -103,21 +131,41 @@ export default function Patients() {
                 onChangeText={setSearch}
               />
             </View>
-            <Pressable style={styles.filterBtn}>
+            <Pressable style={styles.filterBtn} onPress={() => setGender('All')}>
               <SlidersHorizontal size={18} color={colors.foreground} />
             </Pressable>
+          </View>
+
+          {/* Segmented gender filter — mapped with gap 0 + hairline dividers */}
+          <View style={styles.segment}>
+            {GENDERS.map((g, i) => (
+              <Chip
+                key={g}
+                label={g}
+                active={gender === g}
+                divider={i > 0}
+                onPress={() => setGender(g)}
+              />
+            ))}
           </View>
         </FadeIn>
 
         <FadeIn delay={120}>
           <Card style={{ padding: 0 }}>
             {filtered.length === 0 ? (
-              <View style={styles.empty}>
-                <Text style={styles.emptyText}>{search ? 'No patients found matching search' : 'No patients found'}</Text>
-              </View>
+              <EmptyState
+                title={search ? 'No patients match your search' : 'No patients found'}
+                subtitle={search ? 'Try a different name, ID or mobile number.' : 'Add your first patient with the + button above.'}
+              />
             ) : (
               filtered.map((p, i) => (
-                <ListRow key={p.id || p._id} last={i === filtered.length - 1} onPress={() => {}}>
+                <ListRow
+                  key={p.id || p._id}
+                  last={i === filtered.length - 1}
+                  onPress={() =>
+                    router.push({ pathname: '/create-report', params: { patientId: p._id || p.id } } as any)
+                  }
+                >
                   <View style={styles.patientRow}>
                     <Avatar name={p.name} color={p.color} size={40} />
                     <View style={styles.patientInfo}>
@@ -128,7 +176,7 @@ export default function Patients() {
                           <Phone size={10} color={colors.mutedForeground} />
                           <Text style={styles.contactText}>{p.mobile}</Text>
                         </View>
-                        {p.lastTestDate && (
+                        {!!p.lastTestDate && (
                           <View style={styles.contactItem}>
                             <Calendar size={10} color={colors.mutedForeground} />
                             <Text style={styles.contactText}>{p.lastTestDate}</Text>
@@ -152,17 +200,16 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   body: { paddingHorizontal: spacing.hPad, paddingTop: 4, paddingBottom: 28 },
   addBtn: { width: 36, height: 36, borderRadius: radius.xs, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
-  searchBar: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  searchBar: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   searchInputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', height: 44, backgroundColor: colors.card, borderRadius: radius.sm, paddingHorizontal: 12, borderWidth: 1, borderColor: colors.border },
   searchInput: { flex: 1, height: '100%', marginLeft: 8, fontFamily: fonts.medium, fontSize: 13, color: colors.foreground },
   filterBtn: { width: 44, height: 44, backgroundColor: colors.card, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+  segment: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', marginBottom: 10 },
   patientRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  patientInfo: { flex: 1 },
+  patientInfo: { flex: 1, minWidth: 0 },
   patientName: { fontSize: 14, fontFamily: fonts.bold, color: colors.foreground },
   patientMeta: { fontSize: 11, fontFamily: fonts.medium, color: colors.mutedForeground, marginTop: 1 },
   patientContact: { flexDirection: 'row', gap: 12, marginTop: 4 },
   contactItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   contactText: { fontSize: 10, fontFamily: fonts.regular, color: colors.mutedForeground },
-  empty: { padding: 40, alignItems: 'center' },
-  emptyText: { fontFamily: fonts.medium, color: colors.mutedForeground, fontSize: 14 },
 });

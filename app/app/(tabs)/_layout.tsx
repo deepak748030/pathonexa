@@ -1,6 +1,8 @@
 import React from 'react';
 import { Tabs, router } from 'expo-router';
 import { View, Pressable, StyleSheet, Text, Animated, Easing } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { House, UsersRound, FileText, LayoutGrid, Plus } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -19,7 +21,15 @@ const LABELS: Record<string, string> = {
   more: 'More',
 };
 
-/** Animated tab: icon lifts + scales, pill fades in, label brightens. */
+function tap() {
+  try {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  } catch {
+    /* haptics not available (web) */
+  }
+}
+
+/** Animated tab: icon + label lift, soft pill fills in behind the icon. */
 function TabItem({ name, focused, onPress }: { name: string; focused: boolean; onPress: () => void }) {
   const Icon = ICONS[name];
   const v = React.useRef(new Animated.Value(focused ? 1 : 0)).current;
@@ -36,30 +46,37 @@ function TabItem({ name, focused, onPress }: { name: string; focused: boolean; o
   const color = focused ? colors.primary : '#94A3B8';
 
   return (
-    <Pressable onPress={onPress} style={styles.item} hitSlop={4}>
+    <Pressable
+      onPress={() => {
+        tap();
+        onPress();
+      }}
+      style={styles.item}
+      hitSlop={4}
+    >
       <Animated.View
         style={[
-          styles.pill,
+          styles.iconPill,
           {
             opacity: v,
-            transform: [{ scaleX: v.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }],
+            transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) }],
           },
         ]}
       />
       <Animated.View
         style={{
           transform: [
-            { translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, -2] }) },
-            { scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] }) },
+            { translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, -1] }) },
+            { scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] }) },
           ],
         }}
       >
         <Icon
-          size={20}
+          size={21}
           color={color}
-          strokeWidth={focused ? 2.3 : 1.9}
+          strokeWidth={focused ? 2.4 : 1.9}
           fill={focused ? color : 'transparent'}
-          fillOpacity={focused ? 0.2 : 0}
+          fillOpacity={focused ? 0.18 : 0}
         />
       </Animated.View>
       <Text style={[styles.label, { color }, focused && { fontFamily: fonts.bold }]} numberOfLines={1}>
@@ -69,6 +86,7 @@ function TabItem({ name, focused, onPress }: { name: string; focused: boolean; o
   );
 }
 
+/** Center gradient FAB — rotates 90° and scales on press. */
 function Fab() {
   const s = React.useRef(new Animated.Value(0)).current;
   const press = (to: number) =>
@@ -78,21 +96,28 @@ function Fab() {
     <Pressable
       onPressIn={() => press(1)}
       onPressOut={() => press(0)}
-      onPress={() => router.push('/create-report' as any)}
+      onPress={() => {
+        tap();
+        router.push('/create-report' as any);
+      }}
       style={styles.fabSlot}
     >
       <Animated.View
-        style={[
-          styles.fab,
-          {
-            transform: [
-              { scale: s.interpolate({ inputRange: [0, 1], outputRange: [1, 0.9] }) },
-              { rotate: s.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '90deg'] }) },
-            ],
-          },
-        ]}
+        style={{
+          transform: [
+            { scale: s.interpolate({ inputRange: [0, 1], outputRange: [1, 0.88] }) },
+            { rotate: s.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '90deg'] }) },
+          ],
+        }}
       >
-        <Plus size={24} color="#FFFFFF" strokeWidth={3} />
+        <LinearGradient
+          colors={[colors.primary, colors.primaryGradientEnd]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.fab}
+        >
+          <Plus size={25} color="#FFFFFF" strokeWidth={3} />
+        </LinearGradient>
       </Animated.View>
     </Pressable>
   );
@@ -150,24 +175,26 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     paddingTop: 7,
+    // gap: 0 — items sit flush, separated only by the center FAB.
   },
-  item: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3 },
-  pill: {
+  item: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4 },
+  iconPill: {
     position: 'absolute',
-    top: -7,
-    width: 26,
-    height: 2.5,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primary,
+    top: -1,
+    width: 34,
+    height: 26,
+    borderRadius: radius.md,
+    backgroundColor: colors.primaryLight,
   },
-  label: { fontFamily: fonts.semibold, fontSize: 10 },
+  label: { fontFamily: fonts.semibold, fontSize: 10, marginTop: 3 },
   fabSlot: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   fab: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.sm,
-    backgroundColor: colors.primary,
+    width: 46,
+    height: 46,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: colors.background,
   },
 });
