@@ -137,18 +137,9 @@ export default function Patients() {
         <SectionTitle title="Patient List" />
         <FadeIn delay={60}>
           <View style={styles.searchBar}>
-            <View style={styles.searchInputWrap}>
-              <Search size={18} color={colors.mutedForeground} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search name, ID or mobile..."
-                placeholderTextColor={colors.mutedForeground}
-                value={search}
-                onChangeText={setSearch}
-              />
-            </View>
+            <SearchBar value={search} onChangeText={setSearch} placeholder="Search name, ID or mobile..." />
             <Pressable style={styles.filterBtn} onPress={() => setGender('All')}>
-              <SlidersHorizontal size={18} color={colors.foreground} />
+              <SlidersHorizontal size={16} color={colors.foreground} />
             </Pressable>
           </View>
 

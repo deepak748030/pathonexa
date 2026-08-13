@@ -36,16 +36,18 @@ export const radius = { xs: 2, sm: 4, md: 6, lg: 6, xl: 8, pill: 999 };
  * gap  = 0 → all mapped lists/grids sit edge-to-edge with zero gaps
  *            (separated only by hairline dividers).
  */
-export const spacing = { hPad: 4, gap: 0, headerPad: 4 };
-
-/** Change once — every Field, SearchBar, PrimaryButton follows these. */
-export const sizes = {
+export const spacing = {
+  hPad: 4,
+  gap: 0,
+  headerPad: 4,
   input: 38,
-  inputIcon: 16,
   search: 38,
   button: 42,
   headerIcon: 34,
 };
+
+/** Alias — same numbers as spacing. */
+export const sizes = spacing;
 
 export const fonts = {
   regular: 'PlusJakartaSans_400Regular',

@@ -1,6 +1,8 @@
 import React from 'react';
 import { Pressable, Text, ActivityIndicator, StyleSheet } from 'react-native';
-import { colors, fonts, radius, sizes } from '@/lib/theme';
+import { colors, fonts, radius, spacing } from '@/lib/theme';
+
+const H = spacing.button ?? 42;
 
 export default function PrimaryButton({
   title, onPress, loading, disabled,
@@ -18,7 +20,7 @@ export default function PrimaryButton({
 
 const styles = StyleSheet.create({
   btn: {
-    height: sizes.button,
+    height: H,
     backgroundColor: colors.primary,
     borderRadius: radius.md,
     alignItems: 'center',

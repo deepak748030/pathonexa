@@ -1,7 +1,9 @@
 import React from 'react';
 import { View, TextInput, StyleSheet } from 'react-native';
 import { Search } from 'lucide-react-native';
-import { colors, fonts, radius, sizes } from '@/lib/theme';
+import { colors, fonts, radius, spacing } from '@/lib/theme';
+
+const H = spacing.search ?? 38;
 
 export default function SearchBar({
   value, onChangeText, placeholder,
@@ -25,7 +27,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    height: sizes.search,
+    height: H,
     backgroundColor: colors.card,
     borderRadius: radius.sm,
     paddingHorizontal: 10,
@@ -33,5 +35,5 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     gap: 8,
   },
-  input: { flex: 1, height: sizes.search, fontFamily: fonts.medium, fontSize: 13, color: colors.foreground, padding: 0 },
+  input: { flex: 1, height: H, fontFamily: fonts.medium, fontSize: 13, color: colors.foreground, padding: 0 },
 });

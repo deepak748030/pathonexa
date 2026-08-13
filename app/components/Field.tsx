@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, TextInput, StyleSheet, Pressable } from 'react-native';
-import { colors, fonts, radius, sizes } from '@/lib/theme';
+import { colors, fonts, radius, spacing } from '@/lib/theme';
+
+const H = spacing.input ?? 38;
 
 type Props = {
   label?: string;
@@ -26,7 +28,7 @@ export default function Field({
         <Text style={[styles.text, !value && styles.ph]} numberOfLines={1}>{value || placeholder}</Text>
       ) : (
         <TextInput
-          style={[styles.input, multiline && { height: sizes.input * 1.6, textAlignVertical: 'top' }]}
+          style={[styles.input, multiline && { height: H * 1.6, textAlignVertical: 'top' }]}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -54,7 +56,7 @@ const styles = StyleSheet.create({
   wrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: sizes.input,
+    height: H,
     backgroundColor: colors.inputBg,
     borderRadius: radius.md,
     paddingHorizontal: 10,
@@ -63,8 +65,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   filled: { borderColor: '#93C5FD' },
-  multi: { height: undefined, minHeight: sizes.input, alignItems: 'flex-start', paddingVertical: 8 },
-  input: { flex: 1, height: sizes.input, fontFamily: fonts.medium, fontSize: 13, color: colors.foreground, outlineStyle: 'none' as any, padding: 0 },
+  multi: { height: undefined, minHeight: H, alignItems: 'flex-start', paddingVertical: 8 },
+  input: { flex: 1, height: H, fontFamily: fonts.medium, fontSize: 13, color: colors.foreground, outlineStyle: 'none' as any, padding: 0 },
   text: { flex: 1, fontFamily: fonts.medium, fontSize: 13, color: colors.foreground },
   ph: { color: colors.placeholder },
 });
