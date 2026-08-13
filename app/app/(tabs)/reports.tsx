@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: spacing.hPad, paddingTop: 4, paddingBottom: 28 },
   addBtn: { width: 36, height: 36, borderRadius: radius.xs, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
   searchBar: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  filterBtn: { width: 38, height: 38, backgroundColor: colors.card, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+  filterBtn: { width: spacing.search, height: spacing.search, backgroundColor: colors.card, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
   segment: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', marginBottom: 10 },
   reportRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   reportInfo: { flex: 1, minWidth: 0 },

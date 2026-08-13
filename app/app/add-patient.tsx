@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
   formCard: { padding: 14 },
   label: { fontSize: 11, fontFamily: fonts.semibold, color: colors.mutedForeground, marginBottom: 5, textTransform: 'uppercase' },
   row: { flexDirection: 'row' },
-  genderWrap: { flexDirection: 'row', height: 38, gap: 8 },
+  genderWrap: { flexDirection: 'row', height: spacing.input, gap: 8 },
   genderBtn: { flex: 1, backgroundColor: '#FFF', borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
   genderBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   genderText: { fontSize: 13, fontFamily: fonts.semibold, color: colors.mutedForeground },
