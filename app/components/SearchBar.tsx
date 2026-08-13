@@ -3,7 +3,7 @@ import { View, TextInput, StyleSheet } from 'react-native';
 import { Search } from 'lucide-react-native';
 import { colors, fonts, radius, spacing } from '@/lib/theme';
 
-const H = spacing.search ?? 38;
+const H = spacing.search ?? 46;
 
 export default function SearchBar({
   value, onChangeText, placeholder,

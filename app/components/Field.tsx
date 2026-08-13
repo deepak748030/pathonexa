@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TextInput, StyleSheet, Pressable } from 'react-native';
 import { colors, fonts, radius, spacing } from '@/lib/theme';
 
-const H = spacing.input ?? 38;
+const H = spacing.input ?? 46;
 
 type Props = {
   label?: string;

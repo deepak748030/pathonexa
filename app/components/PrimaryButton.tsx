@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { colors, fonts, radius, spacing } from '@/lib/theme';
 
-const H = spacing.button ?? 42;
+const H = spacing.button ?? 48;
 
 export default function PrimaryButton({
   title, onPress, loading, disabled,

@@ -40,9 +40,9 @@ export const spacing = {
   hPad: 4,
   gap: 0,
   headerPad: 4,
-  input: 38,
-  search: 38,
-  button: 42,
+  input: 46,
+  search: 46,
+  button: 48,
   headerIcon: 34,
 };
 
