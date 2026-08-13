@@ -1,15 +1,16 @@
 import React from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Pressable, Image, Dimensions,
+  View, Text, StyleSheet, ScrollView, Pressable, Dimensions,
   ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { LineChart } from 'react-native-chart-kit';
 import {
-  Menu, Bell, ClipboardList, IndianRupee, Hourglass, Wallet, Users, Receipt,
-  UserPlus, FlaskConical, CreditCard, Stethoscope, LayoutGrid, ChevronRight,
+  Menu, ClipboardList, IndianRupee, Hourglass, Wallet, Users, Receipt,
+  UserPlus, FlaskConical, CreditCard, Stethoscope, ChevronRight,
 } from 'lucide-react-native';
 import ScreenHeader from '@/components/ScreenHeader';
+import HeaderUser from '@/components/HeaderUser';
 import StatCard from '@/components/StatCard';
 import Avatar from '@/components/Avatar';
 import { Card, SectionTitle, GridPanel, FadeIn, ListRow, OfflineBanner, EmptyState } from '@/components/UI';
@@ -91,14 +92,7 @@ export default function Dashboard() {
         subtitle={lab.shortName}
         left={<Menu size={22} color="#FFFFFF" />}
         onLeftPress={() => router.push('/menu' as any)}
-        right={
-          <>
-            <Pressable onPress={() => router.push('/notifications' as any)} hitSlop={8}>
-            <Bell size={20} color="#FFFFFF" />
-          </Pressable>
-            <Image source={require('../../assets/images/icon.png')} style={styles.logo} />
-          </>
-        }
+        right={<HeaderUser />}
       />
 
       <ScrollView
@@ -237,13 +231,25 @@ export default function Dashboard() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  logo: { width: 28, height: 28, borderRadius: radius.xs, backgroundColor: '#FFFFFF' },
   body: { paddingHorizontal: spacing.hPad, paddingTop: 4, paddingBottom: 28 },
-  actionRow: { flexDirection: 'row', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, overflow: 'hidden' },
-  action: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, paddingHorizontal: 4, borderRightWidth: 1, borderRightColor: colors.border },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    height: 72,
+  },
+  action: { flex: 1, minWidth: 0, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2, paddingVertical: 8 },
+  actionDivider: { borderLeftWidth: 1, borderLeftColor: colors.border },
   actionPressed: { backgroundColor: colors.muted },
-  actionIcon: { width: 26, height: 26, borderRadius: radius.xs, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
-  actionText: { color: colors.foreground, fontFamily: fonts.semibold, fontSize: 10, textAlign: 'center' },
+  actionIcon: {
+    width: 28, height: 28, borderRadius: radius.sm, backgroundColor: colors.primaryLight,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 4,
+  },
+  actionText: { color: colors.foreground, fontFamily: fonts.semibold, fontSize: 10, lineHeight: 13, textAlign: 'center', width: '100%' },
   chartWrap: { overflow: 'hidden', paddingTop: 10 },
   chart: { marginLeft: -18, paddingRight: 0 },
   chartFooter: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.border, paddingVertical: 10 },

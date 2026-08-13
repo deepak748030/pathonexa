@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   Home, Users, FileText, FilePlus, Stethoscope, FlaskConical, Building2, Landmark, Percent,
-  CreditCard, DatabaseBackup, Trash2, Building, Settings, ShieldCheck, HelpCircle, Info, LogOut, ChevronRight,
+  CreditCard, DatabaseBackup, Trash2, Building, Settings, HelpCircle, Info, LogOut, ChevronRight,
 } from 'lucide-react-native';
 import Avatar from '@/components/Avatar';
 import { colors, fonts, radius, spacing } from '@/lib/theme';
@@ -35,7 +35,6 @@ const sections = [
   { title: 'SETTINGS & SUPPORT', items: [
     { title: 'Lab Profile', Icon: Building, href: '/manage/lab' },
     { title: 'Settings', Icon: Settings, href: '/manage/settings' },
-    { title: 'Users & Roles', Icon: ShieldCheck, href: '/manage/employees' },
     { title: 'Help & Support', Icon: HelpCircle, href: '/manage/help' },
     { title: 'About App', Icon: Info, href: '/manage/about' },
   ]},
@@ -67,7 +66,7 @@ export default function MenuDrawer() {
             <View style={styles.activePill}><Text style={styles.activeText}>Active</Text></View>
           </View>
           <View style={styles.userCard}>
-            <Avatar name={lab.admin} size={34} />
+            <Avatar name={lab.admin} size={34} circle />
             <View style={styles.headCol}>
               <Text style={styles.userName} numberOfLines={1}>{lab.admin}</Text>
               <Text style={styles.userRole} numberOfLines={1}>{lab.role}</Text>

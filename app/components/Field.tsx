@@ -26,7 +26,7 @@ export default function Field({
         <Text style={[styles.text, !value && styles.ph]} numberOfLines={1}>{value || placeholder}</Text>
       ) : (
         <TextInput
-          style={[styles.input, multiline && { height: 72, textAlignVertical: 'top' }]}
+          style={[styles.input, multiline && { height: 56, textAlignVertical: 'top' }]}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}

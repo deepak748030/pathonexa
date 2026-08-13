@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
   subHeadline: { fontSize: 14, fontFamily: fonts.medium, color: colors.mutedForeground, marginTop: 4, textAlign: 'center' },
   formContainer: { paddingHorizontal: spacing.hPad },
   inputOuter: {
-    flexDirection: 'row', alignItems: 'center', height: 48,
+    flexDirection: 'row', alignItems: 'center', height: 42,
     borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm,
     paddingHorizontal: 15, marginBottom: 15, backgroundColor: '#FFF',
   },
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
   countryText: { fontFamily: fonts.semibold, color: colors.foreground, fontSize: 15 },
   phoneInput: { flex: 1, height: '100%', fontFamily: fonts.medium, fontSize: 15, color: colors.foreground },
   continueBtn: {
-    height: 48, backgroundColor: colors.primary,
+    height: 44, backgroundColor: colors.primary,
     borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center',
   },
   continueText: { color: '#FFFFFF', fontFamily: fonts.bold, fontSize: 15 },
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
   line: { flex: 1, height: 1, backgroundColor: colors.border },
   orText: { marginHorizontal: 15, color: colors.placeholder, fontSize: 11, fontFamily: fonts.bold },
   socialBtn: {
-    flexDirection: 'row', height: 48, borderWidth: 1, borderColor: colors.border,
+    flexDirection: 'row', height: 42, borderWidth: 1, borderColor: colors.border,
     borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', gap: 10,
   },
   socialText: { color: '#475569', fontFamily: fonts.semibold, fontSize: 14 },

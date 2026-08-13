@@ -2,11 +2,12 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, Pressable, ActivityIndicator } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import {
-  Bell, ArrowLeftRight, Stethoscope, FlaskConical, Users, Building2, Landmark, Percent, CreditCard,
-  FileText, DatabaseBackup, Trash2, Building, Settings, ShieldCheck, HelpCircle, Info, LogOut,
+  ArrowLeftRight, Stethoscope, FlaskConical, Users, Building2, Landmark, Percent, CreditCard,
+  FileText, DatabaseBackup, Trash2, Building, Settings, HelpCircle, Info, LogOut,
   WifiOff, Database,
 } from 'lucide-react-native';
 import ScreenHeader from '@/components/ScreenHeader';
+import HeaderUser from '@/components/HeaderUser';
 import { Card, MenuRow, FadeIn } from '@/components/UI';
 import { colors, fonts, radius, spacing } from '@/lib/theme';
 import { lab } from '@/lib/labData';
@@ -40,7 +41,6 @@ const groups = [
     items: [
       { title: 'Lab Profile', subtitle: 'View and edit lab details', Icon: Building, href: '/manage/lab' },
       { title: 'Settings', subtitle: 'General app settings', Icon: Settings, href: '/manage/settings' },
-      { title: 'Users & Roles', subtitle: 'Manage app users and roles', Icon: ShieldCheck, href: '/manage/employees' },
       { title: 'Help & Support', subtitle: 'Get help and contact support', Icon: HelpCircle, href: '/manage/help' },
       { title: 'About App', subtitle: 'App version and information', Icon: Info, href: '/manage/about' },
     ],
@@ -67,11 +67,7 @@ export default function More() {
       <ScreenHeader
         title="More"
         subtitle="Manage your lab, settings and more"
-        right={
-          <Pressable onPress={() => router.push('/notifications' as any)} hitSlop={8}>
-            <Bell size={20} color="#FFFFFF" />
-          </Pressable>
-        }
+        right={<HeaderUser />}
       />
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
@@ -83,7 +79,7 @@ export default function More() {
               <Text style={styles.labMeta} numberOfLines={1}>{lab.city}</Text>
               <Text style={styles.labMeta} numberOfLines={1}>Lab ID: {lab.labId}</Text>
             </View>
-            <Pressable style={({ pressed }) => [styles.switchBtn, pressed && { opacity: 0.7 }]}>
+            <Pressable style={({ pressed }) => [styles.switchBtn, pressed && { opacity: 0.7 }]} onPress={() => router.push('/manage/lab' as any)}>
               <ArrowLeftRight size={13} color={colors.primary} />
               <Text style={styles.switchText}>Switch</Text>
             </Pressable>

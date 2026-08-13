@@ -56,6 +56,6 @@ export default function LabProfile() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   body: { paddingHorizontal: spacing.hPad, paddingTop: 10, paddingBottom: 32 },
-  save: { height: 48, backgroundColor: colors.primary, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  save: { height: 42, backgroundColor: colors.primary, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   saveText: { color: '#fff', fontFamily: fonts.bold, fontSize: 14 },
 });
