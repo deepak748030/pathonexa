@@ -38,6 +38,12 @@ export default function RootLayout() {
         <Stack.Screen name="add-patient" />
         <Stack.Screen name="create-report" />
         <Stack.Screen name="report-preview" />
+        <Stack.Screen name="manage/[slug]" />
+        <Stack.Screen name="manage/lab" />
+        <Stack.Screen name="manage/settings" />
+        <Stack.Screen name="manage/help" />
+        <Stack.Screen name="manage/about" />
+        <Stack.Screen name="manage/backup" />
         <Stack.Screen name="menu" options={{ presentation: 'transparentModal', animation: 'fade' }} />
       </Stack>
       <StatusBar style="dark" backgroundColor={colors.background} translucent={true} />

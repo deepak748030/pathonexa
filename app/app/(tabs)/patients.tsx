@@ -36,12 +36,27 @@ export default function Patients() {
         endpoints.patients.getAll(),
         endpoints.patients.getStats(),
       ]);
-      if (data) setPatients(data);
-      if (remoteStats?.length) setStats(remoteStats);
+      const list = Array.isArray(data) ? data : [];
+      setPatients(list);
+      if (remoteStats?.length) {
+        setStats(remoteStats);
+      } else {
+        setStats([
+          { label: 'Total Patients', value: String(list.length), tone: 'primary' },
+          { label: 'New This Week', value: '0', tone: 'green' },
+          { label: 'Tests This Week', value: '0', tone: 'purple' },
+          { label: 'This Week Collection', value: '₹0', tone: 'orange' },
+        ]);
+      }
     } catch (e: any) {
-      console.warn('Failed to load patients from backend, showing sample data:', e?.message || e);
-      setPatients(localPatients);
-      setStats(patientStats);
+      console.warn('Failed to load patients from backend:', e?.message || e);
+      setPatients([]);
+      setStats([
+        { label: 'Total Patients', value: '0', tone: 'primary' },
+        { label: 'New This Week', value: '0', tone: 'green' },
+        { label: 'Tests This Week', value: '0', tone: 'purple' },
+        { label: 'This Week Collection', value: '₹0', tone: 'orange' },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -50,7 +65,7 @@ export default function Patients() {
   useFocusEffect(
     React.useCallback(() => {
       check();
-      loadData(patients.length === 0);
+      loadData(true);
     }, [check, loadData, patients.length])
   );
 
@@ -101,7 +116,7 @@ export default function Patients() {
 
         <FadeIn>
           <GridPanel columns={2}>
-            {(stats.length > 0 ? stats : patientStats).map((s) => {
+            {stats.map((s) => {
               const Icon = statIcons[s.label] || Users;
               const tone = (s.tone || 'primary') as keyof typeof colors;
               return (

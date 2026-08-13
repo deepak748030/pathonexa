@@ -3,19 +3,19 @@ import { Tabs, router } from 'expo-router';
 import { View, Pressable, StyleSheet, Text, Animated, Easing } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { House, UsersRound, FileText, LayoutGrid, Plus } from 'lucide-react-native';
+import { LayoutDashboard, Users, FileBarChart, Ellipsis, Plus } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { colors, fonts, radius } from '@/lib/theme';
 
-const ICONS: Record<string, typeof House> = {
-  index: House,
-  patients: UsersRound,
-  reports: FileText,
-  more: LayoutGrid,
+const ICONS: Record<string, typeof LayoutDashboard> = {
+  index: LayoutDashboard,
+  patients: Users,
+  reports: FileBarChart,
+  more: Ellipsis,
 };
 const LABELS: Record<string, string> = {
-  index: 'Dashboard',
+  index: 'Home',
   patients: 'Patients',
   reports: 'Reports',
   more: 'More',
@@ -25,59 +25,30 @@ function tap() {
   try {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   } catch {
-    /* haptics not available (web) */
+    /* web */
   }
 }
 
-/** Animated tab: icon + label lift, soft pill fills in behind the icon. */
 function TabItem({ name, focused, onPress }: { name: string; focused: boolean; onPress: () => void }) {
   const Icon = ICONS[name];
   const v = React.useRef(new Animated.Value(focused ? 1 : 0)).current;
 
   React.useEffect(() => {
-    Animated.spring(v, {
-      toValue: focused ? 1 : 0,
-      useNativeDriver: true,
-      friction: 7,
-      tension: 120,
-    }).start();
+    Animated.spring(v, { toValue: focused ? 1 : 0, useNativeDriver: true, friction: 7, tension: 120 }).start();
   }, [focused, v]);
 
   const color = focused ? colors.primary : '#94A3B8';
 
   return (
-    <Pressable
-      onPress={() => {
-        tap();
-        onPress();
-      }}
-      style={styles.item}
-      hitSlop={4}
-    >
+    <Pressable onPress={() => { tap(); onPress(); }} style={styles.item} hitSlop={4}>
       <Animated.View
         style={[
-          styles.iconPill,
-          {
-            opacity: v,
-            transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) }],
-          },
+          styles.iconWrap,
+          focused && styles.iconWrapActive,
+          { transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] }) }] },
         ]}
-      />
-      <Animated.View
-        style={{
-          transform: [
-            { translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, -1] }) },
-            { scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] }) },
-          ],
-        }}
       >
-        <Icon
-          size={21}
-          color={color}
-          strokeWidth={focused ? 2.4 : 1.9}
-          fill={focused ? color : 'transparent'}
-          fillOpacity={focused ? 0.18 : 0}
-        />
+        <Icon size={20} color={color} strokeWidth={focused ? 2.5 : 1.8} />
       </Animated.View>
       <Text style={[styles.label, { color }, focused && { fontFamily: fonts.bold }]} numberOfLines={1}>
         {LABELS[name]}
@@ -86,7 +57,6 @@ function TabItem({ name, focused, onPress }: { name: string; focused: boolean; o
   );
 }
 
-/** Center gradient FAB — rotates 90° and scales on press. */
 function Fab() {
   const s = React.useRef(new Animated.Value(0)).current;
   const press = (to: number) =>
@@ -96,27 +66,17 @@ function Fab() {
     <Pressable
       onPressIn={() => press(1)}
       onPressOut={() => press(0)}
-      onPress={() => {
-        tap();
-        router.push('/create-report' as any);
-      }}
+      onPress={() => { tap(); router.push('/create-report' as any); }}
       style={styles.fabSlot}
     >
-      <Animated.View
-        style={{
-          transform: [
-            { scale: s.interpolate({ inputRange: [0, 1], outputRange: [1, 0.88] }) },
-            { rotate: s.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '90deg'] }) },
-          ],
-        }}
-      >
+      <Animated.View style={{ transform: [{ scale: s.interpolate({ inputRange: [0, 1], outputRange: [1, 0.9] }) }] }}>
         <LinearGradient
           colors={[colors.primary, colors.primaryGradientEnd]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.fab}
         >
-          <Plus size={25} color="#FFFFFF" strokeWidth={3} />
+          <Plus size={24} color="#FFFFFF" strokeWidth={2.8} />
         </LinearGradient>
       </Animated.View>
     </Pressable>
@@ -135,15 +95,13 @@ function TabBar({ state, navigation, insetBottom }: BottomTabBarProps & { insetB
         key={r.key}
         name={r.name}
         focused={focused}
-        onPress={() => {
-          if (!focused) navigation.navigate(r.name as never);
-        }}
+        onPress={() => { if (!focused) navigation.navigate(r.name as never); }}
       />
     );
   };
 
   return (
-    <View style={[styles.bar, { paddingBottom: insetBottom + 6 }]}>
+    <View style={[styles.bar, { paddingBottom: Math.max(insetBottom, 8) }]}>
       {left.map(render)}
       <Fab />
       {right.map(render)}
@@ -154,10 +112,7 @@ function TabBar({ state, navigation, insetBottom }: BottomTabBarProps & { insetB
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   return (
-    <Tabs
-      screenOptions={{ headerShown: false }}
-      tabBar={(props) => <TabBar {...props} insetBottom={insets.bottom} />}
-    >
+    <Tabs screenOptions={{ headerShown: false }} tabBar={(props) => <TabBar {...props} insetBottom={insets.bottom} />}>
       <Tabs.Screen name="index" />
       <Tabs.Screen name="patients" />
       <Tabs.Screen name="create" />
@@ -170,31 +125,25 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    paddingTop: 7,
-    // gap: 0 — items sit flush, separated only by the center FAB.
+    paddingTop: 6,
+    paddingHorizontal: 4,
   },
-  item: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4 },
-  iconPill: {
-    position: 'absolute',
-    top: -1,
-    width: 34,
-    height: 26,
-    borderRadius: radius.md,
-    backgroundColor: colors.primaryLight,
-  },
-  label: { fontFamily: fonts.semibold, fontSize: 10, marginTop: 3 },
-  fabSlot: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  item: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 2 },
+  iconWrap: { width: 36, height: 28, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md },
+  iconWrapActive: { backgroundColor: colors.primaryLight },
+  label: { fontFamily: fonts.semibold, fontSize: 10, marginTop: 2 },
+  fabSlot: { width: 64, alignItems: 'center', justifyContent: 'flex-start', marginTop: -18 },
   fab: {
-    width: 46,
-    height: 46,
-    borderRadius: radius.md,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: colors.background,
+    borderWidth: 4,
+    borderColor: '#FFFFFF',
   },
 });

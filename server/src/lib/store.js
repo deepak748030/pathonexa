@@ -20,7 +20,20 @@ const seed = require('./seedData');
 /* In-memory state                                                     */
 /* ------------------------------------------------------------------ */
 
-const mem = { patients: [], reports: [], users: [], seeded: false };
+const mem = {
+  patients: [],
+  reports: [],
+  users: [],
+  tests: [],
+  doctors: [],
+  employees: [],
+  centers: [],
+  payments: [],
+  discounts: [],
+  templates: [],
+  deleted: [],
+  seeded: false,
+};
 
 const makeId = () => crypto.randomBytes(12).toString('hex');
 const pad = (n, w = 3) => String(n).padStart(w, '0');
@@ -35,63 +48,33 @@ function hoursAgo(h) {
   return new Date(Date.now() - h * 3600 * 1000);
 }
 
+function withIds(list) {
+  return list.map((item) => ({
+    ...item,
+    _id: item.id || makeId(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }));
+}
+
 function seedMemory() {
   if (mem.seeded) return;
   mem.seeded = true;
-
-  mem.patients = seed.patients.map((p, i) => ({
-    ...p,
-    _id: makeId(),
-    pid: genPid(new Date(), i + 1),
-    createdAt: hoursAgo(24 * (seed.patients.length - i)),
-    updatedAt: hoursAgo(24 * (seed.patients.length - i)),
-  }));
-
-  mem.reports = seed.reports
-    .map((r, i) => {
-      const patient = mem.patients[r.patientIndex];
-      const doc = { ...r };
-      delete doc.patientIndex;
-      return {
-        ...doc,
-        _id: makeId(),
-        patient,
-        createdAt: hoursAgo(2 + i * 11),
-        updatedAt: hoursAgo(2 + i * 11),
-      };
-    })
-    .sort((a, b) => b.createdAt - a.createdAt);
+  // Catalogue only — patients & reports stay empty so the app shows YOUR records.
+  mem.patients = [];
+  mem.reports = [];
+  mem.tests = withIds(seed.tests);
+  mem.doctors = withIds(seed.doctors);
+  mem.employees = withIds(seed.employees || []);
+  mem.centers = withIds(seed.centers || []);
+  mem.payments = withIds(seed.payments || []);
+  mem.discounts = withIds(seed.discounts || []);
+  mem.templates = withIds(seed.templates || []);
 }
 
 async function seedMongo() {
-  if (process.env.SEED_DEMO === 'false') return;
-  try {
-    const existing = await Patient.countDocuments();
-    if (existing > 0) return;
-    const created = [];
-    for (let i = 0; i < seed.patients.length; i += 1) {
-      const p = seed.patients[i];
-      const doc = await Patient.create({
-        ...p,
-        pid: genPid(new Date(), i + 1),
-        createdAt: hoursAgo(24 * (seed.patients.length - i)),
-      });
-      created.push(doc);
-    }
-    for (let i = 0; i < seed.reports.length; i += 1) {
-      const r = seed.reports[i];
-      const payload = { ...r };
-      delete payload.patientIndex;
-      await Report.create({
-        ...payload,
-        patient: created[r.patientIndex]._id,
-        createdAt: hoursAgo(2 + i * 11),
-      });
-    }
-    console.log('[seed] Demo data seeded into MongoDB.');
-  } catch (err) {
-    console.warn(`[seed] Could not seed MongoDB: ${err.message}`);
-  }
+  // Do not auto-insert demo patients — only real records created in the app.
+  return;
 }
 
 /* ------------------------------------------------------------------ */
@@ -410,9 +393,62 @@ const dashboard = {
 /* Meta (tests & doctors)                                              */
 /* ------------------------------------------------------------------ */
 
+function collectionApi(key, required) {
+  return {
+    list() {
+      ensureSeeded();
+      return [...mem[key]];
+    },
+    create(data) {
+      ensureSeeded();
+      for (const f of required) {
+        if (data == null || data[f] == null || data[f] === '') {
+          const err = new Error(`${f} is required`);
+          err.status = 400;
+          throw err;
+        }
+      }
+      const doc = { ...data, _id: makeId(), id: undefined, createdAt: new Date(), updatedAt: new Date() };
+      doc.id = doc._id;
+      mem[key].unshift(doc);
+      return doc;
+    },
+    remove(id) {
+      ensureSeeded();
+      const i = mem[key].findIndex((x) => x._id === id || x.id === id);
+      if (i < 0) {
+        const err = new Error('Not found');
+        err.status = 404;
+        throw err;
+      }
+      const [removed] = mem[key].splice(i, 1);
+      mem.deleted.unshift({ ...removed, kind: key, deletedAt: new Date() });
+      return removed;
+    },
+  };
+}
+
 const meta = {
-  tests: () => seed.tests,
-  doctors: () => seed.doctors,
+  tests: collectionApi('tests', ['name', 'price']),
+  doctors: collectionApi('doctors', ['name']),
+  employees: collectionApi('employees', ['name', 'role']),
+  centers: collectionApi('centers', ['name']),
+  payments: collectionApi('payments', ['name']),
+  discounts: collectionApi('discounts', ['name']),
+  templates: collectionApi('templates', ['name']),
+  deleted: () => {
+    ensureSeeded();
+    return [...mem.deleted];
+  },
+  lab: () => ({
+    name: 'PathoNexa Diagnostics Pvt. Ltd.',
+    city: 'Lucknow, Uttar Pradesh',
+    labId: 'LAB123456',
+    phone: '+91 98765 43210',
+    email: 'care@pathonexa.in',
+    address: '12, Vikas Nagar, Hazratganj, Lucknow, UP - 226001',
+    pathologist: 'Dr. Rakesh Kumar, MD (Pathology)',
+  }),
 };
 
 module.exports = { auth, patients, reports, dashboard, meta, useMemory };

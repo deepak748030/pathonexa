@@ -95,9 +95,11 @@ export default function CreateReport() {
   const SelectBox = ({ label, icon: Icon, placeholder, value, onPress }: any) => (
     <View style={styles.inputGroup}>
       <Text style={styles.label}>{label}</Text>
-      <Pressable style={styles.inputWrap} onPress={onPress}>
-        <Icon size={16} color={colors.mutedForeground} />
-        <Text style={[styles.inputText, !value && { color: colors.mutedForeground }]} numberOfLines={1}>
+      <Pressable style={[styles.inputWrap, value && styles.inputWrapFilled]} onPress={onPress}>
+        <View style={styles.leadIcon}>
+          <Icon size={16} color={colors.primary} />
+        </View>
+        <Text style={[styles.inputText, !value && { color: colors.placeholder }]} numberOfLines={1}>
           {value || placeholder}
         </Text>
         <ChevronDown size={16} color={colors.mutedForeground} />
@@ -281,12 +283,14 @@ export default function CreateReport() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   body: { paddingHorizontal: spacing.hPad, paddingTop: 4, paddingBottom: 40 },
-  formCard: { padding: 15 },
-  inputGroup: { marginBottom: 16 },
-  label: { fontSize: 13, fontFamily: fonts.semibold, color: colors.foreground, marginBottom: 8 },
-  inputWrap: { flexDirection: 'row', alignItems: 'center', height: 48, backgroundColor: colors.muted, borderRadius: radius.sm, paddingHorizontal: 12, borderWidth: 1, borderColor: colors.border },
+  formCard: { padding: 16 },
+  inputGroup: { marginBottom: 14 },
+  label: { fontSize: 12, fontFamily: fonts.semibold, color: colors.mutedForeground, marginBottom: 6, letterSpacing: 0.2 },
+  inputWrap: { flexDirection: 'row', alignItems: 'center', minHeight: 52, backgroundColor: colors.inputBg, borderRadius: radius.md, paddingHorizontal: 8, borderWidth: 1.5, borderColor: colors.inputBorder },
+  inputWrapFilled: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
+  leadIcon: { width: 34, height: 34, borderRadius: radius.sm, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
   inputText: { flex: 1, marginLeft: 10, fontFamily: fonts.medium, fontSize: 14, color: colors.foreground },
-  input: { flex: 1, height: '100%', marginLeft: 10, fontFamily: fonts.medium, fontSize: 14, color: colors.foreground },
+  input: { flex: 1, height: 50, marginLeft: 10, fontFamily: fonts.medium, fontSize: 14, color: colors.foreground, outlineStyle: 'none' as any },
   paymentToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, paddingRight: 4 },
   toggle: { width: 44, height: 24, borderRadius: 12, backgroundColor: colors.border, padding: 2 },
   toggleActive: { backgroundColor: colors.green },

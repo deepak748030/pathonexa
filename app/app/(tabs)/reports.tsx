@@ -18,17 +18,23 @@ export default function Reports() {
   const [search, setSearch] = React.useState('');
   const [status, setStatus] = React.useState('All');
   const [reports, setReports] = React.useState<any[]>([]);
+  const [stats, setStats] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [refreshing, setRefreshing] = React.useState(false);
 
   const loadData = React.useCallback(async (initial = false) => {
     if (initial) setLoading(true);
     try {
-      const data = await endpoints.reports.getAll();
-      if (data) setReports(data);
+      const [data, remoteStats] = await Promise.all([
+        endpoints.reports.getAll(),
+        endpoints.reports.getStats(),
+      ]);
+      setReports(Array.isArray(data) ? data : []);
+      setStats(Array.isArray(remoteStats) ? remoteStats : []);
     } catch (e: any) {
-      console.warn('Failed to load reports from backend, showing sample data:', e?.message || e);
-      setReports(localReports);
+      console.warn('Failed to load reports from backend:', e?.message || e);
+      setReports([]);
+      setStats([]);
     } finally {
       setLoading(false);
     }
@@ -37,8 +43,8 @@ export default function Reports() {
   useFocusEffect(
     React.useCallback(() => {
       check();
-      loadData(reports.length === 0);
-    }, [check, loadData, reports.length])
+      loadData(true);
+    }, [check, loadData])
   );
 
   const onRefresh = React.useCallback(async () => {

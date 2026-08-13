@@ -15,6 +15,14 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+router.get('/stats', async (req, res, next) => {
+  try {
+    res.json(await store.reports.stats());
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/:id', async (req, res, next) => {
   try {
     res.json(await store.reports.getById(req.params.id));

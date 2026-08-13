@@ -38,4 +38,4 @@ const reports = [
   { reportId: 'RP260726006', patientIndex: 5, test: 'Blood Sugar Fasting', doctor: 'Dr. Sunil Verma', date: '24 Jul 2026', time: '07:50 AM', amount: 150, status: 'Pending', paid: false },
 ];
 
-module.exports = { tests, doctors, patients, reports };
+module.exports = { tests, doctors, patients, reports, employees, centers, payments, discounts, templates };

@@ -24,10 +24,10 @@ const icons: Record<string, any> = {
 };
 
 const quickActions = [
-  { label: 'New Patient', Icon: UserPlus, href: '/add-patient' },
-  { label: 'New Report', Icon: FlaskConical, href: '/create-report' },
+  { label: 'Patient', Icon: UserPlus, href: '/add-patient' },
+  { label: 'Report', Icon: FlaskConical, href: '/create-report' },
   { label: 'Payment', Icon: CreditCard, href: '/(tabs)/reports' },
-  { label: 'Add Doctor', Icon: Stethoscope, href: '/(tabs)/more' },
+  { label: 'Doctor', Icon: Stethoscope, href: '/manage/doctors' },
   { label: 'More', Icon: LayoutGrid, href: '/(tabs)/more' },
 ];
 
@@ -48,14 +48,13 @@ export default function Dashboard() {
         endpoints.reports.getAll(),
         endpoints.dashboard.getChart(),
       ]);
-      if (remoteStats?.length) setStats(remoteStats);
-      if (remoteReports) setReports(remoteReports.slice(0, 3));
+      setStats(Array.isArray(remoteStats) ? remoteStats : []);
+      setReports(Array.isArray(remoteReports) ? remoteReports.slice(0, 3) : []);
       if (remoteChart) setChartData(remoteChart);
     } catch (e: any) {
-      console.warn('Backend data load failed, showing sample data:', e?.message || e);
-      setStats(localStats);
-      setReports(localReports.slice(0, 3));
-      setChartData(localChart);
+      console.warn('Backend data load failed:', e?.message || e);
+      setStats([]);
+      setReports([]);
     } finally {
       setLoading(false);
     }
@@ -66,7 +65,7 @@ export default function Dashboard() {
   useFocusEffect(
     React.useCallback(() => {
       check();
-      loadData(stats.length === 0);
+      loadData(true);
     }, [check, loadData, stats.length])
   );
 
@@ -233,9 +232,11 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   logo: { width: 28, height: 28, borderRadius: radius.xs, backgroundColor: '#FFFFFF' },
   body: { paddingHorizontal: spacing.hPad, paddingTop: 4, paddingBottom: 28 },
-  action: { alignItems: 'center', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 4, backgroundColor: colors.card },
+  actionRow: { flexDirection: 'row', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, overflow: 'hidden' },
+  action: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, paddingHorizontal: 4, borderRightWidth: 1, borderRightColor: colors.border },
   actionPressed: { backgroundColor: colors.muted },
-  actionText: { color: colors.foreground, fontFamily: fonts.medium, fontSize: 9, textAlign: 'center', marginTop: 6 },
+  actionIcon: { width: 26, height: 26, borderRadius: radius.xs, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  actionText: { color: colors.foreground, fontFamily: fonts.semibold, fontSize: 10, textAlign: 'center' },
   chartWrap: { overflow: 'hidden', paddingTop: 10 },
   chart: { marginLeft: -18, paddingRight: 0 },
   chartFooter: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.border, paddingVertical: 10 },

@@ -117,11 +117,17 @@ export const endpoints = {
   },
   reports: {
     getAll: () => apiFetch('/reports'),
+    getStats: () => apiFetch('/reports/stats'),
     getById: (id: string) => apiFetch(`/reports/${id}`),
     create: (data: any) => apiFetch('/reports', { method: 'POST', body: JSON.stringify(data) }),
   },
   meta: {
+    list: (key: string) => apiFetch(`/${key}`),
+    create: (key: string, data: any) => apiFetch(`/${key}`, { method: 'POST', body: JSON.stringify(data) }),
+    remove: (key: string, id: string) => apiFetch(`/${key}/${id}`, { method: 'DELETE' }),
     tests: () => apiFetch('/tests'),
     doctors: () => apiFetch('/doctors'),
+    lab: () => apiFetch('/lab'),
+    deleted: () => apiFetch('/deleted'),
   },
 };
