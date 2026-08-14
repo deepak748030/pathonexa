@@ -9,6 +9,7 @@
  * All route handlers talk to this module; they never touch models directly.
  */
 const crypto = require('crypto');
+const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const db = require('../config/db');
 const Patient = require('../models/Patient');
@@ -20,7 +21,25 @@ const seed = require('./seedData');
 /* In-memory state                                                     */
 /* ------------------------------------------------------------------ */
 
-const mem = { patients: [], reports: [], users: [], seeded: false };
+const mem = {
+  patients: [],
+  reports: [],
+  users: [],
+  tests: [],
+  doctors: [],
+  employees: [],
+  centers: [],
+  payments: [],
+  discounts: [],
+  templates: [],
+  deleted: [],
+  seeded: false,
+};
+
+function byIdOrPid(id) {
+  if (mongoose.isValidObjectId(id)) return { $or: [{ _id: id }, { pid: id }, { reportId: id }] };
+  return { $or: [{ pid: id }, { reportId: id }] };
+}
 
 const makeId = () => crypto.randomBytes(12).toString('hex');
 const pad = (n, w = 3) => String(n).padStart(w, '0');
@@ -35,63 +54,33 @@ function hoursAgo(h) {
   return new Date(Date.now() - h * 3600 * 1000);
 }
 
+function withIds(list) {
+  return list.map((item) => ({
+    ...item,
+    _id: item.id || makeId(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }));
+}
+
 function seedMemory() {
   if (mem.seeded) return;
   mem.seeded = true;
-
-  mem.patients = seed.patients.map((p, i) => ({
-    ...p,
-    _id: makeId(),
-    pid: genPid(new Date(), i + 1),
-    createdAt: hoursAgo(24 * (seed.patients.length - i)),
-    updatedAt: hoursAgo(24 * (seed.patients.length - i)),
-  }));
-
-  mem.reports = seed.reports
-    .map((r, i) => {
-      const patient = mem.patients[r.patientIndex];
-      const doc = { ...r };
-      delete doc.patientIndex;
-      return {
-        ...doc,
-        _id: makeId(),
-        patient,
-        createdAt: hoursAgo(2 + i * 11),
-        updatedAt: hoursAgo(2 + i * 11),
-      };
-    })
-    .sort((a, b) => b.createdAt - a.createdAt);
+  // Catalogue only — patients & reports stay empty so the app shows YOUR records.
+  mem.patients = [];
+  mem.reports = [];
+  mem.tests = withIds(seed.tests);
+  mem.doctors = withIds(seed.doctors);
+  mem.employees = withIds(seed.employees || []);
+  mem.centers = withIds(seed.centers || []);
+  mem.payments = withIds(seed.payments || []);
+  mem.discounts = withIds(seed.discounts || []);
+  mem.templates = withIds(seed.templates || []);
 }
 
 async function seedMongo() {
-  if (process.env.SEED_DEMO === 'false') return;
-  try {
-    const existing = await Patient.countDocuments();
-    if (existing > 0) return;
-    const created = [];
-    for (let i = 0; i < seed.patients.length; i += 1) {
-      const p = seed.patients[i];
-      const doc = await Patient.create({
-        ...p,
-        pid: genPid(new Date(), i + 1),
-        createdAt: hoursAgo(24 * (seed.patients.length - i)),
-      });
-      created.push(doc);
-    }
-    for (let i = 0; i < seed.reports.length; i += 1) {
-      const r = seed.reports[i];
-      const payload = { ...r };
-      delete payload.patientIndex;
-      await Report.create({
-        ...payload,
-        patient: created[r.patientIndex]._id,
-        createdAt: hoursAgo(2 + i * 11),
-      });
-    }
-    console.log('[seed] Demo data seeded into MongoDB.');
-  } catch (err) {
-    console.warn(`[seed] Could not seed MongoDB: ${err.message}`);
-  }
+  // Do not auto-insert demo patients — only real records created in the app.
+  return;
 }
 
 /* ------------------------------------------------------------------ */
@@ -181,7 +170,54 @@ const patients = {
       }
       return p;
     }
-    const p = await Patient.findOne({ $or: [{ _id: id }, { pid: id }] }).lean();
+    const p = await Patient.findOne(byIdOrPid(id)).lean();
+    if (!p) {
+      const err = new Error('Patient not found');
+      err.status = 404;
+      throw err;
+    }
+    return p;
+  },
+
+  async update(id, patch) {
+    ensureSeeded();
+    const allowed = {};
+    ['name', 'age', 'gender', 'blood', 'mobile', 'address', 'lastTest', 'lastTestDate'].forEach((k) => {
+      if (patch[k] !== undefined) allowed[k] = patch[k];
+    });
+    if (useMemory()) {
+      const p = mem.patients.find((x) => x._id === id || x.pid === id);
+      if (!p) {
+        const err = new Error('Patient not found');
+        err.status = 404;
+        throw err;
+      }
+      Object.assign(p, allowed, { updatedAt: new Date() });
+      return p;
+    }
+    const p = await Patient.findOneAndUpdate(byIdOrPid(id), { $set: allowed }, { new: true }).lean();
+    if (!p) {
+      const err = new Error('Patient not found');
+      err.status = 404;
+      throw err;
+    }
+    return p;
+  },
+
+  async remove(id) {
+    ensureSeeded();
+    if (useMemory()) {
+      const i = mem.patients.findIndex((x) => x._id === id || x.pid === id);
+      if (i < 0) {
+        const err = new Error('Patient not found');
+        err.status = 404;
+        throw err;
+      }
+      const [removed] = mem.patients.splice(i, 1);
+      mem.deleted.unshift({ ...removed, kind: 'patients', deletedAt: new Date() });
+      return removed;
+    }
+    const p = await Patient.findOneAndDelete(byIdOrPid(id)).lean();
     if (!p) {
       const err = new Error('Patient not found');
       err.status = 404;
@@ -286,7 +322,7 @@ const reports = {
       }
       return r;
     }
-    const r = await Report.findOne({ $or: [{ _id: id }, { reportId: id }] }).populate('patient').lean();
+    const r = await Report.findOne(byIdOrPid(id)).populate('patient').lean();
     if (!r) {
       const err = new Error('Report not found');
       err.status = 404;
@@ -317,11 +353,62 @@ const reports = {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
+      p.lastTest = data.test;
+      p.lastTestDate = data.date || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
       mem.reports.unshift(doc);
       return doc;
     }
     const doc = await Report.create({ ...data, patient });
+    const dateStr = data.date || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    await Patient.findOneAndUpdate(byIdOrPid(String(patient)), { $set: { lastTest: data.test, lastTestDate: dateStr } });
     return Report.populate(doc, { path: 'patient' });
+  },
+
+  async update(id, patch) {
+    ensureSeeded();
+    const allowed = {};
+    if (patch.status) allowed.status = patch.status;
+    if (typeof patch.paid === 'boolean') allowed.paid = patch.paid;
+    if (patch.amount !== undefined) allowed.amount = patch.amount;
+    if (useMemory()) {
+      const r = mem.reports.find((x) => x._id === id || x.reportId === id);
+      if (!r) {
+        const err = new Error('Report not found');
+        err.status = 404;
+        throw err;
+      }
+      Object.assign(r, allowed, { updatedAt: new Date() });
+      return r;
+    }
+    const r = await Report.findOneAndUpdate(
+      byIdOrPid(id),
+      { $set: allowed },
+      { new: true }
+    ).populate('patient').lean();
+    if (!r) {
+      const err = new Error('Report not found');
+      err.status = 404;
+      throw err;
+    }
+    return r;
+  },
+
+  async stats() {
+    ensureSeeded();
+    await ensureMongoSeeded();
+    const list = useMemory() ? mem.reports : await Report.find().lean();
+    const start = startOfToday();
+    const today = list.filter((r) => new Date(r.createdAt) >= start);
+    const pending = list.filter((r) => r.status === 'Pending');
+    const completed = list.filter((r) => r.status === 'Completed');
+    const todayRev = today.reduce((s, r) => s + (r.amount || 0), 0);
+    const fmt = (n) => n.toLocaleString('en-IN');
+    return [
+      { label: "Today's Reports", value: fmt(today.length), tone: 'primary' },
+      { label: 'Pending Reports', value: fmt(pending.length), tone: 'orange' },
+      { label: 'Completed', value: fmt(completed.length), tone: 'green' },
+      { label: "Today's Collection", value: `₹${fmt(todayRev)}`, tone: 'purple' },
+    ];
   },
 };
 
@@ -410,9 +497,69 @@ const dashboard = {
 /* Meta (tests & doctors)                                              */
 /* ------------------------------------------------------------------ */
 
+function collectionApi(key, required) {
+  return {
+    list() {
+      ensureSeeded();
+      return [...mem[key]];
+    },
+    create(data) {
+      ensureSeeded();
+      for (const f of required) {
+        if (data == null || data[f] == null || data[f] === '') {
+          const err = new Error(`${f} is required`);
+          err.status = 400;
+          throw err;
+        }
+      }
+      const doc = { ...data, _id: makeId(), id: undefined, createdAt: new Date(), updatedAt: new Date() };
+      doc.id = doc._id;
+      mem[key].unshift(doc);
+      return doc;
+    },
+    remove(id) {
+      ensureSeeded();
+      const i = mem[key].findIndex((x) => x._id === id || x.id === id);
+      if (i < 0) {
+        const err = new Error('Not found');
+        err.status = 404;
+        throw err;
+      }
+      const [removed] = mem[key].splice(i, 1);
+      mem.deleted.unshift({ ...removed, kind: key, deletedAt: new Date() });
+      return removed;
+    },
+  };
+}
+
 const meta = {
-  tests: () => seed.tests,
-  doctors: () => seed.doctors,
+  tests: collectionApi('tests', ['name', 'price']),
+  doctors: collectionApi('doctors', ['name']),
+  employees: collectionApi('employees', ['name', 'role']),
+  centers: collectionApi('centers', ['name']),
+  payments: collectionApi('payments', ['name']),
+  discounts: collectionApi('discounts', ['name']),
+  templates: collectionApi('templates', ['name']),
+  deleted: () => {
+    ensureSeeded();
+    return [...mem.deleted];
+  },
+  _lab: {
+    name: 'PathoNexa Diagnostics Pvt. Ltd.',
+    city: 'Lucknow, Uttar Pradesh',
+    labId: 'LAB123456',
+    phone: '+91 98765 43210',
+    email: 'care@pathonexa.in',
+    address: '12, Vikas Nagar, Hazratganj, Lucknow, UP - 226001',
+    pathologist: 'Dr. Rakesh Kumar, MD (Pathology)',
+  },
+  lab() {
+    return { ...this._lab };
+  },
+  updateLab(data) {
+    Object.assign(this._lab, data || {});
+    return { ...this._lab };
+  },
 };
 
 module.exports = { auth, patients, reports, dashboard, meta, useMemory };

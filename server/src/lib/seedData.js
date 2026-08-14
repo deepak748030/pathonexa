@@ -5,18 +5,43 @@
  */
 
 const tests = [
-  { name: 'Complete Blood Count (CBC)', group: 'Hematology', price: 250 },
-  { name: 'Liver Function Test (LFT)', group: 'Biochemistry', price: 450 },
-  { name: 'Kidney Function Test (KFT)', group: 'Biochemistry', price: 450 },
-  { name: 'Thyroid Profile (T3, T4, TSH)', group: 'Immunology', price: 500 },
-  { name: 'Lipid Profile', group: 'Biochemistry', price: 400 },
-  { name: 'Blood Sugar Fasting', group: 'Biochemistry', price: 150 },
+  { id: 't1', name: 'Complete Blood Count (CBC)', group: 'Hematology', price: 250 },
+  { id: 't2', name: 'Liver Function Test (LFT)', group: 'Biochemistry', price: 450 },
+  { id: 't3', name: 'Kidney Function Test (KFT)', group: 'Biochemistry', price: 450 },
+  { id: 't4', name: 'Thyroid Profile (T3, T4, TSH)', group: 'Immunology', price: 500 },
+  { id: 't5', name: 'Lipid Profile', group: 'Biochemistry', price: 400 },
+  { id: 't6', name: 'Blood Sugar Fasting', group: 'Biochemistry', price: 150 },
 ];
 
 const doctors = [
-  { name: 'Dr. Rakesh Kumar', degree: 'MBBS, MD (Pathology)', mobile: '9871122334', commission: 20 },
-  { name: 'Dr. Sunil Verma', degree: 'MBBS, MD (Medicine)', mobile: '9812233445', commission: 15 },
-  { name: 'Dr. Anjali Gupta', degree: 'MBBS, DGO', mobile: '9823344556', commission: 18 },
+  { id: 'd1', name: 'Dr. Rakesh Kumar', degree: 'MBBS, MD (Pathology)', mobile: '9871122334', commission: 20 },
+  { id: 'd2', name: 'Dr. Sunil Verma', degree: 'MBBS, MD (Medicine)', mobile: '9812233445', commission: 15 },
+  { id: 'd3', name: 'Dr. Anjali Gupta', degree: 'MBBS, DGO', mobile: '9823344556', commission: 18 },
+];
+
+const employees = [
+  { id: 'e1', name: 'Amit Mishra', role: 'Lab Admin', mobile: '9876500001' },
+  { id: 'e2', name: 'Neha Singh', role: 'Technician', mobile: '9876500002' },
+];
+
+const centers = [
+  { id: 'c1', name: 'Main Lab — Hazratganj', city: 'Lucknow', phone: '0522-4001001' },
+];
+
+const payments = [
+  { id: 'pm1', name: 'Cash', active: true },
+  { id: 'pm2', name: 'UPI', active: true },
+  { id: 'pm3', name: 'Card', active: true },
+];
+
+const discounts = [
+  { id: 'dc1', name: 'Senior citizen', percent: 10 },
+  { id: 'dc2', name: 'Staff', percent: 20 },
+];
+
+const templates = [
+  { id: 'tp1', name: 'CBC Standard', test: 'CBC' },
+  { id: 'tp2', name: 'LFT Standard', test: 'LFT' },
 ];
 
 const patients = [
@@ -38,4 +63,4 @@ const reports = [
   { reportId: 'RP260726006', patientIndex: 5, test: 'Blood Sugar Fasting', doctor: 'Dr. Sunil Verma', date: '24 Jul 2026', time: '07:50 AM', amount: 150, status: 'Pending', paid: false },
 ];
 
-module.exports = { tests, doctors, patients, reports };
+module.exports = { tests, doctors, patients, reports, employees, centers, payments, discounts, templates };

@@ -2,11 +2,12 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, Pressable, ActivityIndicator } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import {
-  Bell, ArrowLeftRight, Stethoscope, FlaskConical, Users, Building2, Landmark, Percent, CreditCard,
-  FileText, DatabaseBackup, Trash2, Building, Settings, ShieldCheck, HelpCircle, Info, LogOut,
+  ArrowLeftRight, Stethoscope, FlaskConical, Users, Building2, Landmark, Percent, CreditCard,
+  FileText, DatabaseBackup, Trash2, Building, Settings, HelpCircle, Info, LogOut,
   WifiOff, Database,
 } from 'lucide-react-native';
 import ScreenHeader from '@/components/ScreenHeader';
+import HeaderUser from '@/components/HeaderUser';
 import { Card, MenuRow, FadeIn } from '@/components/UI';
 import { colors, fonts, radius, spacing } from '@/lib/theme';
 import { lab } from '@/lib/labData';
@@ -18,31 +19,30 @@ const groups = [
   {
     title: 'MANAGE',
     items: [
-      { title: 'Doctors', subtitle: 'Manage referring doctors', Icon: Stethoscope },
-      { title: 'Tests & Packages', subtitle: 'Manage tests and packages', Icon: FlaskConical },
+      { title: 'Doctors', subtitle: 'Manage referring doctors', Icon: Stethoscope, href: '/manage/doctors' },
+      { title: 'Tests & Packages', subtitle: 'Manage tests and packages', Icon: FlaskConical, href: '/manage/tests' },
       { title: 'Patients', subtitle: 'Manage patient records', Icon: Users, href: '/(tabs)/patients' },
-      { title: 'Lab Employees', subtitle: 'Manage lab staff and roles', Icon: Building2 },
-      { title: 'Sample Collection Center', subtitle: 'Manage collection centers', Icon: Landmark },
-      { title: 'Discount & Charges', subtitle: 'Discounts and extra charges', Icon: Percent },
-      { title: 'Payment Methods', subtitle: 'Manage payment modes', Icon: CreditCard },
+      { title: 'Lab Employees', subtitle: 'Manage lab staff and roles', Icon: Building2, href: '/manage/employees' },
+      { title: 'Sample Collection Center', subtitle: 'Manage collection centers', Icon: Landmark, href: '/manage/centers' },
+      { title: 'Discount & Charges', subtitle: 'Discounts and extra charges', Icon: Percent, href: '/manage/discounts' },
+      { title: 'Payment Methods', subtitle: 'Manage payment modes', Icon: CreditCard, href: '/manage/payments' },
     ],
   },
   {
     title: 'REPORTS & DATA',
     items: [
-      { title: 'Report Templates', subtitle: 'Manage report templates', Icon: FileText },
-      { title: 'Data Backup', subtitle: 'Backup and restore data', Icon: DatabaseBackup },
-      { title: 'Deleted Records', subtitle: 'View deleted patients & reports', Icon: Trash2 },
+      { title: 'Report Templates', subtitle: 'Manage report templates', Icon: FileText, href: '/manage/templates' },
+      { title: 'Data Backup', subtitle: 'Backup and restore data', Icon: DatabaseBackup, href: '/manage/backup' },
+      { title: 'Deleted Records', subtitle: 'View deleted patients & reports', Icon: Trash2, href: '/manage/deleted' },
     ],
   },
   {
     title: 'SETTINGS & SUPPORT',
     items: [
-      { title: 'Lab Profile', subtitle: 'View and edit lab details', Icon: Building },
-      { title: 'Settings', subtitle: 'General app settings', Icon: Settings },
-      { title: 'Users & Roles', subtitle: 'Manage app users and roles', Icon: ShieldCheck },
-      { title: 'Help & Support', subtitle: 'Get help and contact support', Icon: HelpCircle },
-      { title: 'About App', subtitle: 'App version and information', Icon: Info },
+      { title: 'Lab Profile', subtitle: 'View and edit lab details', Icon: Building, href: '/manage/lab' },
+      { title: 'Settings', subtitle: 'General app settings', Icon: Settings, href: '/manage/settings' },
+      { title: 'Help & Support', subtitle: 'Get help and contact support', Icon: HelpCircle, href: '/manage/help' },
+      { title: 'About App', subtitle: 'App version and information', Icon: Info, href: '/manage/about' },
     ],
   },
 ];
@@ -64,7 +64,11 @@ export default function More() {
 
   return (
     <View style={styles.screen}>
-      <ScreenHeader title="More" subtitle="Manage your lab, settings and more" right={<Bell size={20} color="#FFFFFF" />} />
+      <ScreenHeader
+        title="More"
+        subtitle="Manage your lab, settings and more"
+        right={<HeaderUser />}
+      />
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <FadeIn>
@@ -75,7 +79,7 @@ export default function More() {
               <Text style={styles.labMeta} numberOfLines={1}>{lab.city}</Text>
               <Text style={styles.labMeta} numberOfLines={1}>Lab ID: {lab.labId}</Text>
             </View>
-            <Pressable style={({ pressed }) => [styles.switchBtn, pressed && { opacity: 0.7 }]}>
+            <Pressable style={({ pressed }) => [styles.switchBtn, pressed && { opacity: 0.7 }]} onPress={() => router.push('/manage/lab' as any)}>
               <ArrowLeftRight size={13} color={colors.primary} />
               <Text style={styles.switchText}>Switch</Text>
             </Pressable>
@@ -128,7 +132,7 @@ export default function More() {
                   title={it.title}
                   subtitle={it.subtitle}
                   icon={<it.Icon size={16} color={colors.primary} />}
-                  onPress={() => (it as any).href && router.push((it as any).href)}
+                  onPress={() => (it as any).href && router.push((it as any).href as any)}
                 />
               ))}
             </Card>

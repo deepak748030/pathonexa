@@ -8,11 +8,8 @@ import { ChevronLeft, Share2, Printer, Download, CheckCircle2, Clock, XCircle, I
 import ScreenHeader from '@/components/ScreenHeader';
 import { Card, EmptyState } from '@/components/UI';
 import { colors, fonts, radius, spacing } from '@/lib/theme';
-import { lab, cbcParams, patients, doctors } from '@/lib/labData';
+import { lab, cbcParams } from '@/lib/labData';
 import { endpoints } from '@/lib/api';
-
-const samplePatient = patients[0];
-const sampleDoctor = doctors[0];
 
 const esc = (s: string) =>
   String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -24,6 +21,7 @@ export default function ReportPreview() {
   const [report, setReport] = React.useState<any>(null);
   const [loaded, setLoaded] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
 
   // Strictly server-first: load the report from the API, sample fallback only
   // when no id was passed or the server is unreachable.
@@ -49,15 +47,28 @@ export default function ReportPreview() {
     };
   }, [id]);
 
-  const patient = report?.patient?.name ? report.patient : samplePatient;
-  const doctor = report?.doctor || sampleDoctor.name;
-  const testName = report?.test || 'Complete Blood Count (CBC)';
+  const patient = report?.patient && typeof report.patient === 'object' ? report.patient : { name: report?.patient || '—', age: '—', gender: '—', pid: '—' };
+  const doctor = report?.doctor || 'Direct';
+  const testName = report?.test || 'Report';
   const isCbc = /cbc|complete blood count/i.test(testName);
-  const reportId = report?.reportId || 'RPT-2026-0148';
-  const reportDate = report?.date || '26 Jul 2026';
-  const amount = report?.amount ?? 250;
-  const status = report?.status || 'Completed';
-  const paid = report?.paid ?? true;
+  const reportId = report?.reportId || '—';
+  const reportDate = report?.date || '';
+  const amount = report?.amount ?? 0;
+  const status = report?.status || 'Pending';
+  const paid = !!report?.paid;
+
+  const patchReport = async (data: any) => {
+    if (!id) return;
+    setSaving(true);
+    try {
+      const updated = await endpoints.reports.update(id, data);
+      setReport(updated);
+    } catch (e: any) {
+      alert(e?.message || 'Could not update report');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const statusMeta =
     status === 'Completed'
@@ -213,8 +224,21 @@ ${isCbc ? `<table><tr><th>Test</th><th>Result</th><th>Unit</th><th>Reference</th
               </View>
               <Text style={styles.note}>*** End of Report ***</Text>
             </Card>
-            {!report && !id && (
-              <EmptyState title="Sample preview" subtitle="Open a report from the Reports tab to see its real data." />
+            {!report && (
+              <EmptyState title="Report not found" subtitle="Open a report from the Reports tab." />
+            )}
+
+            {!!report && (
+              <View style={styles.actions}>
+                <Pressable style={styles.chipBtn} disabled={saving} onPress={() => patchReport({ paid: !paid })}>
+                  <Text style={styles.chipBtnText}>{paid ? 'Mark unpaid' : 'Mark paid'}</Text>
+                </Pressable>
+                {status !== 'Completed' && (
+                  <Pressable style={[styles.chipBtn, styles.chipSolid]} disabled={saving} onPress={() => patchReport({ status: 'Completed' })}>
+                    <Text style={[styles.chipBtnText, { color: '#fff' }]}>Mark completed</Text>
+                  </Pressable>
+                )}
+              </View>
             )}
           </ScrollView>
 
@@ -280,6 +304,10 @@ const styles = StyleSheet.create({
   sigName: { color: colors.foreground, fontFamily: fonts.semibold, fontSize: 11 },
   sigRole: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 9 },
   note: { textAlign: 'center', color: colors.mutedForeground, fontFamily: fonts.medium, fontSize: 10, paddingBottom: 14 },
+  actions: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  chipBtn: { flex: 1, height: 42, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card },
+  chipSolid: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipBtnText: { fontFamily: fonts.semibold, fontSize: 12, color: colors.primary },
   footer: { flexDirection: 'row', gap: 10, padding: spacing.hPad, backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border },
   ghost: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.primary },
   ghostText: { color: colors.primary, fontFamily: fonts.semibold, fontSize: 13 },

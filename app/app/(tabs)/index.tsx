@@ -1,15 +1,16 @@
 import React from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Pressable, Image, Dimensions,
+  View, Text, StyleSheet, ScrollView, Pressable, Dimensions,
   ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { LineChart } from 'react-native-chart-kit';
 import {
-  Menu, Bell, ClipboardList, IndianRupee, Hourglass, Wallet, Users, Receipt,
-  UserPlus, FlaskConical, CreditCard, Stethoscope, LayoutGrid, ChevronRight,
+  Menu, ClipboardList, IndianRupee, Hourglass, Wallet, Users, Receipt,
+  UserPlus, FlaskConical, CreditCard, Stethoscope, ChevronRight,
 } from 'lucide-react-native';
 import ScreenHeader from '@/components/ScreenHeader';
+import HeaderUser from '@/components/HeaderUser';
 import StatCard from '@/components/StatCard';
 import Avatar from '@/components/Avatar';
 import { Card, SectionTitle, GridPanel, FadeIn, ListRow, OfflineBanner, EmptyState } from '@/components/UI';
@@ -24,11 +25,10 @@ const icons: Record<string, any> = {
 };
 
 const quickActions = [
-  { label: 'New Patient', Icon: UserPlus, href: '/add-patient' },
-  { label: 'New Report', Icon: FlaskConical, href: '/create-report' },
+  { label: 'Patient', Icon: UserPlus, href: '/add-patient' },
+  { label: 'Report', Icon: FlaskConical, href: '/create-report' },
   { label: 'Payment', Icon: CreditCard, href: '/(tabs)/reports' },
-  { label: 'Add Doctor', Icon: Stethoscope, href: '/(tabs)/more' },
-  { label: 'More', Icon: LayoutGrid, href: '/(tabs)/more' },
+  { label: 'Doctor', Icon: Stethoscope, href: '/manage/doctors' },
 ];
 
 export default function Dashboard() {
@@ -48,14 +48,13 @@ export default function Dashboard() {
         endpoints.reports.getAll(),
         endpoints.dashboard.getChart(),
       ]);
-      if (remoteStats?.length) setStats(remoteStats);
-      if (remoteReports) setReports(remoteReports.slice(0, 3));
+      setStats(Array.isArray(remoteStats) ? remoteStats : []);
+      setReports(Array.isArray(remoteReports) ? remoteReports.slice(0, 3) : []);
       if (remoteChart) setChartData(remoteChart);
     } catch (e: any) {
-      console.warn('Backend data load failed, showing sample data:', e?.message || e);
-      setStats(localStats);
-      setReports(localReports.slice(0, 3));
-      setChartData(localChart);
+      console.warn('Backend data load failed:', e?.message || e);
+      setStats([]);
+      setReports([]);
     } finally {
       setLoading(false);
     }
@@ -66,8 +65,8 @@ export default function Dashboard() {
   useFocusEffect(
     React.useCallback(() => {
       check();
-      loadData(stats.length === 0);
-    }, [check, loadData, stats.length])
+      loadData(true);
+    }, [check, loadData])
   );
 
   const onRefresh = React.useCallback(async () => {
@@ -93,12 +92,7 @@ export default function Dashboard() {
         subtitle={lab.shortName}
         left={<Menu size={22} color="#FFFFFF" />}
         onLeftPress={() => router.push('/menu' as any)}
-        right={
-          <>
-            <Bell size={20} color="#FFFFFF" />
-            <Image source={require('../../assets/images/icon.png')} style={styles.logo} />
-          </>
-        }
+        right={<HeaderUser />}
       />
 
       <ScrollView
@@ -136,18 +130,24 @@ export default function Dashboard() {
 
         <SectionTitle title="Quick Actions" action="View All" onAction={() => router.push('/(tabs)/more' as any)} />
         <FadeIn delay={60}>
-          <GridPanel columns={5}>
-            {quickActions.map((a) => (
+          <View style={styles.actionRow}>
+            {quickActions.map((a, i) => (
               <Pressable
                 key={a.label}
-                style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}
+                style={({ pressed }) => [
+                  styles.action,
+                  i > 0 && styles.actionDivider,
+                  pressed && styles.actionPressed,
+                ]}
                 onPress={() => router.push(a.href as any)}
               >
-                <a.Icon size={18} color={colors.primary} />
-                <Text style={styles.actionText} numberOfLines={2}>{a.label}</Text>
+                <View style={styles.actionIcon}>
+                  <a.Icon size={16} color={colors.primary} strokeWidth={2.2} />
+                </View>
+                <Text style={styles.actionText} numberOfLines={1}>{a.label}</Text>
               </Pressable>
             ))}
-          </GridPanel>
+          </View>
         </FadeIn>
 
         <SectionTitle title="Reports Overview" />
@@ -156,8 +156,8 @@ export default function Dashboard() {
             <View style={styles.chartWrap}>
               <LineChart
                 data={{
-                  labels: chartData?.labels || localChart.labels,
-                  datasets: [{ data: chartData?.values || localChart.values }],
+                  labels: chartData?.labels || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                  datasets: [{ data: chartData?.values?.length ? chartData.values : [0, 0, 0, 0, 0, 0, 0] }],
                 }}
                 width={width - spacing.hPad * 2 - 2}
                 height={170}
@@ -231,11 +231,25 @@ export default function Dashboard() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  logo: { width: 28, height: 28, borderRadius: radius.xs, backgroundColor: '#FFFFFF' },
   body: { paddingHorizontal: spacing.hPad, paddingTop: 4, paddingBottom: 28 },
-  action: { alignItems: 'center', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 4, backgroundColor: colors.card },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    height: 72,
+  },
+  action: { flex: 1, minWidth: 0, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2, paddingVertical: 8 },
+  actionDivider: { borderLeftWidth: 1, borderLeftColor: colors.border },
   actionPressed: { backgroundColor: colors.muted },
-  actionText: { color: colors.foreground, fontFamily: fonts.medium, fontSize: 9, textAlign: 'center', marginTop: 6 },
+  actionIcon: {
+    width: 28, height: 28, borderRadius: radius.sm, backgroundColor: colors.primaryLight,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 4,
+  },
+  actionText: { color: colors.foreground, fontFamily: fonts.semibold, fontSize: 10, lineHeight: 13, textAlign: 'center', width: '100%' },
   chartWrap: { overflow: 'hidden', paddingTop: 10 },
   chart: { marginLeft: -18, paddingRight: 0 },
   chartFooter: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.border, paddingVertical: 10 },

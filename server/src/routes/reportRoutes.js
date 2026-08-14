@@ -15,9 +15,25 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+router.get('/stats', async (req, res, next) => {
+  try {
+    res.json(await store.reports.stats());
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/:id', async (req, res, next) => {
   try {
     res.json(await store.reports.getById(req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/:id', async (req, res, next) => {
+  try {
+    res.json(await store.reports.update(req.params.id, req.body));
   } catch (err) {
     next(err);
   }

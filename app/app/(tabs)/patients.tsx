@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { Search, UserPlus, SlidersHorizontal, ChevronRight, Phone, Calendar, Users, TrendingUp, FlaskConical, IndianRupee } from 'lucide-react-native';
+import { UserPlus, SlidersHorizontal, ChevronRight, Phone, Calendar, Users, TrendingUp, FlaskConical, IndianRupee } from 'lucide-react-native';
 import ScreenHeader from '@/components/ScreenHeader';
+import SearchBar from '@/components/SearchBar';
 import StatCard from '@/components/StatCard';
 import Avatar from '@/components/Avatar';
 import { Card, SectionTitle, GridPanel, FadeIn, ListRow, Chip, OfflineBanner, EmptyState } from '@/components/UI';
@@ -36,12 +37,27 @@ export default function Patients() {
         endpoints.patients.getAll(),
         endpoints.patients.getStats(),
       ]);
-      if (data) setPatients(data);
-      if (remoteStats?.length) setStats(remoteStats);
+      const list = Array.isArray(data) ? data : [];
+      setPatients(list);
+      if (remoteStats?.length) {
+        setStats(remoteStats);
+      } else {
+        setStats([
+          { label: 'Total Patients', value: String(list.length), tone: 'primary' },
+          { label: 'New This Week', value: '0', tone: 'green' },
+          { label: 'Tests This Week', value: '0', tone: 'purple' },
+          { label: 'This Week Collection', value: '₹0', tone: 'orange' },
+        ]);
+      }
     } catch (e: any) {
-      console.warn('Failed to load patients from backend, showing sample data:', e?.message || e);
-      setPatients(localPatients);
-      setStats(patientStats);
+      console.warn('Failed to load patients from backend:', e?.message || e);
+      setPatients([]);
+      setStats([
+        { label: 'Total Patients', value: '0', tone: 'primary' },
+        { label: 'New This Week', value: '0', tone: 'green' },
+        { label: 'Tests This Week', value: '0', tone: 'purple' },
+        { label: 'This Week Collection', value: '₹0', tone: 'orange' },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -50,8 +66,8 @@ export default function Patients() {
   useFocusEffect(
     React.useCallback(() => {
       check();
-      loadData(patients.length === 0);
-    }, [check, loadData, patients.length])
+      loadData(true);
+    }, [check, loadData])
   );
 
   const onRefresh = React.useCallback(async () => {
@@ -101,7 +117,7 @@ export default function Patients() {
 
         <FadeIn>
           <GridPanel columns={2}>
-            {(stats.length > 0 ? stats : patientStats).map((s) => {
+            {stats.map((s) => {
               const Icon = statIcons[s.label] || Users;
               const tone = (s.tone || 'primary') as keyof typeof colors;
               return (
@@ -121,18 +137,9 @@ export default function Patients() {
         <SectionTitle title="Patient List" />
         <FadeIn delay={60}>
           <View style={styles.searchBar}>
-            <View style={styles.searchInputWrap}>
-              <Search size={18} color={colors.mutedForeground} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search name, ID or mobile..."
-                placeholderTextColor={colors.mutedForeground}
-                value={search}
-                onChangeText={setSearch}
-              />
-            </View>
+            <SearchBar value={search} onChangeText={setSearch} placeholder="Search name, ID or mobile..." />
             <Pressable style={styles.filterBtn} onPress={() => setGender('All')}>
-              <SlidersHorizontal size={18} color={colors.foreground} />
+              <SlidersHorizontal size={16} color={colors.foreground} />
             </Pressable>
           </View>
 
@@ -163,7 +170,7 @@ export default function Patients() {
                   key={p.id || p._id}
                   last={i === filtered.length - 1}
                   onPress={() =>
-                    router.push({ pathname: '/create-report', params: { patientId: p._id || p.id } } as any)
+                    router.push({ pathname: '/patient/[id]', params: { id: p._id || p.id } } as any)
                   }
                 >
                   <View style={styles.patientRow}>
@@ -201,9 +208,7 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: spacing.hPad, paddingTop: 4, paddingBottom: 28 },
   addBtn: { width: 36, height: 36, borderRadius: radius.xs, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
   searchBar: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  searchInputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', height: 44, backgroundColor: colors.card, borderRadius: radius.sm, paddingHorizontal: 12, borderWidth: 1, borderColor: colors.border },
-  searchInput: { flex: 1, height: '100%', marginLeft: 8, fontFamily: fonts.medium, fontSize: 13, color: colors.foreground },
-  filterBtn: { width: 44, height: 44, backgroundColor: colors.card, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+  filterBtn: { width: spacing.search, height: spacing.search, backgroundColor: colors.card, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
   segment: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', marginBottom: 10 },
   patientRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   patientInfo: { flex: 1, minWidth: 0 },

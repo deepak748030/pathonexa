@@ -11,6 +11,7 @@ import {
   PlusJakartaSans_800ExtraBold,
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { colors } from '@/lib/theme';
+import AuthGate from '@/components/AuthGate';
 
 export default function RootLayout() {
   const [loaded] = useFonts({
@@ -31,15 +32,25 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
+      <AuthGate>
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="login" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="add-patient" />
+        <Stack.Screen name="patient/[id]" />
         <Stack.Screen name="create-report" />
         <Stack.Screen name="report-preview" />
+        <Stack.Screen name="notifications" />
+        <Stack.Screen name="manage/[slug]" />
+        <Stack.Screen name="manage/lab" />
+        <Stack.Screen name="manage/settings" />
+        <Stack.Screen name="manage/help" />
+        <Stack.Screen name="manage/about" />
+        <Stack.Screen name="manage/backup" />
         <Stack.Screen name="menu" options={{ presentation: 'transparentModal', animation: 'fade' }} />
       </Stack>
+      </AuthGate>
       <StatusBar style="dark" backgroundColor={colors.background} translucent={true} />
     </SafeAreaProvider>
   );

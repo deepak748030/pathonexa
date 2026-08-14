@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   Home, Users, FileText, FilePlus, Stethoscope, FlaskConical, Building2, Landmark, Percent,
-  CreditCard, DatabaseBackup, Trash2, Building, Settings, ShieldCheck, HelpCircle, Info, LogOut, ChevronRight,
+  CreditCard, DatabaseBackup, Trash2, Building, Settings, HelpCircle, Info, LogOut, ChevronRight,
 } from 'lucide-react-native';
 import Avatar from '@/components/Avatar';
 import { colors, fonts, radius, spacing } from '@/lib/theme';
@@ -20,24 +20,23 @@ const sections = [
     { title: 'Create Report', Icon: FilePlus, href: '/create-report' },
   ]},
   { title: 'MANAGE', items: [
-    { title: 'Doctors', Icon: Stethoscope },
-    { title: 'Tests & Packages', Icon: FlaskConical },
-    { title: 'Lab Employees', Icon: Building2 },
-    { title: 'Sample Collection', Icon: Landmark },
-    { title: 'Discount & Charges', Icon: Percent },
-    { title: 'Payment Methods', Icon: CreditCard },
+    { title: 'Doctors', Icon: Stethoscope, href: '/manage/doctors' },
+    { title: 'Tests & Packages', Icon: FlaskConical, href: '/manage/tests' },
+    { title: 'Lab Employees', Icon: Building2, href: '/manage/employees' },
+    { title: 'Sample Collection', Icon: Landmark, href: '/manage/centers' },
+    { title: 'Discount & Charges', Icon: Percent, href: '/manage/discounts' },
+    { title: 'Payment Methods', Icon: CreditCard, href: '/manage/payments' },
   ]},
   { title: 'DATA & BACKUP', items: [
-    { title: 'Report Templates', Icon: FileText },
-    { title: 'Data Backup', Icon: DatabaseBackup },
-    { title: 'Deleted Records', Icon: Trash2 },
+    { title: 'Report Templates', Icon: FileText, href: '/manage/templates' },
+    { title: 'Data Backup', Icon: DatabaseBackup, href: '/manage/backup' },
+    { title: 'Deleted Records', Icon: Trash2, href: '/manage/deleted' },
   ]},
   { title: 'SETTINGS & SUPPORT', items: [
-    { title: 'Lab Profile', Icon: Building },
-    { title: 'Settings', Icon: Settings },
-    { title: 'Users & Roles', Icon: ShieldCheck },
-    { title: 'Help & Support', Icon: HelpCircle },
-    { title: 'About App', Icon: Info },
+    { title: 'Lab Profile', Icon: Building, href: '/manage/lab' },
+    { title: 'Settings', Icon: Settings, href: '/manage/settings' },
+    { title: 'Help & Support', Icon: HelpCircle, href: '/manage/help' },
+    { title: 'About App', Icon: Info, href: '/manage/about' },
   ]},
 ];
 
@@ -67,7 +66,7 @@ export default function MenuDrawer() {
             <View style={styles.activePill}><Text style={styles.activeText}>Active</Text></View>
           </View>
           <View style={styles.userCard}>
-            <Avatar name={lab.admin} size={34} />
+            <Avatar name={lab.admin} size={34} circle />
             <View style={styles.headCol}>
               <Text style={styles.userName} numberOfLines={1}>{lab.admin}</Text>
               <Text style={styles.userRole} numberOfLines={1}>{lab.role}</Text>

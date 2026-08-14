@@ -1,13 +1,16 @@
 import React from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TextInput, Pressable, ActivityIndicator, Modal, Platform,
+  View, Text, StyleSheet, ScrollView, Pressable, Modal, Platform,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
-  ChevronLeft, Search, User, FlaskConical, Stethoscope, CreditCard, ChevronDown, X,
+  ChevronLeft, User, FlaskConical, Stethoscope, CreditCard, ChevronDown, X,
 } from 'lucide-react-native';
 import ScreenHeader from '@/components/ScreenHeader';
 import Avatar from '@/components/Avatar';
+import Field from '@/components/Field';
+import PrimaryButton from '@/components/PrimaryButton';
+import SearchBar from '@/components/SearchBar';
 import { Card, FadeIn, ListRow, EmptyState } from '@/components/UI';
 import { colors, fonts, radius, spacing } from '@/lib/theme';
 import { tests as localTests, doctors as localDoctors, patients as localPatients } from '@/lib/labData';
@@ -38,12 +41,12 @@ export default function CreateReport() {
           endpoints.meta.tests(),
           endpoints.meta.doctors(),
         ]);
-        if (p?.length) setPatients(p);
+        setPatients(Array.isArray(p) ? p : []);
         if (t?.length) setTests(t);
         if (d?.length) setDoctors(d);
       } catch (e: any) {
-        console.warn('Using local test/doctor lists:', e?.message || e);
-        setPatients(localPatients);
+        console.warn('Could not load catalogues:', e?.message || e);
+        setPatients([]);
       }
     }
     fetchData();
@@ -93,16 +96,14 @@ export default function CreateReport() {
   };
 
   const SelectBox = ({ label, icon: Icon, placeholder, value, onPress }: any) => (
-    <View style={styles.inputGroup}>
-      <Text style={styles.label}>{label}</Text>
-      <Pressable style={styles.inputWrap} onPress={onPress}>
-        <Icon size={16} color={colors.mutedForeground} />
-        <Text style={[styles.inputText, !value && { color: colors.mutedForeground }]} numberOfLines={1}>
-          {value || placeholder}
-        </Text>
-        <ChevronDown size={16} color={colors.mutedForeground} />
-      </Pressable>
-    </View>
+    <Field
+      label={label}
+      value={value || ''}
+      placeholder={placeholder}
+      icon={<Icon size={16} color={colors.primary} />}
+      onPress={onPress}
+      right={<ChevronDown size={16} color={colors.mutedForeground} />}
+    />
   );
 
   const openSheet = (kind: SheetKind) => {
@@ -182,20 +183,14 @@ export default function CreateReport() {
               onPress={() => openSheet('doctor')}
             />
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Test Amount (₹)</Text>
-              <View style={styles.inputWrap}>
-                <CreditCard size={16} color={colors.mutedForeground} />
-                <TextInput
-                  style={styles.input}
-                  value={form.amount}
-                  onChangeText={(t) => setForm((f) => ({ ...f, amount: t }))}
-                  placeholder="0.00"
-                  placeholderTextColor={colors.mutedForeground}
-                  keyboardType="number-pad"
-                />
-              </View>
-            </View>
+            <Field
+              label="Test Amount (₹)"
+              value={form.amount}
+              onChangeText={(t) => setForm((f) => ({ ...f, amount: t }))}
+              placeholder="Enter amount"
+              icon={<CreditCard size={16} color={colors.primary} />}
+              keyboardType="number-pad"
+            />
 
             <View style={styles.paymentToggle}>
               <Text style={styles.label}>Mark as Paid</Text>
@@ -207,17 +202,7 @@ export default function CreateReport() {
               </Pressable>
             </View>
 
-            <Pressable
-              style={[styles.submitBtn, loading && styles.btnDisabled]}
-              onPress={handleSubmit}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.submitBtnText}>Generate Report ID</Text>
-              )}
-            </Pressable>
+            <PrimaryButton title="Generate Report ID" onPress={handleSubmit} loading={loading} />
           </Card>
         </FadeIn>
       </ScrollView>
@@ -233,16 +218,8 @@ export default function CreateReport() {
                 <X size={18} color={colors.mutedForeground} />
               </Pressable>
             </View>
-            <View style={styles.sheetSearch}>
-              <Search size={16} color={colors.mutedForeground} />
-              <TextInput
-                style={styles.sheetInput}
-                placeholder={current?.placeholder}
-                placeholderTextColor={colors.mutedForeground}
-                value={query}
-                onChangeText={setQuery}
-                autoFocus
-              />
+            <View style={{ marginHorizontal: 12, marginBottom: 8 }}>
+              <SearchBar value={query} onChangeText={setQuery} placeholder={current?.placeholder} />
             </View>
             <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
               {filteredRows.length === 0 ? (
@@ -254,13 +231,9 @@ export default function CreateReport() {
                       {sheet === 'patient' ? (
                         <Avatar name={item.name} color={item.color} size={34} />
                       ) : (
-                        <View style={styles.sheetIcon}>
-                          {sheet === 'test' ? (
-                            <FlaskConical size={15} color={colors.primary} />
-                          ) : (
-                            <Stethoscope size={15} color={colors.primary} />
-                          )}
-                        </View>
+                        sheet === 'test'
+                          ? <FlaskConical size={16} color={colors.primary} />
+                          : <Stethoscope size={16} color={colors.primary} />
                       )}
                       <View style={{ flex: 1, minWidth: 0 }}>
                         <Text style={styles.sheetRowTitle} numberOfLines={1}>{current!.label(item)}</Text>
@@ -281,20 +254,13 @@ export default function CreateReport() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   body: { paddingHorizontal: spacing.hPad, paddingTop: 4, paddingBottom: 40 },
-  formCard: { padding: 15 },
-  inputGroup: { marginBottom: 16 },
-  label: { fontSize: 13, fontFamily: fonts.semibold, color: colors.foreground, marginBottom: 8 },
-  inputWrap: { flexDirection: 'row', alignItems: 'center', height: 48, backgroundColor: colors.muted, borderRadius: radius.sm, paddingHorizontal: 12, borderWidth: 1, borderColor: colors.border },
-  inputText: { flex: 1, marginLeft: 10, fontFamily: fonts.medium, fontSize: 14, color: colors.foreground },
-  input: { flex: 1, height: '100%', marginLeft: 10, fontFamily: fonts.medium, fontSize: 14, color: colors.foreground },
-  paymentToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, paddingRight: 4 },
+  formCard: { padding: 14 },
+  label: { fontSize: 12, fontFamily: fonts.semibold, color: colors.mutedForeground, marginBottom: 6 },
+  paymentToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, paddingRight: 4 },
   toggle: { width: 44, height: 24, borderRadius: 12, backgroundColor: colors.border, padding: 2 },
   toggleActive: { backgroundColor: colors.green },
   toggleDot: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#FFFFFF' },
   toggleDotActive: { marginLeft: 20 },
-  submitBtn: { height: 52, backgroundColor: colors.primary, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
-  btnDisabled: { opacity: 0.7 },
-  submitBtnText: { color: '#FFFFFF', fontSize: 16, fontFamily: fonts.bold },
   overlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: colors.background,
