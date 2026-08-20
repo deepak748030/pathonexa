@@ -5,10 +5,11 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Phone, ShieldCheck, ChevronLeft, WifiOff } from 'lucide-react-native';
+import { ShieldCheck, ChevronLeft, WifiOff } from 'lucide-react-native';
 import { useAuth, DEMO_OTP } from '@/lib/auth';
 import { colors, fonts, radius, spacing } from '@/lib/theme';
 import { FadeIn } from '@/components/UI';
+import { digitsOnly, isIndianMobile } from '@/lib/format';
 
 export default function Login() {
   const [mobile, setMobile] = React.useState('');
@@ -16,6 +17,7 @@ export default function Login() {
   const [step, setStep] = React.useState<'mobile' | 'otp'>('mobile');
   const [loading, setLoading] = React.useState(false);
   const [timer, setTimer] = React.useState(30);
+  const [error, setError] = React.useState('');
   const { login, verifyOtp, offline } = useAuth();
 
   React.useEffect(() => {
@@ -25,12 +27,15 @@ export default function Login() {
   }, [step, timer]);
 
   const handleMobileSubmit = async () => {
-    if (mobile.length !== 10) return;
+    if (!isIndianMobile(mobile)) {
+      setError('Enter a valid 10-digit Indian mobile (starts with 6–9)');
+      return;
+    }
+    setError('');
     setLoading(true);
     try {
       await login(mobile);
     } catch (e: any) {
-      // Server unreachable → continue in offline demo mode (clearly flagged).
       console.warn('Offline login:', e?.message || e);
     } finally {
       setTimer(30);
@@ -47,7 +52,7 @@ export default function Login() {
       await verifyOtp(mobile, otp);
       router.replace('/(tabs)');
     } catch (e: any) {
-      alert(e?.message || 'Verification failed');
+      setError(e?.message || 'Verification failed');
     } finally {
       setLoading(false);
     }
@@ -60,36 +65,24 @@ export default function Login() {
       setTimer(30);
       setOtp('');
     } catch (e: any) {
-      alert(e?.message || 'Could not resend OTP');
+      setError(e?.message || 'Could not resend OTP');
     } finally {
       setLoading(false);
     }
   };
 
-  const renderOTPInputs = () => (
-    <View style={styles.otpContainer}>
-      {[0, 1, 2, 3, 4, 5].map((index) => (
-        <View key={index} style={[styles.otpBox, otp.length === index && styles.otpBoxActive]}>
-          <Text style={styles.otpText}>{otp[index] || ''}</Text>
-        </View>
-      ))}
-      <TextInput
-        style={styles.hiddenInput}
-        keyboardType="number-pad"
-        maxLength={6}
-        value={otp}
-        onChangeText={setOtp}
-        autoFocus
-      />
-    </View>
-  );
-
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.screen}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }} bounces={false} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'padding'} style={styles.screen}>
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
+        bounces={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        automaticallyAdjustKeyboardInsets
+      >
         <Pressable style={styles.content} onPress={Keyboard.dismiss}>
           {step === 'otp' && (
-            <Pressable style={styles.backBtn} onPress={() => setStep('mobile')}>
+            <Pressable style={styles.backBtn} onPress={() => { setStep('mobile'); setError(''); }}>
               <ChevronLeft size={24} color="#0F172A" />
             </Pressable>
           )}
@@ -112,25 +105,27 @@ export default function Login() {
 
             {step === 'mobile' ? (
               <>
-                <View style={styles.inputOuter}>
+                <View style={[styles.inputOuter, error ? { borderColor: colors.red } : null]}>
                   <View style={styles.countryCode}>
+                    <Text style={styles.flag}>🇮🇳</Text>
                     <Text style={styles.countryText}>+91</Text>
                   </View>
                   <TextInput
                     style={styles.phoneInput}
-                    placeholder="Phone Number"
+                    placeholder="10-digit mobile number"
                     placeholderTextColor="#94A3B8"
                     keyboardType="number-pad"
                     maxLength={10}
                     value={mobile}
-                    onChangeText={setMobile}
+                    onChangeText={(t) => { setMobile(digitsOnly(t, 10)); setError(''); }}
                   />
                 </View>
+                {!!error && <Text style={styles.err}>{error}</Text>}
 
                 <Pressable
-                  style={[styles.continueBtn, (mobile.length !== 10 || loading) && styles.btnDisabled]}
+                  style={[styles.continueBtn, (!isIndianMobile(mobile) || loading) && styles.btnDisabled]}
                   onPress={handleMobileSubmit}
-                  disabled={mobile.length !== 10 || loading}
+                  disabled={!isIndianMobile(mobile) || loading}
                 >
                   {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.continueText}>Continue</Text>}
                 </Pressable>
@@ -150,9 +145,23 @@ export default function Login() {
               <FadeIn>
                 <Text style={styles.otpTitle}>Verify OTP</Text>
                 <Text style={styles.otpSub}>We've sent a verification code to</Text>
-                <Text style={styles.otpTarget}>+91 {mobile}</Text>
+                <Text style={styles.otpTarget}>+91 {mobile.slice(0, 5)} {mobile.slice(5)}</Text>
 
-                {renderOTPInputs()}
+                <View style={styles.otpContainer}>
+                  {[0, 1, 2, 3, 4, 5].map((index) => (
+                    <View key={index} style={[styles.otpBox, otp.length === index && styles.otpBoxActive]}>
+                      <Text style={styles.otpText}>{otp[index] || ''}</Text>
+                    </View>
+                  ))}
+                  <TextInput
+                    style={styles.hiddenInput}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    value={otp}
+                    onChangeText={(t) => { setOtp(digitsOnly(t, 6)); setError(''); }}
+                    autoFocus
+                  />
+                </View>
 
                 {timer > 0 ? (
                   <Text style={styles.resendTimer}>Resend OTP in {timer}s</Text>
@@ -168,6 +177,7 @@ export default function Login() {
                     <Text style={styles.offlineText}>Offline mode — demo OTP is {DEMO_OTP}.</Text>
                   </View>
                 )}
+                {!!error && <Text style={styles.err}>{error}</Text>}
 
                 <Pressable
                   style={[styles.continueBtn, (otp.length !== 6 || loading) && styles.btnDisabled]}
@@ -196,40 +206,41 @@ export default function Login() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#FFFFFF' },
-  content: { flex: 1, paddingHorizontal: spacing.hPad, paddingVertical: 15 },
+  content: { flex: 1, paddingHorizontal: 20, paddingVertical: 15 },
   backBtn: { position: 'absolute', top: 40, left: 10, zIndex: 10, padding: 10 },
   header: { alignItems: 'center', marginTop: 10, marginBottom: 25 },
   heroImage: { width: '100%', height: 190, marginBottom: 20 },
   mainHeadline: { fontSize: 26, fontFamily: fonts.extrabold, color: colors.foreground, textAlign: 'center' },
   subHeadline: { fontSize: 14, fontFamily: fonts.medium, color: colors.mutedForeground, marginTop: 4, textAlign: 'center' },
-  formContainer: { paddingHorizontal: spacing.hPad },
+  formContainer: { paddingHorizontal: 4 },
   inputOuter: {
-    flexDirection: 'row', alignItems: 'center', height: spacing.input,
-    borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm,
-    paddingHorizontal: 15, marginBottom: 15, backgroundColor: '#FFF',
+    flexDirection: 'row', alignItems: 'center', height: 52,
+    borderWidth: 1.5, borderColor: colors.border, borderRadius: radius.sm,
+    paddingHorizontal: 14, marginBottom: 8, backgroundColor: '#FFF',
   },
-  countryCode: { borderRightWidth: 1, borderColor: colors.border, paddingRight: 12, marginRight: 12 },
+  countryCode: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRightWidth: 1, borderColor: colors.border, paddingRight: 12, marginRight: 12 },
+  flag: { fontSize: 16 },
   countryText: { fontFamily: fonts.semibold, color: colors.foreground, fontSize: 15 },
-  phoneInput: { flex: 1, height: '100%', fontFamily: fonts.medium, fontSize: 15, color: colors.foreground },
+  phoneInput: { flex: 1, height: '100%', fontFamily: fonts.medium, fontSize: 16, color: colors.foreground, letterSpacing: 0.6 },
   continueBtn: {
-    height: spacing.button, backgroundColor: colors.primary,
-    borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center',
+    height: 52, backgroundColor: colors.primary,
+    borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', marginTop: 8,
   },
   continueText: { color: '#FFFFFF', fontFamily: fonts.bold, fontSize: 15 },
-  btnDisabled: { opacity: 0.6 },
+  btnDisabled: { opacity: 0.55 },
   divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
   line: { flex: 1, height: 1, backgroundColor: colors.border },
   orText: { marginHorizontal: 15, color: colors.placeholder, fontSize: 11, fontFamily: fonts.bold },
   socialBtn: {
-    flexDirection: 'row', height: spacing.button, borderWidth: 1, borderColor: colors.border,
+    flexDirection: 'row', height: 52, borderWidth: 1, borderColor: colors.border,
     borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', gap: 10,
   },
   socialText: { color: '#475569', fontFamily: fonts.semibold, fontSize: 14 },
   otpTitle: { fontSize: 20, fontFamily: fonts.bold, textAlign: 'center', marginBottom: 5 },
   otpSub: { fontSize: 13, fontFamily: fonts.regular, color: colors.mutedForeground, textAlign: 'center' },
-  otpTarget: { fontSize: 13, fontFamily: fonts.bold, color: colors.foreground, textAlign: 'center', marginBottom: 25 },
+  otpTarget: { fontSize: 14, fontFamily: fonts.bold, color: colors.foreground, textAlign: 'center', marginBottom: 25 },
   otpContainer: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 20 },
-  otpBox: { width: 45, height: 48, borderBottomWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  otpBox: { width: 44, height: 50, borderBottomWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   otpBoxActive: { borderColor: colors.primary },
   otpText: { fontSize: 20, fontFamily: fonts.bold, color: colors.foreground },
   hiddenInput: { position: 'absolute', opacity: 0, width: '100%', height: '100%' },
@@ -241,4 +252,5 @@ const styles = StyleSheet.create({
   trustText: { color: colors.mutedForeground, fontFamily: fonts.medium, fontSize: 11 },
   footerInfo: { marginTop: 'auto', paddingVertical: 30, alignItems: 'center' },
   version: { color: colors.border, fontSize: 11, marginTop: 4, fontFamily: fonts.regular },
+  err: { color: colors.red, fontFamily: fonts.medium, fontSize: 11.5, marginBottom: 8 },
 });

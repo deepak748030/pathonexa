@@ -2,14 +2,13 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, fonts, spacing } from '@/lib/theme';
+import { colors, fonts, spacing, radius } from '@/lib/theme';
 
 type Props = {
   title: string;
   subtitle?: string;
   left?: React.ReactNode;
   right?: React.ReactNode;
-  /** Optional secondary row rendered under the title (never overlaps it). */
   actions?: React.ReactNode;
   onLeftPress?: () => void;
 };
@@ -25,7 +24,9 @@ export default function ScreenHeader({ title, subtitle, left, right, actions, on
     >
       <View style={styles.row}>
         {left ? (
-          <Pressable onPress={onLeftPress} hitSlop={12} style={styles.leftBtn}>{left}</Pressable>
+          <Pressable onPress={onLeftPress} hitSlop={12} style={styles.iconBtn}>
+            {left}
+          </Pressable>
         ) : null}
         <View style={styles.titleCol}>
           <Text style={styles.title} numberOfLines={1}>{title}</Text>
@@ -38,14 +39,55 @@ export default function ScreenHeader({ title, subtitle, left, right, actions, on
   );
 }
 
+export function HeaderIcon({ children, onPress }: { children: React.ReactNode; onPress?: () => void }) {
+  return (
+    <Pressable onPress={onPress} hitSlop={8} style={styles.iconBtn}>
+      {children}
+    </Pressable>
+  );
+}
+
+export function HeaderPill({
+  children,
+  onPress,
+}: {
+  children: React.ReactNode;
+  onPress?: () => void;
+}) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.pill, pressed && { opacity: 0.85 }]}>
+      {children}
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  // Compact flat header: minimal vertical space, no shadow, no rounded corners.
-  wrap: { paddingHorizontal: spacing.headerPad, paddingBottom: 10 },
+  wrap: {
+    paddingHorizontal: spacing.headerPad,
+    paddingBottom: 28,
+  },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  leftBtn: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   titleCol: { flex: 1, minWidth: 0 },
-  rightRow: { flexDirection: 'row', alignItems: 'center', gap: 12, flexShrink: 0 },
-  actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
-  title: { color: '#FFFFFF', fontFamily: fonts.bold, fontSize: 16, lineHeight: 21 },
-  subtitle: { color: 'rgba(255,255,255,0.85)', fontFamily: fonts.medium, fontSize: 10, lineHeight: 13 },
+  rightRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0 },
+  actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+  title: { color: '#FFFFFF', fontFamily: fonts.bold, fontSize: 20, lineHeight: 26 },
+  subtitle: { color: 'rgba(255,255,255,0.82)', fontFamily: fonts.medium, fontSize: 11.5, lineHeight: 16, marginTop: 1 },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    paddingHorizontal: 12,
+    height: 34,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.28)',
+  },
 });

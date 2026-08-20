@@ -1,19 +1,19 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { colors, fonts, radius } from '@/lib/theme';
+import { colors, fonts } from '@/lib/theme';
+import { initials } from '@/lib/format';
 
 export default function Avatar({
-  name, color, size = 36, circle,
+  name, color, size = 40, circle = true,
 }: { name: string; color?: string; size?: number; circle?: boolean }) {
-  const initials = (name || 'U').split(' ').map((n) => n[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || 'U';
   return (
     <View style={[styles.wrap, {
       width: size,
       height: size,
-      borderRadius: circle ? size / 2 : radius.sm,
+      borderRadius: circle ? size / 2 : 10,
       backgroundColor: color || colors.primaryLight,
     }]}>
-      <Text style={[styles.txt, { fontSize: size * 0.34 }]}>{initials}</Text>
+      <Text style={[styles.txt, { fontSize: size * 0.32 }]}>{initials(name)}</Text>
     </View>
   );
 }

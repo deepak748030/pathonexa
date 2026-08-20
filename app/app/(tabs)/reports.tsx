@@ -1,26 +1,54 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { FlaskConical, SlidersHorizontal, CheckCircle2, Clock, XCircle, IndianRupee } from 'lucide-react-native';
-import ScreenHeader from '@/components/ScreenHeader';
+import {
+  Menu, Search, SlidersHorizontal, Plus, ClipboardList, Hourglass,
+  CheckCircle2, IndianRupee, ChevronRight, CalendarDays,
+} from 'lucide-react-native';
+import ScreenHeader, { HeaderIcon, HeaderPill } from '@/components/ScreenHeader';
+import AppScreen from '@/components/AppScreen';
 import SearchBar from '@/components/SearchBar';
-import StatCard from '@/components/StatCard';
 import Avatar from '@/components/Avatar';
-import { Card, SectionTitle, GridPanel, FadeIn, ListRow, Chip, OfflineBanner, EmptyState } from '@/components/UI';
-import { colors, fonts, radius, spacing } from '@/lib/theme';
+import { Card, Chip, FadeIn, OfflineBanner, EmptyState } from '@/components/UI';
+import { colors, fonts, radius, shadow, toneMap } from '@/lib/theme';
 import { endpoints } from '@/lib/api';
 import { useServerStatus } from '@/lib/serverStatus';
+import { inr, testTone } from '@/lib/format';
 
-const STATUSES = ['All', 'Completed', 'Pending', 'Cancelled'];
+const STAT_ICONS = [
+  { Icon: ClipboardList, tone: 'primary' as const },
+  { Icon: Hourglass, tone: 'orange' as const },
+  { Icon: CheckCircle2, tone: 'green' as const },
+  { Icon: IndianRupee, tone: 'purple' as const },
+];
+
+const DATE_CHIPS = [
+  { id: 'today', label: 'Today' },
+  { id: 'yesterday', label: 'Yesterday' },
+  { id: '7', label: 'Last 7 Days' },
+  { id: '30', label: 'Last 30 Days' },
+  { id: 'custom', label: 'Custom Range' },
+];
+
+const STATUS = ['All', 'Pending', 'Completed', 'Cancelled'];
+
+function startOfDay(d: Date) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
 
 export default function Reports() {
   const check = useServerStatus((s) => s.check);
   const [search, setSearch] = React.useState('');
   const [status, setStatus] = React.useState('All');
+  const [range, setRange] = React.useState('today');
   const [reports, setReports] = React.useState<any[]>([]);
   const [stats, setStats] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [refreshing, setRefreshing] = React.useState(false);
+  const [page, setPage] = React.useState(1);
+  const PAGE = 10;
 
   const loadData = React.useCallback(async (initial = false) => {
     if (initial) setLoading(true);
@@ -32,7 +60,7 @@ export default function Reports() {
       setReports(Array.isArray(data) ? data : []);
       setStats(Array.isArray(remoteStats) ? remoteStats : []);
     } catch (e: any) {
-      console.warn('Failed to load reports from backend:', e?.message || e);
+      console.warn('Failed to load reports:', e?.message || e);
       setReports([]);
       setStats([]);
     } finally {
@@ -40,12 +68,7 @@ export default function Reports() {
     }
   }, []);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      check();
-      loadData(true);
-    }, [check, loadData])
-  );
+  useFocusEffect(React.useCallback(() => { check(); loadData(true); }, [check, loadData]));
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -56,151 +79,207 @@ export default function Reports() {
   const filtered = reports.filter((r) => {
     const name = (r.patient?.name || r.patient || '').toLowerCase();
     const q = search.toLowerCase().trim();
-    const matchQ =
-      !q ||
-      name.includes(q) ||
-      (r.reportId || '').toLowerCase().includes(q) ||
-      (r.test || '').toLowerCase().includes(q);
+    const matchQ = !q || name.includes(q) || (r.reportId || '').toLowerCase().includes(q) || (r.test || '').toLowerCase().includes(q) || (r.doctor || '').toLowerCase().includes(q);
     const matchS = status === 'All' || r.status === status;
-    return matchQ && matchS;
+    const created = new Date(r.createdAt || r.date || Date.now());
+    const today = startOfDay(new Date());
+    let matchD = true;
+    if (range === 'today') matchD = created >= today;
+    else if (range === 'yesterday') {
+      const y = new Date(today);
+      y.setDate(y.getDate() - 1);
+      matchD = created >= y && created < today;
+    } else if (range === '7') {
+      const d = new Date(today);
+      d.setDate(d.getDate() - 6);
+      matchD = created >= d;
+    } else if (range === '30') {
+      const d = new Date(today);
+      d.setDate(d.getDate() - 29);
+      matchD = created >= d;
+    }
+    return matchQ && matchS && matchD;
   });
 
-  const getStatus = (s: string) => {
-    switch (s) {
-      case 'Completed':
-        return { Icon: CheckCircle2, color: colors.green };
-      case 'Pending':
-        return { Icon: Clock, color: colors.orange };
-      case 'Cancelled':
-        return { Icon: XCircle, color: colors.red };
-      default:
-        return { Icon: Clock, color: colors.mutedForeground };
-    }
+  const pages = Math.max(1, Math.ceil(filtered.length / PAGE));
+  const slice = filtered.slice((page - 1) * PAGE, page * PAGE);
+  const counts = {
+    All: reports.length,
+    Pending: reports.filter((r) => r.status === 'Pending').length,
+    Completed: reports.filter((r) => r.status === 'Completed').length,
+    Cancelled: reports.filter((r) => r.status === 'Cancelled').length,
   };
 
-  if (loading) {
-    return (
-      <View style={[styles.screen, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
+  React.useEffect(() => { setPage(1); }, [search, status, range]);
 
   return (
-    <View style={styles.screen}>
-      <ScreenHeader
-        title="Reports"
-        subtitle="Track laboratory investigations"
-        right={
-          <Pressable style={styles.addBtn} onPress={() => router.push('/create-report')}>
-            <FlaskConical size={18} color="#FFFFFF" />
-          </Pressable>
-        }
-      />
-
-      <ScrollView
-        contentContainerStyle={styles.body}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
-      >
-        <OfflineBanner />
-
-        <FadeIn>
-          <GridPanel columns={2}>
-            {stats.map((s) => (
-              <StatCard key={s.label} label={s.label} value={s.value} tone={s.tone} compact />
-            ))}
-          </GridPanel>
-        </FadeIn>
-
-        <SectionTitle title="All Reports" />
-        <FadeIn delay={60}>
-          <View style={styles.searchBar}>
-            <SearchBar value={search} onChangeText={setSearch} placeholder="Search patient, ID or test..." />
-            <Pressable style={styles.filterBtn} onPress={() => setStatus('All')}>
-              <SlidersHorizontal size={16} color={colors.foreground} />
-            </Pressable>
-          </View>
-
-          {/* Segmented status filter — mapped with gap 0 + hairline dividers */}
-          <View style={styles.segment}>
-            {STATUSES.map((s, i) => (
-              <Chip
-                key={s}
-                label={s}
-                active={status === s}
-                divider={i > 0}
-                onPress={() => setStatus(s)}
-              />
-            ))}
-          </View>
-        </FadeIn>
-
-        <FadeIn delay={120}>
-          <Card style={{ padding: 0 }}>
-            {filtered.length === 0 ? (
-              <EmptyState
-                title={search ? 'No reports match your search' : 'No reports found'}
-                subtitle={search ? 'Try a different patient, ID or test name.' : 'Create a report with the flask button above.'}
-              />
-            ) : (
-              filtered.map((r, i) => {
-                const { Icon, color } = getStatus(r.status);
+    <AppScreen
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+      keyboard
+      header={
+        <ScreenHeader
+          title="Reports"
+          subtitle="All lab reports and details"
+          left={<Menu size={22} color="#FFFFFF" strokeWidth={2.4} />}
+          onLeftPress={() => router.push('/menu' as any)}
+          right={
+            <>
+              <HeaderIcon><Search size={18} color="#FFFFFF" /></HeaderIcon>
+              <HeaderIcon onPress={() => { setStatus('All'); setRange('today'); }}><SlidersHorizontal size={18} color="#FFFFFF" /></HeaderIcon>
+              <HeaderPill onPress={() => router.push('/create-report')}>
+                <Plus size={14} color="#FFFFFF" strokeWidth={2.6} />
+                <Text style={styles.pillTxt}>Create Report</Text>
+              </HeaderPill>
+            </>
+          }
+        />
+      }
+    >
+      <OfflineBanner />
+      {loading ? (
+        <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
+      ) : (
+        <>
+          <FadeIn>
+            <View style={styles.statRow}>
+              {stats.map((s, i) => {
+                const meta = STAT_ICONS[i] || STAT_ICONS[0];
+                const t = toneMap[(s.tone || meta.tone) as keyof typeof toneMap] || toneMap.primary;
                 return (
-                  <ListRow
-                    key={r.id || r._id}
-                    last={i === filtered.length - 1}
-                    onPress={() =>
-                      router.push({ pathname: '/report-preview', params: { id: r._id || r.id } } as any)
-                    }
-                  >
-                    <View style={styles.reportRow}>
-                      <Avatar name={r.patient?.name || r.patient} color={r.color || r.patient?.color} size={36} />
-                      <View style={styles.reportInfo}>
-                        <Text style={styles.reportPatient}>{r.patient?.name || r.patient}</Text>
-                        <Text style={styles.reportTest} numberOfLines={1}>{r.test}</Text>
-                        <Text style={styles.metaText} numberOfLines={1}>{r.reportId} · {r.date}</Text>
-                      </View>
-                      <View style={styles.reportStatus}>
-                        <View style={styles.statusBadge}>
-                          <Icon size={12} color={color} />
-                          <Text style={[styles.statusText, { color }]}>{r.status}</Text>
-                        </View>
-                        <View style={styles.paymentRow}>
-                          <IndianRupee size={10} color={r.paid ? colors.green : colors.red} />
-                          <Text style={[styles.paymentText, { color: r.paid ? colors.green : colors.red }]}>
-                            ₹{r.amount}
-                          </Text>
-                        </View>
-                      </View>
+                  <View key={s.label} style={styles.statCard}>
+                    <View style={[styles.statIcon, { backgroundColor: t.bg }]}>
+                      <meta.Icon size={16} color={t.fg} />
                     </View>
-                  </ListRow>
+                    <Text style={styles.statValue}>{s.value}</Text>
+                    <Text style={styles.statLabel} numberOfLines={2}>{s.label}</Text>
+                  </View>
                 );
-              })
-            )}
-          </Card>
-        </FadeIn>
-      </ScrollView>
-    </View>
+              })}
+            </View>
+          </FadeIn>
+
+          <FadeIn delay={40}>
+            <View style={styles.searchRow}>
+              <SearchBar value={search} onChangeText={setSearch} placeholder="Search by Patient, Report ID, Test or Doctor..." />
+              <Pressable style={styles.calBtn}><CalendarDays size={18} color={colors.foreground} /></Pressable>
+            </View>
+          </FadeIn>
+
+          <FadeIn delay={60}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} style={{ marginTop: 12 }}>
+              {DATE_CHIPS.map((c) => (
+                <Chip key={c.id} label={c.label} active={range === c.id} onPress={() => setRange(c.id)} />
+              ))}
+            </ScrollView>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+              {STATUS.map((s) => (
+                <Chip
+                  key={s}
+                  label={s === 'All' ? `All (${counts.All})` : `${s} (${counts[s as keyof typeof counts]})`}
+                  active={status === s}
+                  onPress={() => setStatus(s)}
+                />
+              ))}
+            </ScrollView>
+          </FadeIn>
+
+          <FadeIn delay={90}>
+            <Card style={{ padding: 0, marginTop: 4 }}>
+              {slice.length === 0 ? (
+                <EmptyState
+                  title={search ? 'No reports match your search' : 'No reports in this range'}
+                  subtitle="Create a report with + Create Report."
+                />
+              ) : slice.map((r, i) => {
+                const pname = r.patient?.name || r.patient;
+                const tone = testTone(r.test);
+                return (
+                  <Pressable
+                    key={r.id || r._id}
+                    style={[styles.row, i === slice.length - 1 && { borderBottomWidth: 0 }]}
+                    onPress={() => router.push({ pathname: '/report-preview', params: { id: r._id || r.id } } as any)}
+                  >
+                    <Avatar name={pname} color={r.color || r.patient?.color} size={42} />
+                    <View style={styles.info}>
+                      <Text style={styles.name}>{pname}</Text>
+                      <Text style={styles.meta}>PID: {r.patient?.pid || r.pid || '—'}  |  {r.patient?.age || r.age || '—'} Yrs  |  {r.patient?.gender || r.gender || ''}</Text>
+                      <Text style={[styles.test, { color: toneMap[tone].fg }]}>{r.test}</Text>
+                      <Text style={styles.ref}>Ref: {r.doctor || 'Direct'}</Text>
+                    </View>
+                    <View style={styles.right}>
+                      <Text style={styles.id}>Report ID</Text>
+                      <Text style={styles.idVal}>{r.reportId}</Text>
+                      <Text style={styles.id}>Report Date</Text>
+                      <Text style={styles.idVal}>{r.date}{r.time ? `\n${r.time}` : ''}</Text>
+                    </View>
+                    <View style={styles.amtCol}>
+                      <Text style={styles.amt}>{inr(r.amount)}</Text>
+                      <Text style={[styles.st, { color: r.status === 'Completed' ? colors.green : r.status === 'Pending' ? colors.orange : colors.red }]}>
+                        {r.status}
+                      </Text>
+                    </View>
+                    <ChevronRight size={15} color={colors.mutedForeground} />
+                  </Pressable>
+                );
+              })}
+            </Card>
+          </FadeIn>
+
+          {filtered.length > 0 && (
+            <View style={styles.pager}>
+              <Text style={styles.pagerTxt}>Showing {slice.length} of {filtered.length} reports</Text>
+              <View style={styles.pages}>
+                {Array.from({ length: Math.min(pages, 5) }).map((_, i) => (
+                  <Pressable key={i} onPress={() => setPage(i + 1)} style={[styles.pageBtn, page === i + 1 && styles.pageActive]}>
+                    <Text style={[styles.pageTxt, page === i + 1 && { color: '#fff' }]}>{i + 1}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          )}
+        </>
+      )}
+    </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  body: { paddingHorizontal: spacing.hPad, paddingTop: 4, paddingBottom: 28 },
-  addBtn: { width: 36, height: 36, borderRadius: radius.xs, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
-  searchBar: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  filterBtn: { width: spacing.search, height: spacing.search, backgroundColor: colors.card, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
-  segment: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', marginBottom: 10 },
-  reportRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  reportInfo: { flex: 1, minWidth: 0 },
-  reportPatient: { fontSize: 13, fontFamily: fonts.bold, color: colors.foreground },
-  reportTest: { fontSize: 11, fontFamily: fonts.semibold, color: colors.primary, marginTop: 1 },
-  metaText: { fontSize: 10, fontFamily: fonts.regular, color: colors.mutedForeground, marginTop: 2 },
-  reportStatus: { alignItems: 'flex-end', gap: 4 },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  statusText: { fontSize: 10, fontFamily: fonts.bold },
-  paymentRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  paymentText: { fontSize: 11, fontFamily: fonts.bold },
+  pillTxt: { color: '#FFFFFF', fontFamily: fonts.semibold, fontSize: 12 },
+  statRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  statCard: {
+    flex: 1, backgroundColor: colors.card, borderRadius: radius.md,
+    alignItems: 'center', paddingVertical: 12, paddingHorizontal: 4, ...shadow,
+  },
+  statIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  statValue: { fontFamily: fonts.extrabold, fontSize: 16, color: colors.foreground },
+  statLabel: { fontFamily: fonts.medium, fontSize: 9.5, color: colors.mutedForeground, textAlign: 'center', marginTop: 2 },
+  searchRow: { flexDirection: 'row', gap: 8 },
+  calBtn: {
+    width: 46, height: 46, borderRadius: radius.sm, backgroundColor: colors.card,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border,
+  },
+  chips: { paddingBottom: 10, paddingRight: 8 },
+  row: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 10, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  info: { flex: 1.3, minWidth: 0 },
+  name: { fontFamily: fonts.bold, fontSize: 13.5, color: colors.foreground },
+  meta: { fontFamily: fonts.regular, fontSize: 10, color: colors.mutedForeground, marginTop: 2 },
+  test: { fontFamily: fonts.semibold, fontSize: 11.5, marginTop: 3 },
+  ref: { fontFamily: fonts.regular, fontSize: 10, color: colors.mutedForeground, marginTop: 2 },
+  right: { width: 88 },
+  id: { fontFamily: fonts.regular, fontSize: 9, color: colors.mutedForeground },
+  idVal: { fontFamily: fonts.semibold, fontSize: 10.5, color: colors.foreground, marginBottom: 4 },
+  amtCol: { alignItems: 'flex-end', width: 64 },
+  amt: { fontFamily: fonts.bold, fontSize: 13, color: colors.foreground },
+  st: { fontFamily: fonts.semibold, fontSize: 10.5, marginTop: 3 },
+  pager: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 },
+  pagerTxt: { fontFamily: fonts.regular, fontSize: 11, color: colors.mutedForeground },
+  pages: { flexDirection: 'row', gap: 6 },
+  pageBtn: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
+  pageActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  pageTxt: { fontFamily: fonts.bold, fontSize: 12, color: colors.foreground },
 });

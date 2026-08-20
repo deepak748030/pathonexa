@@ -32,6 +32,8 @@ const mem = {
   payments: [],
   discounts: [],
   templates: [],
+  packages: [],
+  expenses: [],
   deleted: [],
   seeded: false,
 };
@@ -66,9 +68,24 @@ function withIds(list) {
 function seedMemory() {
   if (mem.seeded) return;
   mem.seeded = true;
-  // Catalogue only — patients & reports stay empty so the app shows YOUR records.
-  mem.patients = [];
-  mem.reports = [];
+  mem.patients = (seed.patients || []).map((p, i) => ({
+    ...p,
+    _id: makeId(),
+    pid: genPid(new Date(), i + 1),
+    createdAt: hoursAgo(i * 6),
+    updatedAt: hoursAgo(i * 6),
+  }));
+  mem.reports = (seed.reports || []).map((r, i) => {
+    const p = mem.patients[r.patientIndex] || mem.patients[0];
+    return {
+      ...r,
+      _id: makeId(),
+      patient: p,
+      color: p?.color,
+      createdAt: hoursAgo(Math.min(i, 5) * 2),
+      updatedAt: hoursAgo(Math.min(i, 5) * 2),
+    };
+  });
   mem.tests = withIds(seed.tests);
   mem.doctors = withIds(seed.doctors);
   mem.employees = withIds(seed.employees || []);
@@ -76,6 +93,8 @@ function seedMemory() {
   mem.payments = withIds(seed.payments || []);
   mem.discounts = withIds(seed.discounts || []);
   mem.templates = withIds(seed.templates || []);
+  mem.packages = withIds(seed.packages || []);
+  mem.expenses = withIds(seed.expenses || []);
 }
 
 async function seedMongo() {
@@ -131,12 +150,12 @@ const auth = {
     if (useMemory()) {
       user = mem.users.find((u) => u.mobile === mobile);
       if (!user) {
-        user = { _id: makeId(), mobile, name: 'PathoNexa Admin', role: 'admin', createdAt: new Date() };
+        user = { _id: makeId(), mobile, name: 'Ravi Sharma', role: 'Lab Admin', createdAt: new Date() };
         mem.users.push(user);
       }
     } else {
       user = await User.findOne({ mobile });
-      if (!user) user = await User.create({ mobile, name: 'PathoNexa Admin', role: 'admin' });
+      if (!user) user = await User.create({ mobile, name: 'Ravi Sharma', role: 'Lab Admin' });
     }
     return {
       token: signToken(user._id),
@@ -182,7 +201,7 @@ const patients = {
   async update(id, patch) {
     ensureSeeded();
     const allowed = {};
-    ['name', 'age', 'gender', 'blood', 'mobile', 'address', 'lastTest', 'lastTestDate'].forEach((k) => {
+    ['name', 'age', 'gender', 'blood', 'mobile', 'altMobile', 'address', 'city', 'state', 'pincode', 'email', 'dob', 'remarks', 'referredBy', 'lastTest', 'lastTestDate'].forEach((k) => {
       if (patch[k] !== undefined) allowed[k] = patch[k];
     });
     if (useMemory()) {
@@ -260,6 +279,11 @@ const patients = {
     const { name, mobile, age, gender } = data || {};
     if (!name || !mobile || !age || !gender) {
       const err = new Error('Name, mobile, age and gender are required');
+      err.status = 400;
+      throw err;
+    }
+    if (!/^[6-9]\d{9}$/.test(String(mobile))) {
+      const err = new Error('Enter a valid 10-digit Indian mobile number');
       err.status = 400;
       throw err;
     }
@@ -367,9 +391,9 @@ const reports = {
   async update(id, patch) {
     ensureSeeded();
     const allowed = {};
-    if (patch.status) allowed.status = patch.status;
-    if (typeof patch.paid === 'boolean') allowed.paid = patch.paid;
-    if (patch.amount !== undefined) allowed.amount = patch.amount;
+    ['status', 'paid', 'amount', 'values', 'discount', 'paidAmount', 'pendingAmount', 'paymentMode', 'remarks', 'sampleDate', 'reportDate'].forEach((k) => {
+      if (patch[k] !== undefined) allowed[k] = patch[k];
+    });
     if (useMemory()) {
       const r = mem.reports.find((x) => x._id === id || x.reportId === id);
       if (!r) {
@@ -428,13 +452,21 @@ function computeStats(list) {
   const todayRevenue = today.reduce((s, r) => s + (r.amount || 0), 0);
   const pending = list.filter((r) => r.status === 'Pending');
   const pendingAmount = list.filter((r) => r.status === 'Pending' && !r.paid).reduce((s, r) => s + (r.amount || 0), 0);
+  const unpaidPatients = new Set(
+    list.filter((r) => !r.paid).map((r) => r.patient?._id || r.patient?.id || r.patient || r.reportId)
+  );
   const commission = list.reduce((s, r) => s + Math.round((r.amount || 0) * 0.15), 0);
+  const expenseToday = (mem.expenses || [])
+    .filter((e) => !e.createdAt || new Date(e.createdAt) >= start)
+    .reduce((s, e) => s + (e.amount || 0), 0);
   return {
     today: today.length,
     todayRevenue,
     pending: pending.length,
     pendingAmount,
+    pendingPatients: unpaidPatients.size,
     commission,
+    expenseToday,
     total: list.length,
   };
 }
@@ -540,6 +572,8 @@ const meta = {
   payments: collectionApi('payments', ['name']),
   discounts: collectionApi('discounts', ['name']),
   templates: collectionApi('templates', ['name']),
+  packages: collectionApi('packages', ['name', 'price']),
+  expenses: collectionApi('expenses', ['name', 'amount']),
   deleted: () => {
     ensureSeeded();
     return [...mem.deleted];

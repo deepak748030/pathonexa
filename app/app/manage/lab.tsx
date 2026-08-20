@@ -1,12 +1,13 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import { Alert } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { ChevronLeft, Building, Phone, Mail, MapPin, UserRound } from 'lucide-react-native';
 import ScreenHeader from '@/components/ScreenHeader';
+import AppScreen from '@/components/AppScreen';
 import Field from '@/components/Field';
 import PrimaryButton from '@/components/PrimaryButton';
 import { Card, FadeIn } from '@/components/UI';
-import { colors, fonts, radius, spacing } from '@/lib/theme';
+import { colors } from '@/lib/theme';
 import { endpoints } from '@/lib/api';
 import { lab as fallback } from '@/lib/labData';
 
@@ -34,9 +35,10 @@ export default function LabProfile() {
   };
 
   return (
-    <View style={styles.screen}>
-      <ScreenHeader title="Lab Profile" subtitle={form.labId} left={<ChevronLeft size={24} color="#FFFFFF" />} onLeftPress={() => router.back()} />
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+    <AppScreen
+      keyboard
+      header={<ScreenHeader title="Lab Profile" subtitle={form.labId} left={<ChevronLeft size={24} color="#FFFFFF" />} onLeftPress={() => router.back()} />}
+    >
         <FadeIn>
           <Card>
             <Field label="Lab name" value={form.name} onChangeText={(t) => setForm((f) => ({ ...f, name: t }))} icon={<Building size={16} color={colors.primary} />} />
@@ -47,14 +49,8 @@ export default function LabProfile() {
             <PrimaryButton title="Save lab profile" onPress={save} loading={saving} />
           </Card>
         </FadeIn>
-      </ScrollView>
-    </View>
+    </AppScreen>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  body: { paddingHorizontal: spacing.hPad, paddingTop: 10, paddingBottom: 32 },
-  save: { height: 42, backgroundColor: colors.primary, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
-  saveText: { color: '#fff', fontFamily: fonts.bold, fontSize: 14 },
-});
+

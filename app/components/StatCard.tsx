@@ -1,17 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
-import { colors, fonts, radius } from '@/lib/theme';
+import { colors, fonts, radius, shadow, toneMap } from '@/lib/theme';
 
-export type Tone = 'primary' | 'green' | 'orange' | 'purple' | 'red';
-
-export const toneColor: Record<Tone, { fg: string; bg: string }> = {
-  primary: { fg: colors.primary, bg: colors.primaryLight },
-  green: { fg: colors.green, bg: colors.greenLight },
-  orange: { fg: colors.orange, bg: colors.orangeLight },
-  purple: { fg: colors.purple, bg: colors.purpleLight },
-  red: { fg: colors.red, bg: colors.redLight },
-};
+export type Tone = keyof typeof toneMap;
 
 type Props = {
   label: string;
@@ -24,28 +16,39 @@ type Props = {
 };
 
 export default function StatCard({ label, value, sub, tone = 'primary', icon, compact, onPress }: Props) {
-  const t = toneColor[tone];
+  const t = toneMap[tone] || toneMap.primary;
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
       <View style={styles.top}>
-        {icon ? <View style={[styles.iconBox, { backgroundColor: t.bg }]}>{icon}</View> : <View style={[styles.dot, { backgroundColor: t.fg }]} />}
-        {onPress ? <ChevronRight size={13} color={colors.mutedForeground} /> : null}
+        {icon ? <View style={[styles.iconBox, { backgroundColor: t.bg }]}>{icon}</View> : null}
+        <Text style={styles.label} numberOfLines={1}>{label}</Text>
+        {onPress ? <ChevronRight size={14} color={t.fg} /> : <View style={{ width: 8 }} />}
       </View>
       <Text style={styles.value} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
-      <Text style={styles.label} numberOfLines={2}>{label}</Text>
       {!compact && !!sub && <Text style={styles.sub} numberOfLines={1}>{sub}</Text>}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  // Flat cell: no radius, no shadow, no gap — dividers come from the grid wrapper.
-  card: { flex: 1, backgroundColor: colors.card, paddingHorizontal: 10, paddingVertical: 10, justifyContent: 'flex-start' },
-  pressed: { backgroundColor: colors.muted },
-  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  iconBox: { width: 26, height: 26, borderRadius: radius.xs, alignItems: 'center', justifyContent: 'center' },
-  dot: { width: 8, height: 8, borderRadius: radius.xs },
-  value: { color: colors.foreground, fontFamily: fonts.bold, fontSize: 16 },
-  label: { color: colors.mutedForeground, fontFamily: fonts.medium, fontSize: 10, marginTop: 2, lineHeight: 13 },
-  sub: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 9, marginTop: 1 },
+  card: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    ...shadow,
+  },
+  pressed: { opacity: 0.92 },
+  top: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  iconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  value: { color: colors.foreground, fontFamily: fonts.extrabold, fontSize: 20, letterSpacing: -0.3 },
+  label: { flex: 1, color: colors.mutedForeground, fontFamily: fonts.semibold, fontSize: 11 },
+  sub: { color: colors.mutedForeground, fontFamily: fonts.regular, fontSize: 10.5, marginTop: 3 },
 });
