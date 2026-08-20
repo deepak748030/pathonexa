@@ -4,15 +4,31 @@ import { router } from 'expo-router';
 import { Bell } from 'lucide-react-native';
 import LabLogo from '@/components/LabLogo';
 import { colors, fonts } from '@/lib/theme';
+import { endpoints } from '@/lib/api';
 
-export default function HeaderUser({ badge = 3 }: { badge?: number }) {
+/**
+ * Header bell + lab logo. The bell shows the live unread notification count
+ * (report ready, payment pending, commission due, subscription expiry).
+ */
+export default function HeaderUser({ badge }: { badge?: number }) {
+  const [count, setCount] = React.useState(badge ?? 0);
+
+  React.useEffect(() => {
+    if (typeof badge === 'number') { setCount(badge); return; }
+    let alive = true;
+    endpoints.notifications.count()
+      .then((r) => { if (alive) setCount(r?.unread || 0); })
+      .catch(() => { if (alive) setCount(0); });
+    return () => { alive = false; };
+  }, [badge]);
+
   return (
     <View style={styles.row}>
       <Pressable onPress={() => router.push('/notifications' as any)} hitSlop={8} style={styles.bell}>
         <Bell size={20} color="#FFFFFF" strokeWidth={2.1} />
-        {badge > 0 && (
+        {count > 0 && (
           <View style={styles.badge}>
-            <Text style={styles.badgeTxt}>{badge > 9 ? '9+' : badge}</Text>
+            <Text style={styles.badgeTxt}>{count > 9 ? '9+' : count}</Text>
           </View>
         )}
       </Pressable>

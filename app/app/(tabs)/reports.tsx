@@ -1,11 +1,16 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView, Alert } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import {
-  Menu, Search, SlidersHorizontal, Plus, ClipboardList, Hourglass,
-  CheckCircle2, IndianRupee, ChevronRight, CalendarDays,
+  Menu, Search, SlidersHorizontal, Plus, ClipboardList, Hourglass, MoreVertical,
+  Printer, Download, MessageCircle, Share2, Copy, Trash2, Eye, X,
+  CheckCircle2, IndianRupee, CalendarDays,
 } from 'lucide-react-native';
 import ScreenHeader, { HeaderIcon, HeaderPill } from '@/components/ScreenHeader';
+import { buildReportHtml } from '@/lib/reportHtml';
+import { printHtml, pdfFromHtml, openWhatsApp, shareText, whatsappMessage } from '@/lib/share';
+import { useSettings } from '@/lib/settings';
+import { paramsForTest } from '@/lib/testParams';
 import AppScreen from '@/components/AppScreen';
 import SearchBar from '@/components/SearchBar';
 import Avatar from '@/components/Avatar';
@@ -40,6 +45,9 @@ function startOfDay(d: Date) {
 
 export default function Reports() {
   const check = useServerStatus((s) => s.check);
+  const settings = useSettings((s) => s.settings);
+  const loadSettings = useSettings((s) => s.load);
+  const [actionFor, setActionFor] = React.useState<any>(null);
   const [search, setSearch] = React.useState('');
   const [status, setStatus] = React.useState('All');
   const [range, setRange] = React.useState('today');
@@ -68,7 +76,44 @@ export default function Reports() {
     }
   }, []);
 
-  useFocusEffect(React.useCallback(() => { check(); loadData(true); }, [check, loadData]));
+  useFocusEffect(React.useCallback(() => { check(); loadSettings(); loadData(true); }, [check, loadData, loadSettings]));
+
+  /* Report history actions: view · print · download · share · WhatsApp · duplicate · delete */
+  const htmlFor = (r: any) =>
+    buildReportHtml(r, (r.values?.length ? r.values : paramsForTest(r.test || '', true)), settings);
+
+  const act = async (kind: string, r: any) => {
+    setActionFor(null);
+    const id = String(r._id || r.id);
+    try {
+      if (kind === 'view') router.push({ pathname: '/report-preview', params: { id } } as any);
+      else if (kind === 'edit') router.push({ pathname: '/create-report', params: { editId: id } } as any);
+      else if (kind === 'print') await printHtml(htmlFor(r));
+      else if (kind === 'pdf') await pdfFromHtml(htmlFor(r), `Report ${r.reportId}`);
+      else if (kind === 'share') await shareText(`${r.patient?.name || ''} · ${r.test} · ${r.reportId}`);
+      else if (kind === 'whatsapp') {
+        await openWhatsApp(r.patient?.mobile, whatsappMessage({ patient: r.patient?.name, reportId: r.reportId }));
+      } else if (kind === 'duplicate') {
+        const copy = await endpoints.reports.duplicate(id);
+        await loadData();
+        Alert.alert('Report duplicated', `New draft ${copy.reportId} created.`);
+      } else if (kind === 'delete') {
+        Alert.alert('Delete report', 'It moves to Deleted Records and can be restored.', [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              await endpoints.reports.remove(id);
+              await loadData();
+            },
+          },
+        ]);
+      }
+    } catch (e: any) {
+      Alert.alert('Action failed', e?.message || 'Server error');
+    }
+  };
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -79,7 +124,13 @@ export default function Reports() {
   const filtered = reports.filter((r) => {
     const name = (r.patient?.name || r.patient || '').toLowerCase();
     const q = search.toLowerCase().trim();
-    const matchQ = !q || name.includes(q) || (r.reportId || '').toLowerCase().includes(q) || (r.test || '').toLowerCase().includes(q) || (r.doctor || '').toLowerCase().includes(q);
+    const haystack = [
+      name,
+      r.reportId, r.test, r.doctor,
+      r.patient?.pid, r.pid, r.patient?.mobile,
+      r.paymentMode, r.technician, r.date,
+    ].filter(Boolean).join(' ').toLowerCase();
+    const matchQ = !q || haystack.includes(q);
     const matchS = status === 'All' || r.status === status;
     const created = new Date(r.createdAt || r.date || Date.now());
     const today = startOfDay(new Date());
@@ -219,12 +270,45 @@ export default function Reports() {
                         {r.status}
                       </Text>
                     </View>
-                    <ChevronRight size={15} color={colors.mutedForeground} />
+                    <Pressable hitSlop={8} onPress={() => setActionFor(r)} style={{ paddingHorizontal: 2 }}>
+                      <MoreVertical size={16} color={colors.mutedForeground} />
+                    </Pressable>
                   </Pressable>
                 );
               })}
             </Card>
           </FadeIn>
+
+          {actionFor && (
+            <FadeIn>
+              <Card style={styles.sheet}>
+                <View style={styles.sheetHead}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.sheetTitle}>{actionFor.patient?.name || 'Report'} · {actionFor.reportId}</Text>
+                    <Text style={styles.sheetSub}>{actionFor.test} · {inr(actionFor.amount)}</Text>
+                  </View>
+                  <Pressable hitSlop={8} onPress={() => setActionFor(null)}><X size={18} color={colors.mutedForeground} /></Pressable>
+                </View>
+                <View style={styles.sheetGrid}>
+                  {[
+                    { k: 'view', label: 'View', Icon: Eye },
+                    { k: 'print', label: 'Print', Icon: Printer },
+                    { k: 'pdf', label: 'Download', Icon: Download },
+                    { k: 'share', label: 'Share', Icon: Share2 },
+                    { k: 'whatsapp', label: 'WhatsApp', Icon: MessageCircle },
+                    { k: 'edit', label: 'Edit', Icon: SlidersHorizontal },
+                    { k: 'duplicate', label: 'Duplicate', Icon: Copy },
+                    { k: 'delete', label: 'Delete', Icon: Trash2, danger: true },
+                  ].map((a) => (
+                    <Pressable key={a.k} style={styles.sheetBtn} onPress={() => act(a.k, actionFor)}>
+                      <a.Icon size={16} color={a.danger ? colors.danger : colors.primary} />
+                      <Text style={[styles.sheetTxt, a.danger && { color: colors.danger }]}>{a.label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </Card>
+            </FadeIn>
+          )}
 
           {filtered.length > 0 && (
             <View style={styles.pager}>
@@ -246,6 +330,13 @@ export default function Reports() {
 
 const styles = StyleSheet.create({
   pillTxt: { color: '#FFFFFF', fontFamily: fonts.semibold, fontSize: 12 },
+  sheet: { marginTop: 12, padding: 0 },
+  sheetHead: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  sheetTitle: { fontFamily: fonts.bold, fontSize: 13, color: colors.foreground },
+  sheetSub: { fontFamily: fonts.regular, fontSize: 11, color: colors.mutedForeground, marginTop: 2 },
+  sheetGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: 8 },
+  sheetBtn: { width: '25%', alignItems: 'center', gap: 5, paddingVertical: 12 },
+  sheetTxt: { fontFamily: fonts.semibold, fontSize: 10.5, color: colors.foreground },
   statRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   statCard: {
     flex: 1, backgroundColor: colors.card, borderRadius: radius.md,

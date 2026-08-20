@@ -4,7 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import {
   ArrowLeftRight, Stethoscope, FlaskConical, Users, Building2, Landmark, Percent, CreditCard,
   FileText, CloudUpload, Trash2, Building, Settings, Shield, HelpCircle, Info, LogOut,
-  Bell, FlaskConical as Beaker, Receipt, BarChart3,
+  Bell, FlaskConical as Beaker, Receipt, BarChart3, Wallet, Crown,
 } from 'lucide-react-native';
 import ScreenHeader, { HeaderIcon } from '@/components/ScreenHeader';
 import AppScreen from '@/components/AppScreen';
@@ -14,36 +14,43 @@ import { colors, fonts, radius, spacing } from '@/lib/theme';
 import { lab } from '@/lib/labData';
 import { useAuth } from '@/lib/auth';
 import { useServerStatus } from '@/lib/serverStatus';
+import { useCan, useRole, type Permission } from '@/lib/permissions';
+import { endpoints } from '@/lib/api';
 
-const groups = [
+const groups: {
+  title: string;
+  items: { title: string; subtitle: string; Icon: any; href: string; perm?: Permission }[];
+}[] = [
   {
     title: 'MANAGE',
     items: [
-      { title: 'Doctors', subtitle: 'Manage referring doctors', Icon: Stethoscope, href: '/manage/doctors' },
-      { title: 'Tests & Packages', subtitle: 'Manage tests and packages', Icon: FlaskConical, href: '/manage/tests' },
-      { title: 'Patients', subtitle: 'Manage patient records', Icon: Users, href: '/(tabs)/patients' },
-      { title: 'Lab Employees', subtitle: 'Manage lab staff and roles', Icon: Building2, href: '/manage/employees' },
-      { title: 'Sample Collection Center', subtitle: 'Manage collection centers', Icon: Landmark, href: '/manage/centers' },
-      { title: 'Discount & Charges', subtitle: 'Manage discounts and extra charges', Icon: Percent, href: '/manage/discounts' },
-      { title: 'Payment Methods', subtitle: 'Manage payment modes', Icon: CreditCard, href: '/manage/payments' },
-      { title: 'Expenses', subtitle: 'Track lab expenses', Icon: Receipt, href: '/manage/expenses' },
+      { title: 'Doctors', subtitle: 'Manage referring doctors', Icon: Stethoscope, href: '/manage/doctors', perm: 'doctors' },
+      { title: 'Tests & Packages', subtitle: 'Manage tests and packages', Icon: FlaskConical, href: '/manage/tests', perm: 'tests' },
+      { title: 'Patients', subtitle: 'Manage patient records', Icon: Users, href: '/(tabs)/patients', perm: 'patients' },
+      { title: 'Lab Employees', subtitle: 'Manage lab staff and roles', Icon: Building2, href: '/manage/employees', perm: 'staff' },
+      { title: 'Sample Collection Center', subtitle: 'Manage collection centers', Icon: Landmark, href: '/manage/centers', perm: 'tests' },
+      { title: 'Discount & Charges', subtitle: 'Manage discounts and extra charges', Icon: Percent, href: '/manage/discounts', perm: 'payments' },
+      { title: 'Payments & Ledger', subtitle: 'Collections, receipts and payment modes', Icon: CreditCard, href: '/manage/transactions', perm: 'payments' },
+      { title: 'Doctor Commission', subtitle: 'Wallets, payouts and history', Icon: Wallet, href: '/manage/commissions', perm: 'commissions' },
+      { title: 'Expenses', subtitle: 'Track lab expenses by category', Icon: Receipt, href: '/manage/expenses', perm: 'expenses' },
     ],
   },
   {
     title: 'REPORTS & DATA',
     items: [
-      { title: 'Analytics', subtitle: 'Revenue, profit and test insights', Icon: BarChart3, href: '/manage/analytics' },
-      { title: 'Report Templates', subtitle: 'Manage report templates', Icon: FileText, href: '/manage/templates' },
-      { title: 'Data Backup', subtitle: 'Backup and restore data', Icon: CloudUpload, href: '/manage/backup' },
+      { title: 'Analytics', subtitle: 'Revenue, profit and test insights', Icon: BarChart3, href: '/manage/analytics', perm: 'analytics' },
+      { title: 'Report Templates', subtitle: 'Manage report templates', Icon: FileText, href: '/manage/templates', perm: 'tests' },
+      { title: 'Data Backup', subtitle: 'Backup and restore data', Icon: CloudUpload, href: '/manage/backup', perm: 'backup' },
       { title: 'Deleted Records', subtitle: 'View deleted patients & reports', Icon: Trash2, href: '/manage/deleted' },
     ],
   },
   {
     title: 'SETTINGS & SUPPORT',
     items: [
-      { title: 'Lab Profile', subtitle: 'View and edit lab details', Icon: Building, href: '/manage/lab' },
-      { title: 'Settings', subtitle: 'General app settings', Icon: Settings, href: '/manage/settings' },
-      { title: 'Users & Roles', subtitle: 'Manage app users and roles', Icon: Shield, href: '/manage/employees' },
+      { title: 'Lab Profile', subtitle: 'View and edit lab details', Icon: Building, href: '/manage/lab', perm: 'settings' },
+      { title: 'Settings', subtitle: 'General app settings', Icon: Settings, href: '/manage/settings', perm: 'settings' },
+      { title: 'Users & Roles', subtitle: 'Staff, roles and permissions', Icon: Shield, href: '/manage/roles', perm: 'staff' },
+      { title: 'Subscription', subtitle: 'Plan, validity and invoices', Icon: Crown, href: '/manage/subscription', perm: 'subscription' },
       { title: 'Help & Support', subtitle: 'Get help and contact support', Icon: HelpCircle, href: '/manage/help' },
       { title: 'About App', subtitle: 'App version and information', Icon: Info, href: '/manage/about' },
     ],
@@ -52,9 +59,15 @@ const groups = [
 
 export default function More() {
   const logout = useAuth((s) => s.logout);
+  const can = useCan();
+  const role = useRole();
   const { online, checking, check } = useServerStatus();
+  const [unread, setUnread] = React.useState(0);
 
-  useFocusEffect(React.useCallback(() => { check(); }, [check]));
+  useFocusEffect(React.useCallback(() => {
+    check();
+    endpoints.notifications.count().then((r) => setUnread(r?.unread || 0)).catch(() => setUnread(0));
+  }, [check]));
 
   const onLogout = async () => {
     await logout();
@@ -71,7 +84,11 @@ export default function More() {
             <HeaderIcon onPress={() => router.push('/notifications' as any)}>
               <View>
                 <Bell size={20} color="#FFFFFF" />
-                <View style={styles.dot} />
+                {unread > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeTxt}>{unread > 9 ? '9+' : unread}</Text>
+                  </View>
+                )}
               </View>
             </HeaderIcon>
           }
@@ -86,7 +103,7 @@ export default function More() {
           <View style={styles.labCol}>
             <Text style={styles.labName} numberOfLines={2}>{lab.name}</Text>
             <Text style={styles.labMeta} numberOfLines={1}>{lab.city}</Text>
-            <Text style={styles.labMeta} numberOfLines={1}>Lab ID: {lab.labId}</Text>
+            <Text style={styles.labMeta} numberOfLines={1}>Lab ID: {lab.labId} · Signed in as {role}</Text>
           </View>
           <Pressable style={styles.switchBtn} onPress={() => router.push('/manage/lab' as any)}>
             <ArrowLeftRight size={13} color={colors.primary} />
@@ -97,14 +114,17 @@ export default function More() {
 
       {checking && online === null ? <ActivityIndicator color={colors.primary} style={{ marginTop: 8 }} /> : null}
 
-      {groups.map((g, gi) => (
+      {groups.map((g, gi) => {
+        const items = g.items.filter((it) => !it.perm || can(it.perm));
+        if (!items.length) return null;
+        return (
         <FadeIn key={g.title} delay={80 + gi * 50}>
           <Text style={styles.groupTitle}>{g.title}</Text>
           <Card style={{ padding: 0 }}>
-            {g.items.map((it, i) => (
+            {items.map((it, i) => (
               <MenuRow
                 key={it.title}
-                last={i === g.items.length - 1}
+                last={i === items.length - 1}
                 title={it.title}
                 subtitle={it.subtitle}
                 icon={<it.Icon size={17} color={colors.primary} strokeWidth={2.1} />}
@@ -113,7 +133,8 @@ export default function More() {
             ))}
           </Card>
         </FadeIn>
-      ))}
+        );
+      })}
 
       <FadeIn delay={280}>
         <Pressable style={styles.logout} onPress={onLogout}>
@@ -153,8 +174,10 @@ const styles = StyleSheet.create({
   },
   logoutTitle: { color: colors.danger, fontFamily: fonts.semibold, fontSize: 13.5 },
   logoutSub: { color: colors.danger, fontFamily: fonts.regular, fontSize: 11, opacity: 0.8, marginTop: 1 },
-  dot: {
-    position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: 4,
-    backgroundColor: colors.red, borderWidth: 1.5, borderColor: colors.primary,
+  badge: {
+    position: 'absolute', top: -5, right: -7, minWidth: 16, height: 16, borderRadius: 8,
+    paddingHorizontal: 3, backgroundColor: colors.red, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: colors.primary,
   },
+  badgeTxt: { color: '#fff', fontFamily: fonts.bold, fontSize: 9 },
 });

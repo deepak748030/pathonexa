@@ -43,6 +43,15 @@ export default function RootLayout() {
         <Stack.Screen name="report-preview" />
         <Stack.Screen name="notifications" />
         <Stack.Screen name="manage/[slug]" />
+        <Stack.Screen name="manage/doctors" />
+        <Stack.Screen name="manage/tests" />
+        <Stack.Screen name="manage/expenses" />
+        <Stack.Screen name="manage/commissions" />
+        <Stack.Screen name="manage/transactions" />
+        <Stack.Screen name="manage/subscription" />
+        <Stack.Screen name="manage/roles" />
+        <Stack.Screen name="doctor/[id]" />
+        <Stack.Screen name="test/[id]" />
         <Stack.Screen name="manage/lab" />
         <Stack.Screen name="manage/settings" />
         <Stack.Screen name="manage/help" />

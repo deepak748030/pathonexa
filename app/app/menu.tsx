@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   Home, Users, FileText, FilePlus, Stethoscope, FlaskConical, Building2, Landmark, Percent,
   CreditCard, CloudUpload, Trash2, Building, Settings, Shield, HelpCircle, Info, LogOut,
-  ChevronRight, Bell, Receipt, BarChart3,
+  ChevronRight, Bell, Receipt, BarChart3, Wallet, Crown,
 } from 'lucide-react-native';
 import Avatar from '@/components/Avatar';
 import { colors, fonts, radius } from '@/lib/theme';
@@ -26,7 +26,8 @@ const sections = [
     { title: 'Lab Employees', Icon: Building2, href: '/manage/employees' },
     { title: 'Sample Collection Center', Icon: Landmark, href: '/manage/centers' },
     { title: 'Discount & Charges', Icon: Percent, href: '/manage/discounts' },
-    { title: 'Payment Methods', Icon: CreditCard, href: '/manage/payments' },
+    { title: 'Payments & Ledger', Icon: CreditCard, href: '/manage/transactions' },
+    { title: 'Doctor Commission', Icon: Wallet, href: '/manage/commissions' },
     { title: 'Expenses', Icon: Receipt, href: '/manage/expenses' },
   ]},
   { title: 'DATA & BACKUP', items: [
@@ -38,7 +39,8 @@ const sections = [
   { title: 'SETTINGS & SUPPORT', items: [
     { title: 'Lab Profile', Icon: Building, href: '/manage/lab' },
     { title: 'Settings', Icon: Settings, href: '/manage/settings' },
-    { title: 'Users & Roles', Icon: Shield, href: '/manage/employees' },
+    { title: 'Users & Roles', Icon: Shield, href: '/manage/roles' },
+    { title: 'Subscription', Icon: Crown, href: '/manage/subscription' },
     { title: 'Help & Support', Icon: HelpCircle, href: '/manage/help' },
     { title: 'About App', Icon: Info, href: '/manage/about' },
   ]},

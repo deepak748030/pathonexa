@@ -24,6 +24,23 @@ router.get('/stats', async (req, res, next) => {
   }
 });
 
+router.get('/duplicates', async (req, res, next) => {
+  try {
+    res.json(await store.patients.duplicates());
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/import', async (req, res, next) => {
+  try {
+    const rows = Array.isArray(req.body) ? req.body : req.body?.patients;
+    res.status(201).json(await store.patients.importMany(rows));
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/:id', async (req, res, next) => {
   try {
     res.json(await store.patients.getById(req.params.id));

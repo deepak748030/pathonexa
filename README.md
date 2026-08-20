@@ -1,8 +1,16 @@
 # PathoNexa 🧪
 
 **Lab Management App + REST API** — run a diagnostics lab from your phone or
-browser: patient records, report creation, dashboard analytics and printable
-reports, all backed by a Node.js/Express/MongoDB server.
+browser: patients, doctors & commission ledger, test master with parameter
+definitions, packages, report creation with auto High/Low detection,
+professional PDF reports (QR + barcode + PAID stamp), payments ledger with
+receipts, expenses, business analytics, notifications, staff roles,
+subscription and cloud backup — all backed by a Node.js/Express/MongoDB
+server.
+
+Everything specified in `Pathonexa structure .pdf` and drawn in
+`pathonexa App UI Demo-compressed.pdf` is implemented — see
+[docs/FEATURE-AUDIT.md](docs/FEATURE-AUDIT.md) for the point-by-point map.
 
 | Package | Stack | Docs |
 | --- | --- | --- |
@@ -31,6 +39,26 @@ The app auto-detects the backend host per platform (localhost / 10.0.2.2 /
 LAN IP). Full instructions in each package's README.
 
 ---
+
+## 🧩 Modules
+
+| Area | What you get |
+| --- | --- |
+| Patients | Auto PID, barcode + QR card, full demographics, history, import / export CSV, groups, duplicate finder |
+| Doctors | Clinic, specialization, WhatsApp, UPI / bank, commission %, ledger with monthly statement + PDF |
+| Test master | Unlimited tests; each parameter has unit, normal range, critical high/low, male/female/child ranges, decimals, print order, bold, highlight |
+| Packages | Bundled tests at a package price |
+| Reports | 3-step creation, drafts, technician, discount / paid / pending, payment mode, auto H/L + critical flags, owner verification, duplicate, delete + restore |
+| PDF | Lab header, patient block, grouped tables, QR, barcode, signature, stamp, PAID/UNPAID, generated date |
+| Payments | Ledger of every rupee, collect pending, printable receipts, mode split |
+| Commission | Doctor wallets, payouts, history |
+| Expenses | 10 categories, category chart, monthly report |
+| Analytics | Daily · weekly · monthly · yearly revenue, profit, doctor-wise, test-wise, most performed, CSV export |
+| Notifications | Report ready, payment pending, commission due, subscription expiry |
+| Staff | Super Admin / Owner / Manager / Receptionist / Technician + permission matrix |
+| Subscription | 7-day trial, monthly, yearly, expiry reminder, invoices |
+| Backup | Automatic + manual snapshot, JSON export, restore |
+| Settings | Logo, signature, stamp, GST, footer, WhatsApp template, theme, language |
 
 ## 🗂️ Repository Structure
 

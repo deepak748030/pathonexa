@@ -15,9 +15,20 @@ sample data when the backend is not running.
 | 📊 **Dashboard** | 6 live stat cards, last-7-days revenue chart, quick actions, recent reports |
 | 🧑‍🤝‍🧑 **Patients** | Search, gender filter chips, weekly stats, tap a patient → pre-filled report |
 | 📋 **Reports** | Search + status filter chips, tap → full report preview |
-| ➕ **Create Report** | Bottom-sheet pickers for patient / test / doctor, paid toggle |
-| 🖨️ **Report Preview** | Server-loaded report, CBC parameter table, **Print** & **Download PDF** |
-| ⚙️ **More** | Live server status (MongoDB / in-memory), lab profile, logout |
+| ➕ **Create Report** | 3 steps, patient / doctor / test / package pickers, discount + paid + pending, payment mode, technician, drafts, auto High/Low from the test master |
+| 🖨️ **Report Preview** | Professional layout with **QR + barcode**, PAID/UNPAID stamp, signature block, print · PDF · WhatsApp · share · duplicate · verify · delete |
+| 🧑‍⚕️ **Doctors & Ledger** | Clinic, specialization, UPI / bank, commission %, monthly statement, PDF export, pay commission |
+| 💳 **Payments & Ledger** | Collections, pending list, collect payment, printable receipts, split by mode |
+| 💰 **Commission** | Doctor wallets, payouts and history |
+| 🧾 **Expenses** | 10 spec categories, category chart, monthly expense report |
+| 📈 **Analytics** | Daily / weekly / monthly / yearly revenue, profit, doctor-wise, test-wise, most performed, CSV export |
+| 🔬 **Test Master** | Unlimited tests + parameters (unit, normal range, critical high/low, male/female/child ranges, decimals, print order, bold, highlight) |
+| 📦 **Packages** | Bundle tests into a package price |
+| 🔔 **Notifications** | Report ready, payment pending, commission due, subscription expiry |
+| 👥 **Users & Roles** | Super Admin / Owner / Manager / Receptionist / Technician with a live permission matrix |
+| 👑 **Subscription** | 7-day trial, monthly & yearly plans, expiry reminder, invoices |
+| ☁️ **Backup** | Manual backup, JSON export, restore from file or paste |
+| ⚙️ **Settings** | Logo / signature / stamp upload, GST, report footer, WhatsApp template, theme, language, auto-print, owner verification |
 
 **Design system:** 4px left/right content padding, zero-gap mapped lists
 (edge-to-edge with hairline dividers), flat surfaces, lucide icons,
@@ -82,8 +93,13 @@ app/
 │   ├── create-report.tsx # Report creation with pickers (POST /reports)
 │   ├── report-preview.tsx# Report detail + print/PDF
 │   └── menu.tsx          # Slide-in drawer
-├── components/           # ScreenHeader, StatCard, Avatar, UI kit
-├── lib/                  # api, auth, theme, labData, serverStatus
+│   ├── manage/           # doctors, tests, expenses, transactions, commissions,
+│   │                     # analytics, subscription, roles, settings, backup, lab
+│   ├── doctor/[id].tsx   # Doctor ledger + commission payout
+│   └── test/[id].tsx     # Test master parameter editor
+├── components/           # ScreenHeader, StatCard, Avatar, Select, CodeStrip, UI kit
+├── lib/                  # api, auth, permissions, settings, theme, testParams,
+│                         # qr (QR + Code128), reportHtml (PDF), share, serverStatus
 ├── assets/images/        # App icons & illustrations
 ├── shims/                # react-native-ping stub (thermal printer)
 └── app.json              # Expo config

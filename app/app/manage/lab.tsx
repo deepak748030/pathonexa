@@ -10,8 +10,10 @@ import { Card, FadeIn } from '@/components/UI';
 import { colors } from '@/lib/theme';
 import { endpoints } from '@/lib/api';
 import { lab as fallback } from '@/lib/labData';
+import { useSettings } from '@/lib/settings';
 
 export default function LabProfile() {
+  const reloadSettings = useSettings((s) => s.load);
   const [form, setForm] = React.useState({ ...fallback });
   const [saving, setSaving] = React.useState(false);
 
@@ -26,6 +28,7 @@ export default function LabProfile() {
     try {
       const saved = await endpoints.meta.updateLab(form);
       setForm((f) => ({ ...f, ...saved }));
+      await reloadSettings(true);
       Alert.alert('Saved', 'Lab profile updated on the server.');
     } catch (e: any) {
       Alert.alert('Could not save', e?.message || 'Server error');
