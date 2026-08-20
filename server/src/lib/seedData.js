@@ -44,6 +44,17 @@ const templates = [
   { id: 'tp2', name: 'LFT Standard', test: 'LFT' },
 ];
 
+const packages = [
+  { id: 'pk1', name: 'Full Body Checkup', price: 2499 },
+  { id: 'pk2', name: 'Diabetes Package', price: 899 },
+];
+
+const expenses = [
+  { id: 'ex1', name: 'Electricity bill', category: 'Electricity', amount: 800 },
+  { id: 'ex2', name: 'Printer ink', category: 'Printer Ink', amount: 540 },
+  { id: 'ex3', name: 'Needles & syringes', category: 'Needle', amount: 800 },
+];
+
 const patients = [
   { name: 'Ramesh Kumar', age: 32, gender: 'Male', blood: 'B+', mobile: '9876543210', address: '12 Vikas Nagar, Lucknow', color: '#DBEAFE', lastTest: 'CBC', lastTestDate: '26 Jul 2026' },
   { name: 'Sita Devi', age: 28, gender: 'Female', blood: 'O+', mobile: '9123456780', address: 'Aliganj, Lucknow', color: '#DCFCE7', lastTest: 'LFT', lastTestDate: '26 Jul 2026' },

@@ -10,13 +10,14 @@ export default function SearchBar({
 }: { value: string; onChangeText: (t: string) => void; placeholder?: string }) {
   return (
     <View style={styles.wrap}>
-      <Search size={15} color={colors.mutedForeground} />
+      <Search size={16} color={colors.mutedForeground} strokeWidth={2.2} />
       <TextInput
         style={styles.input}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder || 'Search...'}
         placeholderTextColor={colors.placeholder}
+        returnKeyType="search"
       />
     </View>
   );
@@ -30,7 +31,7 @@ const styles = StyleSheet.create({
     height: H,
     backgroundColor: colors.card,
     borderRadius: radius.sm,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: colors.border,
     gap: 8,

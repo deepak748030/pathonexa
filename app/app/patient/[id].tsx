@@ -1,13 +1,15 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, RefreshControl, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { ChevronLeft, Phone, FlaskConical, Pencil, Trash2 } from 'lucide-react-native';
 import ScreenHeader from '@/components/ScreenHeader';
+import AppScreen from '@/components/AppScreen';
 import Avatar from '@/components/Avatar';
 import Field from '@/components/Field';
 import { Card, FadeIn, ListRow, EmptyState, OfflineBanner } from '@/components/UI';
-import { colors, fonts, radius, spacing } from '@/lib/theme';
+import { colors, fonts, radius } from '@/lib/theme';
 import { endpoints } from '@/lib/api';
+import { displayMobile, inr, isIndianMobile } from '@/lib/format';
 
 export default function PatientDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -47,6 +49,10 @@ export default function PatientDetail() {
 
   const save = async () => {
     if (!id) return;
+    if (form.mobile && !isIndianMobile(form.mobile)) {
+      Alert.alert('Invalid mobile', 'Enter a valid 10-digit Indian mobile number.');
+      return;
+    }
     setSaving(true);
     try {
       const updated = await endpoints.patients.update(id, {
@@ -101,28 +107,29 @@ export default function PatientDetail() {
   }
 
   return (
-    <View style={styles.screen}>
-      <ScreenHeader
-        title={patient.name}
-        subtitle={patient.pid}
-        left={<ChevronLeft size={24} color="#fff" />}
-        onLeftPress={() => router.back()}
-        right={
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Pressable style={styles.headBtn} onPress={() => setEditing((v) => !v)}>
-              <Pencil size={16} color="#fff" />
-            </Pressable>
-            <Pressable style={styles.headBtn} onPress={remove}>
-              <Trash2 size={16} color="#fff" />
-            </Pressable>
-          </View>
-        }
-      />
-      <ScrollView
-        contentContainerStyle={styles.body}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.primary} />}
-      >
+    <AppScreen
+      keyboard
+      refreshing={refreshing}
+      onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }}
+      header={
+        <ScreenHeader
+          title={patient.name}
+          subtitle={patient.pid}
+          left={<ChevronLeft size={24} color="#fff" />}
+          onLeftPress={() => router.back()}
+          right={
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Pressable style={styles.headBtn} onPress={() => setEditing((v) => !v)}>
+                <Pencil size={16} color="#fff" />
+              </Pressable>
+              <Pressable style={styles.headBtn} onPress={remove}>
+                <Trash2 size={16} color="#fff" />
+              </Pressable>
+            </View>
+          }
+        />
+      }
+    >
         <OfflineBanner />
         <FadeIn>
           <Card style={styles.hero}>
@@ -132,7 +139,7 @@ export default function PatientDetail() {
               <Text style={styles.meta}>{patient.age}y · {patient.gender}{patient.blood ? ` · ${patient.blood}` : ''}</Text>
               <View style={styles.phoneRow}>
                 <Phone size={12} color={colors.mutedForeground} />
-                <Text style={styles.meta}>{patient.mobile}</Text>
+                <Text style={styles.meta}>{displayMobile(patient.mobile)}</Text>
               </View>
             </View>
           </Card>
@@ -142,7 +149,7 @@ export default function PatientDetail() {
           <Card style={{ marginTop: 10 }}>
             <Field label="Name" value={form.name} onChangeText={(t) => setForm((f) => ({ ...f, name: t }))} />
             <Field label="Age" value={form.age} keyboardType="number-pad" onChangeText={(t) => setForm((f) => ({ ...f, age: t }))} />
-            <Field label="Mobile" value={form.mobile} keyboardType="number-pad" onChangeText={(t) => setForm((f) => ({ ...f, mobile: t }))} />
+            <Field label="Mobile" value={form.mobile} digits={10} keyboardType="number-pad" onChangeText={(t) => setForm((f) => ({ ...f, mobile: t }))} hint="10-digit Indian mobile" />
             <Field label="Blood" value={form.blood} onChangeText={(t) => setForm((f) => ({ ...f, blood: t }))} />
             <Field label="Address" value={form.address} onChangeText={(t) => setForm((f) => ({ ...f, address: t }))} multiline />
             <Pressable style={styles.cta} onPress={save} disabled={saving}>
@@ -178,14 +185,12 @@ export default function PatientDetail() {
             ))
           )}
         </Card>
-      </ScrollView>
-    </View>
+    </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  body: { paddingHorizontal: spacing.hPad, paddingTop: 10, paddingBottom: 32 },
   headBtn: { width: 34, height: 34, borderRadius: radius.xs, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
   hero: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   name: { fontFamily: fonts.bold, fontSize: 16, color: colors.foreground },

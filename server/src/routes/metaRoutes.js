@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const store = require('../lib/store');
 
-const keys = ['tests', 'doctors', 'employees', 'centers', 'payments', 'discounts', 'templates'];
+const keys = ['tests', 'doctors', 'employees', 'centers', 'payments', 'discounts', 'templates', 'packages', 'expenses'];
 
 keys.forEach((key) => {
   router.get(`/${key}`, (req, res, next) => {

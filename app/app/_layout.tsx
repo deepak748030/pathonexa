@@ -48,10 +48,11 @@ export default function RootLayout() {
         <Stack.Screen name="manage/help" />
         <Stack.Screen name="manage/about" />
         <Stack.Screen name="manage/backup" />
+        <Stack.Screen name="manage/analytics" />
         <Stack.Screen name="menu" options={{ presentation: 'transparentModal', animation: 'fade' }} />
       </Stack>
       </AuthGate>
-      <StatusBar style="dark" backgroundColor={colors.background} translucent={true} />
+      <StatusBar style="light" backgroundColor={colors.primary} translucent={true} />
     </SafeAreaProvider>
   );
 }

@@ -1,14 +1,16 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { ChevronLeft, Plus, Trash2 } from 'lucide-react-native';
 import ScreenHeader from '@/components/ScreenHeader';
+import AppScreen from '@/components/AppScreen';
 import Field from '@/components/Field';
 import PrimaryButton from '@/components/PrimaryButton';
 import SearchBar from '@/components/SearchBar';
 import { Card, FadeIn, ListRow, EmptyState, OfflineBanner } from '@/components/UI';
-import { colors, fonts, radius, spacing } from '@/lib/theme';
+import { colors, fonts, radius } from '@/lib/theme';
 import { endpoints } from '@/lib/api';
+import { isIndianMobile } from '@/lib/format';
 
 type Field = { key: string; label: string; placeholder: string; keyboard?: 'default' | 'number-pad' };
 
@@ -65,6 +67,27 @@ const CONFIG: Record<string, { title: string; api: string; fields: Field[]; subt
     titleOf: (x) => x.name,
     subtitle: (x) => (x.active === false ? 'Inactive' : 'Active'),
   },
+  expenses: {
+    title: 'Expenses',
+    api: 'expenses',
+    fields: [
+      { key: 'name', label: 'Expense name', placeholder: 'Electricity bill' },
+      { key: 'category', label: 'Category', placeholder: 'Electricity / Rent / Chemical' },
+      { key: 'amount', label: 'Amount (₹)', placeholder: '500', keyboard: 'number-pad' },
+    ],
+    titleOf: (x) => x.name,
+    subtitle: (x) => `${x.category || 'Other'} · ₹${Number(x.amount || 0).toLocaleString('en-IN')}`,
+  },
+  packages: {
+    title: 'Packages',
+    api: 'packages',
+    fields: [
+      { key: 'name', label: 'Package name', placeholder: 'Full Body Checkup' },
+      { key: 'price', label: 'Price (₹)', placeholder: '2499', keyboard: 'number-pad' },
+    ],
+    titleOf: (x) => x.name,
+    subtitle: (x) => `₹${Number(x.price || 0).toLocaleString('en-IN')}`,
+  },
   discounts: {
     title: 'Discount & Charges',
     api: 'discounts',
@@ -120,12 +143,17 @@ export default function ManageScreen() {
   useFocusEffect(React.useCallback(() => { load(); }, [load]));
 
   const onSave = async () => {
+    if (form.mobile && !isIndianMobile(form.mobile)) {
+      Alert.alert('Invalid mobile', 'Enter a valid 10-digit Indian mobile number (starts with 6–9).');
+      return;
+    }
     setSaving(true);
     try {
       const payload: any = { ...form };
       if (payload.price) payload.price = Number(payload.price);
       if (payload.commission) payload.commission = Number(payload.commission);
       if (payload.percent) payload.percent = Number(payload.percent);
+      if (payload.amount) payload.amount = Number(payload.amount);
       await endpoints.meta.create(cfg.api, payload);
       setForm({});
       setShowForm(false);
@@ -153,25 +181,26 @@ export default function ManageScreen() {
   });
 
   return (
-    <View style={styles.screen}>
-      <ScreenHeader
-        title={cfg.title}
-        subtitle={`${items.length} records`}
-        left={<ChevronLeft size={24} color="#FFFFFF" />}
-        onLeftPress={() => router.back()}
-        right={
-          cfg.fields.length ? (
-            <Pressable style={styles.addBtn} onPress={() => setShowForm((v) => !v)}>
-              <Plus size={18} color="#FFFFFF" />
-            </Pressable>
-          ) : null
-        }
-      />
-      <ScrollView
-        contentContainerStyle={styles.body}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.primary} />}
-      >
+    <AppScreen
+      keyboard
+      refreshing={refreshing}
+      onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }}
+      header={
+        <ScreenHeader
+          title={cfg.title}
+          subtitle={`${items.length} records`}
+          left={<ChevronLeft size={24} color="#FFFFFF" />}
+          onLeftPress={() => router.back()}
+          right={
+            cfg.fields.length ? (
+              <Pressable style={styles.addBtn} onPress={() => setShowForm((v) => !v)}>
+                <Plus size={18} color="#FFFFFF" />
+              </Pressable>
+            ) : null
+          }
+        />
+      }
+    >
         <OfflineBanner />
         {showForm && cfg.fields.length > 0 && (
           <FadeIn>
@@ -220,14 +249,11 @@ export default function ManageScreen() {
             )}
           </Card>
         )}
-      </ScrollView>
-    </View>
+    </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  body: { paddingHorizontal: spacing.hPad, paddingTop: 8, paddingBottom: 32 },
   addBtn: { width: 36, height: 36, borderRadius: radius.xs, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
   form: { marginBottom: 12 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },

@@ -3,7 +3,7 @@ export type Patient = {
   pid: string;
   name: string;
   age: number;
-  gender: 'Male' | 'Female';
+  gender: 'Male' | 'Female' | 'Other';
   blood: string;
   mobile: string;
   lastTest: string;
@@ -17,7 +17,7 @@ export type Report = {
   patient: string;
   pid: string;
   age: number;
-  gender: 'Male' | 'Female';
+  gender: 'Male' | 'Female' | 'Other';
   test: string;
   doctor: string;
   date: string;
@@ -33,10 +33,10 @@ export type Doctor = { id: string; name: string; degree: string; mobile: string;
 
 export const lab = {
   name: 'PathoNexa Diagnostics Pvt. Ltd.',
-  shortName: 'PathoNexa Diagnostics',
+  shortName: 'Shri Radhe Pathology Lab',
   city: 'Lucknow, Uttar Pradesh',
   labId: 'LAB123456',
-  admin: 'Amit Mishra',
+  admin: 'Ravi Sharma',
   role: 'Lab Admin',
   address: '12, Vikas Nagar, Hazratganj, Lucknow, UP - 226001',
   phone: '+91 98765 43210',
@@ -49,7 +49,7 @@ export const dashboardStats = [
   { key: 'revenue', label: "Today's Revenue", value: '₹18,650', sub: 'Total Collection', tone: 'green' as const },
   { key: 'pending', label: 'Pending Reports', value: '12', sub: 'Yet to Complete', tone: 'orange' as const },
   { key: 'amount', label: 'Pending Amount', value: '₹7,340', sub: 'From 15 Patients', tone: 'purple' as const },
-  { key: 'commission', label: 'Doctor Commission', value: '₹5,280', sub: 'Pending Payout', tone: 'primary' as const },
+  { key: 'commission', label: 'Doctor Commission', value: '₹5,280', sub: 'Pending Payout', tone: 'teal' as const },
   { key: 'expense', label: "Today's Expense", value: '₹2,140', sub: 'Total Expense', tone: 'red' as const },
 ];
 
@@ -99,6 +99,12 @@ export const tests: TestItem[] = [
   { id: 't3', name: 'Kidney Function Test (KFT)', group: 'Biochemistry', price: 450 },
   { id: 't4', name: 'Thyroid Profile (T3, T4, TSH)', group: 'Immunology', price: 500 },
   { id: 't5', name: 'Lipid Profile', group: 'Biochemistry', price: 400 },
+  { id: 't6', name: 'Blood Sugar Fasting', group: 'Biochemistry', price: 150 },
+];
+
+export const packages = [
+  { id: 'pk1', name: 'Full Body Checkup', tests: ['CBC', 'LFT', 'KFT', 'Blood Sugar', 'Thyroid', 'Urine Routine', 'Vitamin D', 'Vitamin B12'], price: 2499 },
+  { id: 'pk2', name: 'Diabetes Package', tests: ['Blood Sugar Fasting', 'HbA1c', 'KFT'], price: 899 },
 ];
 
 export const doctors: Doctor[] = [
@@ -109,16 +115,16 @@ export const doctors: Doctor[] = [
 
 export const cbcParameters = [
   { group: 'White Blood Cell (WBC) Profile', rows: [
-    { name: 'WBC (Total)', value: '5.7', unit: '10^3/µL', range: '4.0 - 10.0', flag: '' },
+    { name: 'WBC (Total)', value: '5.7', unit: '10³/µL', range: '4.0 - 10.0', flag: '' },
     { name: 'Lymphocyte %', value: '30.9', unit: '%', range: '20.0 - 40.0', flag: '' },
     { name: 'MID %', value: '10.0', unit: '%', range: '1.0 - 15.0', flag: '' },
     { name: 'Neutrophil %', value: '59.1', unit: '%', range: '50.0 - 70.0', flag: '' },
-    { name: 'Lymphocyte #', value: '1.8', unit: '10^3/µL', range: '0.6 - 4.1', flag: '' },
-    { name: 'MID #', value: '0.6', unit: '10^3/µL', range: '0.1 - 1.8', flag: '' },
-    { name: 'Neutrophil #', value: '3.3', unit: '10^3/µL', range: '2.0 - 7.0', flag: '' },
+    { name: 'Lymphocyte #', value: '1.8', unit: '10³/µL', range: '0.6 - 4.1', flag: '' },
+    { name: 'MID #', value: '0.6', unit: '10³/µL', range: '0.1 - 1.8', flag: '' },
+    { name: 'Neutrophil #', value: '3.3', unit: '10³/µL', range: '2.0 - 7.0', flag: '' },
   ]},
   { group: 'Red Blood Cell (RBC) Profile', rows: [
-    { name: 'RBC', value: '3.76', unit: '10^6/µL', range: '3.50 - 5.50', flag: '' },
+    { name: 'RBC', value: '3.76', unit: '10⁶/µL', range: '3.50 - 5.50', flag: '' },
     { name: 'Hemoglobin', value: '15.5', unit: 'g/dL', range: '11.0 - 16.0', flag: '' },
     { name: 'Hematocrit (HCT)', value: '35.2', unit: '%', range: '36.0 - 46.0', flag: 'L' },
     { name: 'MCV', value: '93.7', unit: 'fL', range: '80.0 - 99.0', flag: '' },
@@ -128,7 +134,7 @@ export const cbcParameters = [
     { name: 'RDW-CV', value: '12.6', unit: '%', range: '11.5 - 14.5', flag: '' },
   ]},
   { group: 'Platelet Profile', rows: [
-    { name: 'Platelet Count', value: '64', unit: '10^3/µL', range: '150 - 450', flag: 'L' },
+    { name: 'Platelet Count', value: '64', unit: '10³/µL', range: '150 - 450', flag: 'L' },
     { name: 'MPV', value: '12.9', unit: 'fL', range: '7.4 - 10.4', flag: 'H' },
     { name: 'PDW', value: '14.6', unit: '%', range: '10.0 - 17.0', flag: '' },
     { name: 'PCT', value: '0.05', unit: '%', range: '0.10 - 0.28', flag: 'L' },
