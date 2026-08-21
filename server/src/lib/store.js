@@ -22,6 +22,7 @@ const Report = require('../models/Report');
 const User = require('../models/User');
 const Meta = require('../models/Meta');
 const seed = require('./seedData');
+const cfg = require('../config/appConfig');
 
 /* ------------------------------------------------------------------ */
 /* In-memory state                                                     */
@@ -100,7 +101,8 @@ function withIds(list) {
 
 function defaultSubscription() {
   const startedAt = daysAgo(2);
-  const expiresAt = new Date(startedAt.getTime() + 7 * 24 * 3600 * 1000);
+  // Trial length comes from .env (TRIAL_DAYS) via appConfig.
+  const expiresAt = new Date(startedAt.getTime() + cfg.trialDays * 24 * 3600 * 1000);
   return { ...seed.subscription, startedAt, expiresAt, history: [] };
 }
 
@@ -202,7 +204,8 @@ async function allReports() {
 /* Auth & roles                                                        */
 /* ------------------------------------------------------------------ */
 
-const OTP = '123456';
+// Demo OTP is configurable via .env (DEMO_OTP) until a real SMS gateway exists.
+const OTP = cfg.demoOtp;
 const signToken = (id) =>
   jwt.sign({ id: String(id) }, process.env.JWT_SECRET || 'pathonexa-dev-secret', { expiresIn: '30d' });
 
@@ -228,7 +231,7 @@ const auth = {
       throw err;
     }
     if (otp !== OTP) {
-      const err = new Error('Invalid OTP. The demo OTP is 123456.');
+      const err = new Error(`Invalid OTP. The demo OTP is ${OTP}.`);
       err.status = 400;
       throw err;
     }
@@ -469,7 +472,31 @@ async function commissionRateFor(doctorName) {
   if (!doctorName || doctorName === 'Direct') return 0;
   const list = await all('doctors');
   const doc = list.find((d) => d.name === doctorName);
-  return num(doc?.commission);
+  if (!doc) return 0;
+  // Fall back to the .env default (DEFAULT_COMMISSION_PERCENT) when the
+  // doctor's profile has no commission set. An explicit 0 stays 0.
+  if (doc.commission === undefined || doc.commission === null || doc.commission === '') {
+    return cfg.defaultCommissionPercent;
+  }
+  return num(doc.commission);
+}
+
+/** Reject discounts above the configured cap (MAX_DISCOUNT_PERCENT in .env). */
+function assertDiscountAllowed(amount, discount) {
+  const disc = num(discount);
+  if (disc <= 0) return;
+  // `amount` is the payable (post-discount) figure, so the original bill
+  // is amount + discount — the cap applies to that gross bill.
+  const gross = num(amount) + disc;
+  if (gross <= 0) return;
+  const cap = Math.round((gross * cfg.maxDiscountPercent) / 100);
+  if (disc > cap) {
+    const err = new Error(
+      `Discount ₹${disc} exceeds the allowed maximum of ${cfg.maxDiscountPercent}% (₹${cap}) of the bill.`
+    );
+    err.status = 400;
+    throw err;
+  }
 }
 
 const reports = {
@@ -517,6 +544,7 @@ const reports = {
     ensureSeeded();
 
     const rate = await commissionRateFor(payload.doctor);
+    assertDiscountAllowed(payload.amount, payload.discount);
     payload.commissionRate = rate;
     payload.commission = Math.round((num(payload.amount) * rate) / 100);
     payload.commissionPaid = payload.commissionPaid || false;
@@ -571,6 +599,10 @@ const reports = {
       const rate = await commissionRateFor(allowed.doctor ?? current.doctor);
       allowed.commissionRate = rate;
       allowed.commission = Math.round((num(allowed.amount ?? current.amount) * rate) / 100);
+    }
+    if (allowed.discount !== undefined || allowed.amount !== undefined) {
+      const current = await reports.getById(id);
+      assertDiscountAllowed(allowed.amount ?? current.amount, allowed.discount ?? current.discount);
     }
     if (useMemory()) {
       const r = mem.reports.find((x) => x._id === id || x.reportId === id);
@@ -748,9 +780,21 @@ function collectionApi(key, required = []) {
   };
 }
 
+// Doctors get the .env default commission (DEFAULT_COMMISSION_PERCENT) when
+// they are created without an explicit commission percentage.
+const doctorsApi = collectionApi('doctors', ['name']);
+const baseDoctorCreate = doctorsApi.create;
+doctorsApi.create = (data = {}) => {
+  const d = { ...data };
+  if (d.commission === undefined || d.commission === null || d.commission === '') {
+    d.commission = cfg.defaultCommissionPercent;
+  }
+  return baseDoctorCreate(d);
+};
+
 const meta = {
   tests: collectionApi('tests', ['name', 'price']),
-  doctors: collectionApi('doctors', ['name']),
+  doctors: doctorsApi,
   employees: collectionApi('employees', ['name', 'role']),
   centers: collectionApi('centers', ['name']),
   payments: collectionApi('payments', ['name']),

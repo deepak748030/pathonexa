@@ -8,6 +8,8 @@
  * highlight) so the app can render and flag values without hard-coded tables.
  */
 
+const cfg = require('../config/appConfig');
+
 /* ------------------------------------------------------------------ */
 /* Test master                                                         */
 /* ------------------------------------------------------------------ */
@@ -394,7 +396,7 @@ const settings = {
   notifications: true,
   ownerVerification: true,
   autoBackup: true,
-  currency: '₹',
+  currency: cfg.currencySymbol,
 };
 
 const subscription = {
@@ -407,10 +409,12 @@ const subscription = {
   history: [],
 };
 
+// Plan pricing/durations come from `.env` (TRIAL_DAYS, MONTHLY_PLAN_PRICE, …)
+// via appConfig, so the business can reprice without a code change.
 const plans = [
-  { id: 'trial', name: '7 Day Free Trial', days: 7, price: 0, features: ['All modules', '1 lab', 'Email support'] },
-  { id: 'monthly', name: 'Monthly Plan', days: 30, price: 799, features: ['Unlimited reports', 'Cloud backup', 'WhatsApp share', 'Priority support'] },
-  { id: 'yearly', name: 'Yearly Plan', days: 365, price: 7999, features: ['Everything in Monthly', '2 months free', 'Multi-user roles', 'Dedicated manager'] },
+  { id: 'trial', name: `${cfg.trialDays} Day Free Trial`, days: cfg.trialDays, price: 0, features: ['All modules', '1 lab', 'Email support'] },
+  { id: 'monthly', name: 'Monthly Plan', days: cfg.monthlyPlanDays, price: cfg.monthlyPlanPrice, features: ['Unlimited reports', 'Cloud backup', 'WhatsApp share', 'Priority support'] },
+  { id: 'yearly', name: 'Yearly Plan', days: cfg.yearlyPlanDays, price: cfg.yearlyPlanPrice, features: ['Everything in Monthly', '2 months free', 'Multi-user roles', 'Dedicated manager'] },
 ];
 
 /* ------------------------------------------------------------------ */

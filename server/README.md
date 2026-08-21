@@ -69,6 +69,18 @@ tests, doctors), so the app is never empty. Set `SEED_DEMO=false` to disable.
 | `JWT_SECRET` | — | Secret for signing JWT tokens (**change in production**) |
 | `NODE_ENV` | `development` | `production` disables auto-listen (for Vercel) |
 | `SEED_DEMO` | `true` | Seed demo data when the DB is empty |
+| `DEFAULT_COMMISSION_PERCENT` | `10` | Doctor commission % applied when a doctor is added without one |
+| `MAX_DISCOUNT_PERCENT` | `50` | Max discount allowed on a report (% of the gross bill) |
+| `CURRENCY_SYMBOL` | `₹` | Currency symbol used on receipts / seeded settings |
+| `TRIAL_DAYS` | `7` | Free-trial length in days |
+| `MONTHLY_PLAN_PRICE` | `799` | Monthly subscription price |
+| `MONTHLY_PLAN_DAYS` | `30` | Monthly plan validity in days |
+| `YEARLY_PLAN_PRICE` | `7999` | Yearly subscription price |
+| `YEARLY_PLAN_DAYS` | `365` | Yearly plan validity in days |
+| `DEMO_OTP` | `123456` | OTP accepted at login until a real SMS gateway exists |
+
+> The business values are exposed (minus the OTP) at `GET /api/config`, and the
+> app reads them from there — change the `.env`, restart the server, done.
 
 **MongoDB Atlas:** create a free cluster at [mongodb.com](https://www.mongodb.com/cloud/atlas),
 whitelist your IP in *Network Access*, and paste the connection string into

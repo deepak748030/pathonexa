@@ -30,6 +30,8 @@ export default function DoctorsScreen() {
   const [showForm, setShowForm] = React.useState(false);
   const [form, setForm] = React.useState({ ...EMPTY });
   const [q, setQ] = React.useState('');
+  // Default commission % comes from the server's .env (DEFAULT_COMMISSION_PERCENT).
+  const [defaultCommission, setDefaultCommission] = React.useState(10);
 
   const load = React.useCallback(async () => {
     try {
@@ -41,6 +43,12 @@ export default function DoctorsScreen() {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  React.useEffect(() => {
+    endpoints.config.get()
+      .then((c) => setDefaultCommission(c?.defaultCommissionPercent ?? 10))
+      .catch(() => {});
   }, []);
 
   useFocusEffect(React.useCallback(() => { load(); }, [load]));
@@ -56,7 +64,8 @@ export default function DoctorsScreen() {
     try {
       await endpoints.meta.create('doctors', {
         ...form,
-        commission: Number(form.commission || 0),
+        // Blank commission → server applies the .env default; keep the two in sync here.
+        commission: form.commission === '' ? defaultCommission : Number(form.commission),
         whatsapp: form.whatsapp || form.mobile,
       });
       setForm({ ...EMPTY });
@@ -156,7 +165,7 @@ export default function DoctorsScreen() {
             </View>
             <View style={styles.split}>
               <View style={{ flex: 1 }}>
-                <Field label="Commission %" value={form.commission} digits={3} onChangeText={(t) => set('commission', digitsOnly(t, 3))} placeholder="20" />
+                <Field label="Commission %" value={form.commission} digits={3} onChangeText={(t) => set('commission', digitsOnly(t, 3))} placeholder={`Default ${defaultCommission}%`} />
               </View>
               <View style={{ flex: 1 }}>
                 <Field label="UPI ID" value={form.upi} onChangeText={(t) => set('upi', t)} placeholder="doctor@upi" />
