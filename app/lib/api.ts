@@ -148,6 +148,16 @@ export const endpoints = {
     summary: () => apiFetch('/doctors/summary'),
     ledger: (id: string) => apiFetch(`/doctors/${id}/ledger`),
   },
+  /** Business config driven by the server's .env (commission, discount cap, plans). */
+  config: {
+    get: (): Promise<{
+      defaultCommissionPercent: number;
+      maxDiscountPercent: number;
+      currencySymbol: string;
+      trialDays: number;
+      plans: { monthly: { price: number; days: number }; yearly: { price: number; days: number } };
+    }> => apiFetch('/config'),
+  },
   commissions: {
     list: () => apiFetch('/commissions'),
     summary: () => apiFetch('/commissions/summary'),

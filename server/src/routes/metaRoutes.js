@@ -2,6 +2,14 @@ const express = require('express');
 
 const router = express.Router();
 const store = require('../lib/store');
+const { publicConfig } = require('../config/appConfig');
+
+/* Business config (.env driven) --------------------------------------
+ * Default commission %, max discount %, currency, trial days and plan
+ * pricing — the app reads these instead of hard-coding values. */
+router.get('/config', (req, res) => {
+  res.json(publicConfig());
+});
 
 /**
  * Master data collections (tests, doctors, packages, expenses, …).

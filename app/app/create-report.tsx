@@ -51,6 +51,8 @@ export default function CreateReport() {
   const [pq, setPq] = React.useState('');
   const [tq, setTq] = React.useState('');
   const [discount, setDiscount] = React.useState('0');
+  // Discount cap (% of invoice) comes from the server's .env via /api/config.
+  const [maxDiscountPct, setMaxDiscountPct] = React.useState(50);
   const [paidAmt, setPaidAmt] = React.useState('');
   const [mode, setMode] = React.useState('Cash');
   const [sampleDate, setSampleDate] = React.useState(`${todayLabel()}  ${timeLabel()}`);
@@ -115,15 +117,27 @@ export default function CreateReport() {
   }, [params.patientId, patients]);
 
   const total = selectedTests.reduce((s, t) => s + Number(t.price || 0), 0);
-  const disc = Math.min(total, Number(discount || 0));
+  const discCap = Math.round((total * maxDiscountPct) / 100);
+  const disc = Math.min(discCap, Math.min(total, Number(discount || 0)));
   const payable = Math.max(0, total - disc);
   const paid = Math.min(payable, Number(paidAmt === '' ? (mode ? payable : 0) : paidAmt));
   const pending = Math.max(0, payable - paid);
   const testName = selectedTests.map((t) => t.name).join(', ') || 'Investigation';
 
+  React.useEffect(() => {
+    endpoints.config.get()
+      .then((c) => setMaxDiscountPct(c?.maxDiscountPercent ?? 50))
+      .catch(() => {});
+  }, []);
+
   const goStep2 = () => {
     if (!selectedPatient || !selectedTests.length) {
       alert('Please select a patient and at least one test');
+      return;
+    }
+    if (Number(discount || 0) > discCap) {
+      alert(`Discount cannot exceed ${maxDiscountPct}% of the bill (₹${discCap}). It has been capped.`);
+      setDiscount(String(discCap));
       return;
     }
     // Parameters come from the Test Master, with the male / female / child

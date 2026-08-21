@@ -50,7 +50,24 @@ Legend: ✅ shipped · 🆕 added in this pass · ⛔️ intentionally out of sc
 | More menu (Manage / Reports & Data / Settings & Support) | ✅ 🆕 commissions, transactions, subscription, roles rows |
 | Drawer menu with profile, sections, app version | ✅ |
 
-## 3. Deliberately not built
+## 3. Business configuration (`.env` driven)
+
+Every tunable business number now lives in `server/.env` (documented in
+`server/.env.example`) and is read through `server/src/config/appConfig.js`:
+
+| Variable | Used for |
+| --- | --- |
+| `DEFAULT_COMMISSION_PERCENT` | Commission % applied when a doctor is added without one |
+| `MAX_DISCOUNT_PERCENT` | Cap on report discounts — the API rejects anything above it |
+| `CURRENCY_SYMBOL` | Seeded lab settings / receipts |
+| `TRIAL_DAYS`, `MONTHLY_PLAN_PRICE/DAYS`, `YEARLY_PLAN_PRICE/DAYS` | Subscription plans |
+| `DEMO_OTP` | Login OTP until a real SMS gateway exists |
+
+The safe subset (everything except the OTP) is exposed at `GET /api/config`;
+the app reads it there (doctor form default commission, create-report
+discount cap), so a `.env` change + server restart updates the whole system.
+
+## 4. Deliberately not built
 
 - **Native Super-Admin multi-tenant console** — the API exposes `/api/labs` and the
   subscription/plan data a super admin needs, and lab switching is in the app, but a
@@ -58,7 +75,7 @@ Legend: ✅ shipped · 🆕 added in this pass · ⛔️ intentionally out of sc
 - **Real SMS/OTP gateway & cloud PDF bucket** — demo OTP `123456` and on-device PDF
   generation stay until real provider credentials exist.
 
-## 4. Verification performed
+## 5. Verification performed
 
 - **QR encoder** (`app/lib/qr.ts`) — matrices compared module-for-module against the
   reference `qrcode` implementation for versions 1, 3 and 5 (byte mode, EC level M,
