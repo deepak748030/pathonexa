@@ -7,7 +7,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { BlueHeader, HeaderIconBtn, ScrollPage, Card, DashStat, SectionHead, Avatar, StatusPill, Chevron, Press } from '../../components/kit';
 import { LineChart, DonutChart } from '../../components/charts';
 import { useDrawer } from '../../components/Drawer';
-import { C } from '../../src/theme';
+import { C, PAGE_GUTTER } from '../../src/theme';
 import { greeting, dashStats, quickActions, weekSeries, weekSummary, recentReports } from '../../src/data';
 
 export default function Dashboard() {
@@ -60,7 +60,7 @@ export default function Dashboard() {
         </View>
 
         {/* reports overview */}
-        <Card style={{ marginTop: 14 }}>
+        <Card style={{ marginTop: 8 }}>
           <View style={styles.rowBetween}>
             <T style={styles.cardTitle}>Reports Overview</T>
             <View style={styles.weekChip}>
@@ -93,20 +93,20 @@ export default function Dashboard() {
           {recentReports.map((r, i) => (
             <View key={r.id} style={[styles.reportRow, i > 0 && { borderTopWidth: 1, borderTopColor: C.borderSoft }]}>
               <Avatar initials={r.initials} tone={r.tone} size={40} />
-              <View style={{ flex: 1, marginLeft: 10 }}>
+              <View style={{ flex: 1, marginLeft: 4 }}>
                 <T style={styles.reportName}>{r.name}</T>
                 <T style={styles.reportSub} numberOfLines={1}>
                   PID: {r.pid} &nbsp;|&nbsp; {r.test}
                 </T>
               </View>
-              <View style={{ alignItems: 'flex-end', marginRight: 8 }}>
+              <View style={{ alignItems: 'flex-end', marginRight: 4 }}>
                 <T style={styles.reportAmount}>{r.amount}</T>
                 <StatusPill status={r.status} />
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <T style={styles.reportTime}>{r.time}</T>
               </View>
-              <View style={{ marginLeft: 6 }}>
+              <View style={{ marginLeft: 4 }}>
                 <Chevron />
               </View>
             </View>
@@ -131,7 +131,7 @@ export default function Dashboard() {
 }
 
 const styles = StyleSheet.create({
-  body: { paddingHorizontal: 14 },
+  body: { paddingHorizontal: PAGE_GUTTER },
   labLogo: {
     width: 44,
     height: 44,
@@ -142,15 +142,17 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   labLogoText: { fontSize: 6.5, color: C.primary, fontWeight: '800', textAlign: 'center', lineHeight: 7.5 },
-  statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 },
-  quickRow: { flexDirection: 'row', gap: 8 },
+  statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 0, marginTop: 8 },
+  quickRow: { flexDirection: 'row', gap: 0 },
   quickTile: {
     flex: 1,
     backgroundColor: '#EDF3FE',
     borderRadius: 12,
     alignItems: 'center',
-    paddingVertical: 14,
-    gap: 8,
+    paddingVertical: 10,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: C.border,
   },
   quickLabel: { fontSize: 10, color: C.text, fontWeight: '600' },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
@@ -158,11 +160,11 @@ const styles = StyleSheet.create({
   weekChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 8,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 6,
     backgroundColor: '#fff',
   },

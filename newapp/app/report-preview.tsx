@@ -8,7 +8,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { BlueHeader, HeaderIconBtn } from '../components/kit';
 import { QRBox, Signature, Stamp } from '../components/charts';
-import { C } from '../src/theme';
+import { C, PAGE_GUTTER } from '../src/theme';
 import { lab, cbcGroups } from '../src/data';
 
 function LogoMark() {
@@ -55,21 +55,24 @@ export default function ReportPreview() {
           <T style={styles.pageOf}>/ 1</T>
           <View style={{ flex: 1 }} />
           <MaterialCommunityIcons name="minus" size={16} color="#E5E7EB" />
-          <MaterialCommunityIcons name="plus" size={16} color="#E5E7EB" style={{ marginLeft: 12 }} />
+          <MaterialCommunityIcons name="plus" size={16} color="#E5E7EB" style={{ marginLeft: 4 }} />
           <View style={styles.zoomChip}>
             <T style={styles.zoomText}>100%</T>
             <MaterialCommunityIcons name="chevron-down" size={12} color="#E5E7EB" />
           </View>
-          <MaterialCommunityIcons name="fullscreen" size={16} color="#E5E7EB" style={{ marginLeft: 12 }} />
+          <MaterialCommunityIcons name="fullscreen" size={16} color="#E5E7EB" style={{ marginLeft: 4 }} />
         </View>
 
-        <ScrollView style={{ flex: 1, backgroundColor: C.darker }} contentContainerStyle={{ padding: 14, alignItems: 'center' }}>
+        <ScrollView
+          style={{ flex: 1, backgroundColor: C.darker }}
+          contentContainerStyle={{ paddingHorizontal: PAGE_GUTTER, paddingVertical: 8, alignItems: 'center' }}
+        >
           <View style={styles.paper}>
             {/* letter head */}
             <View style={styles.letterHead}>
               <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                 <LogoMark />
-                <View style={{ marginLeft: 8 }}>
+                <View style={{ marginLeft: 4 }}>
                   <T style={styles.brand}>PathoNexa</T>
                   <T style={styles.brandSub}>DIAGNOSTIC LABORATORY</T>
                   <T style={styles.brandTag}>{lab.tagline}</T>
@@ -105,7 +108,7 @@ export default function ReportPreview() {
             <View style={styles.titleRule} />
 
             {cbcGroups.map((g) => (
-              <View key={g.title} style={{ marginTop: 10 }}>
+              <View key={g.title}>
                 <T style={styles.pdfGroup}>{g.title}</T>
                 <View style={styles.pdfTblHead}>
                   <T style={[styles.pdfTh, { flex: 1.4 }]}>Test Name</T>
@@ -181,21 +184,29 @@ export default function ReportPreview() {
 
 const styles = StyleSheet.create({
   phone: { flex: 1, maxWidth: 520, width: '100%', alignSelf: 'center', borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#E4E9F2', backgroundColor: C.bg, overflow: 'hidden' },
-  toolbar: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.dark, paddingHorizontal: 14, paddingVertical: 9 },
-  pageBox: { borderWidth: 1, borderColor: '#3A4656', borderRadius: 5, paddingHorizontal: 10, paddingVertical: 2, marginLeft: 10 },
+  toolbar: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.dark, paddingHorizontal: PAGE_GUTTER, paddingVertical: 8 },
+  pageBox: { borderWidth: 1, borderColor: '#3A4656', borderRadius: 5, paddingHorizontal: 10, paddingVertical: 2, marginLeft: 4 },
   pageBoxText: { color: '#E5E7EB', fontSize: 10.5 },
-  pageOf: { color: '#9CA3AF', fontSize: 10.5, marginLeft: 6 },
-  zoomChip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#3A4656', borderRadius: 5, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 12 },
+  pageOf: { color: '#9CA3AF', fontSize: 10.5, marginLeft: 4 },
+  zoomChip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#3A4656', borderRadius: 5, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 4 },
   zoomText: { color: '#E5E7EB', fontSize: 10 },
-  paper: { backgroundColor: '#fff', width: '100%', maxWidth: 430, borderRadius: 4, padding: 16, shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 10, elevation: 6 },
-  letterHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  paper: {
+    backgroundColor: '#fff',
+    width: '100%',
+    maxWidth: 430,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#D9DEE7',
+    padding: 10,
+  },
+  letterHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 4 },
   brand: { color: C.primary, fontSize: 17, fontWeight: '800' },
   brandSub: { color: C.text, fontSize: 7.5, letterSpacing: 1.2, fontWeight: '700', marginTop: 1 },
   brandTag: { color: C.faint, fontSize: 7, marginTop: 2 },
   addr: { color: C.sub, fontSize: 6.8, textAlign: 'right', lineHeight: 9 },
   infoGrid: { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 4, marginTop: 12 },
   infoRow: { flexDirection: 'row' },
-  infoCell: { flex: 1, flexDirection: 'row', paddingHorizontal: 8, paddingVertical: 6, gap: 6 },
+  infoCell: { flex: 1, flexDirection: 'row', paddingHorizontal: 6, paddingVertical: 5, gap: 4 },
   infoLbl: { fontSize: 7.5, color: C.faint, flexBasis: '38%' as any },
   infoVal: { fontSize: 7.8, color: C.text, fontWeight: '700', flex: 1 },
   reportTitle: { textAlign: 'center', color: C.primary, fontWeight: '800', fontSize: 11, letterSpacing: 0.8, marginTop: 14 },
@@ -214,15 +225,17 @@ const styles = StyleSheet.create({
   sigName: { fontSize: 7.8, color: C.text, fontWeight: '800', marginTop: 2 },
   sigSub: { fontSize: 7, color: C.faint },
   pdfFoot: { textAlign: 'center', fontSize: 6.8, color: C.faint, marginTop: 14, borderTopWidth: 1, borderTopColor: '#EEF1F5', paddingTop: 8 },
-  actionBar: { flexDirection: 'row', gap: 8, backgroundColor: C.dark, paddingHorizontal: 12, paddingTop: 10, paddingBottom: 16 },
+  actionBar: { flexDirection: 'row', gap: 0, backgroundColor: C.dark, paddingHorizontal: PAGE_GUTTER, paddingTop: 8, paddingBottom: 12 },
   actionBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 4,
     backgroundColor: C.primary,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: C.dark,
     paddingVertical: 9,
   },
   actionText: { color: '#fff', fontSize: 10.5, fontWeight: '700' },

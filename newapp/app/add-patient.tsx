@@ -5,7 +5,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { BlueHeader, HeaderIconBtn, ScrollPage, Card, Field, OutlineBtn, PrimaryBtn } from '../components/kit';
-import { C } from '../src/theme';
+import { C, PAGE_GUTTER } from '../src/theme';
 
 function SelectRight() {
   return <MaterialCommunityIcons name="chevron-down" size={15} color={C.faint} />;
@@ -32,7 +32,7 @@ export default function AddPatient() {
       />
 
       <View style={styles.body}>
-        <Card style={{ marginTop: 14 }}>
+        <Card style={{ marginTop: 8 }}>
           <T style={styles.sec}>Basic Information</T>
 
           <View style={styles.photoWrap}>
@@ -54,7 +54,7 @@ export default function AddPatient() {
           </View>
         </Card>
 
-        <Card style={{ marginTop: 12 }}>
+        <Card style={{ marginTop: 8 }}>
           <T style={styles.sec}>Address Information</T>
           <View style={styles.grid}>
             <View style={{ flexDirection: 'row', flexBasis: '100%' }}>
@@ -67,7 +67,7 @@ export default function AddPatient() {
           </View>
         </Card>
 
-        <Card style={{ marginTop: 12 }}>
+        <Card style={{ marginTop: 8 }}>
           <T style={styles.sec}>Additional Information</T>
           <View style={styles.grid}>
             <View style={{ flexDirection: 'row', flexBasis: '100%' }}>
@@ -81,7 +81,7 @@ export default function AddPatient() {
 
         <View style={styles.btnRow}>
           <OutlineBtn label="Cancel" onPress={() => router.back()} style={{ flex: 1 }} />
-          <PrimaryBtn label="Save Patient" onPress={save} style={{ flex: 1.4, marginLeft: 10 }} />
+          <PrimaryBtn label="Save Patient" onPress={save} style={{ flex: 1.4, marginLeft: 4 }} />
         </View>
       </View>
     </ScrollPage>
@@ -89,9 +89,9 @@ export default function AddPatient() {
 }
 
 const styles = StyleSheet.create({
-  body: { paddingHorizontal: 14 },
-  sec: { fontSize: 13, fontWeight: '700', color: C.text, marginBottom: 12 },
-  photoWrap: { alignItems: 'center', marginBottom: 16 },
+  body: { paddingHorizontal: PAGE_GUTTER },
+  sec: { fontSize: 13, fontWeight: '700', color: C.text, marginBottom: 8 },
+  photoWrap: { alignItems: 'center', marginBottom: 8 },
   photoCircle: {
     width: 62,
     height: 62,
@@ -102,8 +102,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  photoLabel: { fontSize: 11, color: C.primary, fontWeight: '600', marginTop: 6 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 10, rowGap: 12 },
+  photoLabel: { fontSize: 11, color: C.primary, fontWeight: '600', marginTop: 4 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   gridItem: {},
-  btnRow: { flexDirection: 'row', marginTop: 16 },
+  btnRow: { flexDirection: 'row', marginTop: 8 },
 });

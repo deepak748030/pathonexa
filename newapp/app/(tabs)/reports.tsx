@@ -1,24 +1,75 @@
 // Reports — UI PDF screen 5
-import React, { useState } from 'react';
+import React from 'react';
 import { T } from '../../components/T';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { FlatList, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { BlueHeader, HeaderIconBtn, HeaderWhiteBtn, ScrollPage, Card, MiniStat, SearchBar, SquareBtn, Avatar, SegTabs, Chevron, StatusPill } from '../../components/kit';
+import {
+  Avatar,
+  BlueHeader,
+  Chevron,
+  HeaderIconBtn,
+  HeaderWhiteBtn,
+  InfiniteListFooter,
+  MiniStat,
+  Page,
+  SearchBar,
+  SectionHead,
+  SegTabs,
+  SquareBtn,
+  StatusPill,
+} from '../../components/kit';
 import { useDrawer } from '../../components/Drawer';
-import { C } from '../../src/theme';
-import { toneColor, reportStats, reportRows, dateChips } from '../../src/data';
+import { C, PAGE_GUTTER } from '../../src/theme';
+import { toneColor, reportStats, reportRows, dateChips, type ReportRow } from '../../src/data';
+import { useInfiniteData } from '../../src/useInfiniteData';
+
+const PAGE_SIZE = 10;
+const TABS = ['All (48)', 'Pending (12)', 'Completed (36)', 'Cancelled (0)'];
+const TAB_TOTALS = [48, 12, 36, 0];
+
+function createReport(index: number, tab: number): ReportRow {
+  const source = reportRows[index % reportRows.length];
+  const serial = index + 1;
+  const status: ReportRow['status'] = tab === 1 ? 'Pending' : tab === 2 ? 'Completed' : serial % 4 === 0 ? 'Pending' : 'Completed';
+  return {
+    ...source,
+    id: `tab-${tab}-report-${serial}`,
+    pid: `PT${250726000 + serial}`,
+    rid: `RP${250726000 + serial}`,
+    status,
+  };
+}
 
 export default function Reports() {
   const { setOpen } = useDrawer();
   const router = useRouter();
-  const [tab, setTab] = useState(0);
-  const tabs = ['All (48)', 'Pending (12)', 'Completed (36)', 'Cancelled (0)'];
-  const rows =
-    tab === 1 ? reportRows.filter((r) => r.status === 'Pending') : tab === 2 ? reportRows.filter((r) => r.status === 'Completed') : tab === 3 ? [] : reportRows;
+  const [tab, setTab] = React.useState(0);
+  const [dateIndex, setDateIndex] = React.useState(0);
+  const [query, setQuery] = React.useState('');
+  const normalizedQuery = query.trim().toLowerCase();
+  const matchingIndexes = React.useMemo(() => {
+    if (!normalizedQuery) return null;
+    return Array.from({ length: TAB_TOTALS[tab] }, (_, index) => index).filter((index) => {
+      const report = createReport(index, tab);
+      return [report.name, report.pid, report.rid, report.test, report.doctor].some((value) =>
+        value.toLowerCase().includes(normalizedQuery),
+      );
+    });
+  }, [normalizedQuery, tab]);
+  const makeReport = React.useCallback(
+    (index: number) => createReport(matchingIndexes ? matchingIndexes[index] : index, tab),
+    [matchingIndexes, tab],
+  );
+  const { items, loadMore, refresh, isLoadingMore, isRefreshing, hasMore, loadedCount, total } = useInfiniteData({
+    total: matchingIndexes?.length ?? TAB_TOTALS[tab],
+    pageSize: PAGE_SIZE,
+    createItem: makeReport,
+    resetKey: `${tab}:${normalizedQuery}`,
+  });
 
-  return (
-    <ScrollPage>
+  const header = (
+    <>
       <BlueHeader
         menu
         onBack={() => setOpen(true)}
@@ -35,120 +86,166 @@ export default function Reports() {
 
       <View style={styles.body}>
         <View style={styles.statRow}>
-          {reportStats.map((s) => (
-            <MiniStat key={s.label} {...s} />
+          {reportStats.map((stat) => (
+            <MiniStat key={stat.label} {...stat} />
           ))}
         </View>
 
-        <View style={[styles.row, { marginTop: 14 }]}>
-          <SearchBar placeholder="Search by Patient, Report ID, Test or Doctor..." />
+        <View style={[styles.row, styles.searchRow]}>
+          <SearchBar
+            placeholder="Search by Patient, Report ID, Test or Doctor..."
+            value={query}
+            onChangeText={setQuery}
+          />
           <SquareBtn icon="calendar-month-outline" />
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }} contentContainerStyle={{ gap: 8 }}>
-          {dateChips.map((d) => (
-            <TouchableOpacity key={d.t} style={[styles.chip, d.active && { borderColor: C.primary, backgroundColor: '#F3F8FF' }]}>
-              <T style={[styles.chipTitle, d.active && { color: C.primary }]}>{d.t}</T>
-              <T style={[styles.chipSub, d.active && { color: C.primary }]}>{d.s}</T>
-            </TouchableOpacity>
-          ))}
-          <TouchableOpacity style={[styles.chip, styles.chipRow]}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.dateScroller}
+          contentContainerStyle={styles.dateContent}
+        >
+          {dateChips.map((date, index) => {
+            const active = index === dateIndex;
+            return (
+              <TouchableOpacity
+                key={date.t}
+                style={[styles.chip, active && styles.activeChip]}
+                onPress={() => setDateIndex(index)}
+              >
+                <T style={[styles.chipTitle, active && styles.activeChipText]}>{date.t}</T>
+                <T style={[styles.chipSub, active && styles.activeChipText]}>{date.s}</T>
+              </TouchableOpacity>
+            );
+          })}
+          <TouchableOpacity style={[styles.chip, styles.customChip]}>
             <MaterialCommunityIcons name="calendar-month-outline" size={14} color={C.sub} />
             <T style={styles.chipTitleGray}>Custom Range</T>
           </TouchableOpacity>
         </ScrollView>
 
-        <View style={{ marginTop: 14 }}>
-          <SegTabs tabs={tabs} active={tab} onChange={setTab} />
+        <View style={styles.tabs}>
+          <SegTabs tabs={TABS} active={tab} onChange={setTab} />
         </View>
 
-        <Card style={{ marginTop: 12, padding: 4 }}>
-          {rows.map((r, i) => (
-            <View key={r.id} style={[styles.rRow, i > 0 && { borderTopWidth: 1, borderTopColor: C.borderSoft }]}>
-              <Avatar initials={r.initials} tone={r.tone} size={42} />
-              <View style={{ flex: 1.4, marginLeft: 10 }}>
-                <T style={styles.rName}>{r.name}</T>
-                <T style={styles.rMeta} numberOfLines={1}>
-                  PID: {r.pid} &nbsp;|&nbsp; {r.meta}
-                </T>
-                <T style={[styles.rTest, { color: toneColor[r.testTone].fg }]}>{r.test}</T>
-                <T style={styles.rDoc}>{r.doctor}</T>
-              </View>
-              <View style={{ flex: 1 }}>
-                <T style={styles.rLbl}>Report ID</T>
-                <T style={styles.rVal}>{r.rid}</T>
-                <T style={[styles.rLbl, { marginTop: 6 }]}>Report Date</T>
-                <T style={styles.rVal}>{r.date}</T>
-                <T style={styles.rVal}>{r.time}</T>
-              </View>
-              <View style={{ alignItems: 'flex-end', marginLeft: 6 }}>
-                <T style={styles.rAmount}>{r.amount}</T>
-                <StatusPill status={r.status} />
-              </View>
-              <View style={{ marginLeft: 6 }}>
-                <Chevron />
-              </View>
-            </View>
-          ))}
-          {rows.length === 0 && <T style={styles.empty}>No reports in this filter.</T>}
-        </Card>
-
-        <View style={styles.pager}>
-          <T style={styles.pagerText}>Showing 1 to 10 of 48 reports</T>
-          <View style={styles.row}>
-            {['1', '2', '3', '4', '5'].map((p, i) => (
-              <TouchableOpacity key={p} style={[styles.pageBtn, i === 0 && { backgroundColor: C.primary }]}>
-                <T style={[styles.pageBtnText, i === 0 && { color: '#fff' }]}>{p}</T>
-              </TouchableOpacity>
-            ))}
-            <TouchableOpacity style={styles.pageBtn}>
-              <MaterialCommunityIcons name="chevron-right" size={13} color={C.sub} />
-            </TouchableOpacity>
-          </View>
-        </View>
+        <SectionHead title="Report Records" />
+        <T style={styles.loadedText}>
+          {normalizedQuery ? `${loadedCount} of ${total} matching records loaded` : `${loadedCount} of ${total} loaded`}
+        </T>
       </View>
-    </ScrollPage>
+    </>
+  );
+
+  return (
+    <Page>
+      <FlatList
+        data={items}
+        keyExtractor={(report) => report.id}
+        ListHeaderComponent={header}
+        renderItem={({ item: report, index }) => (
+          <View
+            style={[
+              styles.reportRow,
+              index === 0 && styles.firstRow,
+              index === items.length - 1 && styles.lastRow,
+            ]}
+          >
+            <Avatar initials={report.initials} tone={report.tone} size={42} />
+            <View style={styles.reportMain}>
+              <T style={styles.reportName}>{report.name}</T>
+              <T style={styles.reportMeta} numberOfLines={1}>
+                PID: {report.pid} &nbsp;|&nbsp; {report.meta}
+              </T>
+              <T style={[styles.reportTest, { color: toneColor[report.testTone].fg }]}>{report.test}</T>
+              <T style={styles.reportDoctor}>{report.doctor}</T>
+            </View>
+            <View style={styles.reportDetails}>
+              <T style={styles.reportLabel}>Report ID</T>
+              <T style={styles.reportValue}>{report.rid}</T>
+              <T style={[styles.reportLabel, styles.dateLabel]}>Report Date</T>
+              <T style={styles.reportValue}>{report.date}</T>
+              <T style={styles.reportValue}>{report.time}</T>
+            </View>
+            <View style={styles.reportAside}>
+              <T style={styles.reportAmount}>{report.amount}</T>
+              <StatusPill status={report.status} />
+            </View>
+            <View style={styles.chevron}>
+              <Chevron />
+            </View>
+          </View>
+        )}
+        ListEmptyComponent={<T style={styles.empty}>No reports in this filter.</T>}
+        ListFooterComponent={
+          <InfiniteListFooter loading={isLoadingMore} hasMore={hasMore} count={items.length} />
+        }
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.35}
+        refreshing={isRefreshing}
+        onRefresh={refresh}
+        initialNumToRender={PAGE_SIZE}
+        maxToRenderPerBatch={PAGE_SIZE}
+        windowSize={7}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listContent}
+      />
+    </Page>
   );
 }
 
 const styles = StyleSheet.create({
-  body: { paddingHorizontal: 14 },
+  body: { paddingHorizontal: PAGE_GUTTER },
   row: { flexDirection: 'row', alignItems: 'center' },
-  statRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
+  statRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 0, marginTop: 8 },
+  searchRow: { marginTop: 8 },
+  dateScroller: { marginTop: 8 },
+  dateContent: { gap: 0 },
   chip: {
     borderWidth: 1,
     borderColor: C.border,
     backgroundColor: '#fff',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
     alignItems: 'center',
   },
-  chipRow: { flexDirection: 'row', gap: 6, justifyContent: 'center' },
+  activeChip: { borderColor: C.primary, backgroundColor: '#F3F8FF' },
+  activeChipText: { color: C.primary },
+  customChip: { flexDirection: 'row', gap: 4, justifyContent: 'center' },
   chipTitle: { fontSize: 11.5, fontWeight: '700', color: C.text },
   chipTitleGray: { fontSize: 11.5, fontWeight: '600', color: C.sub },
   chipSub: { fontSize: 10, color: C.faint, marginTop: 2 },
-  rRow: { flexDirection: 'row', alignItems: 'center', padding: 12 },
-  rName: { fontSize: 13, fontWeight: '700', color: C.text },
-  rMeta: { fontSize: 10, color: C.faint, marginTop: 2 },
-  rTest: { fontSize: 11, fontWeight: '700', marginTop: 4 },
-  rDoc: { fontSize: 10, color: C.sub, marginTop: 4 },
-  rLbl: { fontSize: 9.5, color: C.faint },
-  rVal: { fontSize: 10.5, color: C.text, fontWeight: '600', marginTop: 1 },
-  rAmount: { fontSize: 12.5, fontWeight: '800', color: C.text },
-  empty: { textAlign: 'center', color: C.faint, fontSize: 12, paddingVertical: 24 },
-  pager: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, flexWrap: 'wrap', gap: 8 },
-  pagerText: { fontSize: 10.5, color: C.sub },
-  pageBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 7,
-    borderWidth: 1,
-    borderColor: C.border,
-    backgroundColor: '#fff',
+  tabs: { marginTop: 8 },
+  loadedText: { fontSize: 10.5, color: C.faint, marginBottom: 4 },
+  reportRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 5,
+    marginHorizontal: PAGE_GUTTER,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    backgroundColor: C.card,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderTopWidth: 1,
+    borderColor: C.borderSoft,
   },
-  pageBtnText: { fontSize: 11, color: C.sub, fontWeight: '600' },
+  firstRow: { borderTopLeftRadius: 12, borderTopRightRadius: 12, borderTopColor: C.border },
+  lastRow: { borderBottomWidth: 1, borderBottomColor: C.border, borderBottomLeftRadius: 12, borderBottomRightRadius: 12 },
+  reportMain: { flex: 1.4, marginLeft: 4 },
+  reportDetails: { flex: 1 },
+  reportAside: { alignItems: 'flex-end', marginLeft: 4 },
+  reportName: { fontSize: 13, fontWeight: '700', color: C.text },
+  reportMeta: { fontSize: 10, color: C.faint, marginTop: 2 },
+  reportTest: { fontSize: 11, fontWeight: '700', marginTop: 3 },
+  reportDoctor: { fontSize: 10, color: C.sub, marginTop: 3 },
+  reportLabel: { fontSize: 9.5, color: C.faint },
+  reportValue: { fontSize: 10.5, color: C.text, fontWeight: '600', marginTop: 1 },
+  dateLabel: { marginTop: 4 },
+  reportAmount: { fontSize: 12.5, fontWeight: '800', color: C.text },
+  chevron: { marginLeft: 4 },
+  empty: { textAlign: 'center', color: C.faint, fontSize: 12, paddingVertical: 24 },
+  listContent: { paddingBottom: 110 },
 });

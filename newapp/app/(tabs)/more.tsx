@@ -4,7 +4,7 @@ import { T } from '../../components/T';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { BlueHeader, HeaderIconBtn, ScrollPage, Card, Chevron } from '../../components/kit';
-import { C } from '../../src/theme';
+import { C, PAGE_GUTTER } from '../../src/theme';
 import { lab, moreSections } from '../../src/data';
 
 export default function More() {
@@ -17,7 +17,7 @@ export default function More() {
           <View style={styles.labIcon}>
             <MaterialCommunityIcons name="flask" size={26} color={C.primary} />
           </View>
-          <View style={{ flex: 1, marginLeft: 12 }}>
+          <View style={{ flex: 1, marginLeft: 4 }}>
             <T style={styles.labName}>{lab.name}</T>
             <T style={styles.labSub}>{lab.city}</T>
             <T style={styles.labSub}>Lab ID: {lab.labId}</T>
@@ -37,7 +37,7 @@ export default function More() {
                   <View style={styles.itemIcon}>
                     <MaterialCommunityIcons name={it.icon as any} size={19} color={C.primary} />
                   </View>
-                  <View style={{ flex: 1, marginLeft: 12 }}>
+                  <View style={{ flex: 1, marginLeft: 4 }}>
                     <T style={styles.itemLabel}>{it.label}</T>
                     <T style={styles.itemSub}>{it.sub}</T>
                   </View>
@@ -52,7 +52,7 @@ export default function More() {
           <View style={styles.itemIconRed}>
             <MaterialCommunityIcons name="logout" size={19} color={C.red} />
           </View>
-          <View style={{ marginLeft: 12 }}>
+          <View style={{ marginLeft: 4 }}>
             <T style={styles.logoutTitle}>Logout</T>
             <T style={styles.logoutSub}>Logout from your account</T>
           </View>
@@ -63,14 +63,14 @@ export default function More() {
 }
 
 const styles = StyleSheet.create({
-  body: { paddingHorizontal: 14 },
+  body: { paddingHorizontal: PAGE_GUTTER },
   labCard: { flexDirection: 'row', alignItems: 'center', padding: 14 },
   labIcon: { width: 54, height: 54, borderRadius: 27, backgroundColor: '#E8F0FE', alignItems: 'center', justifyContent: 'center' },
   labName: { fontSize: 13.5, fontWeight: '800', color: C.text },
   labSub: { fontSize: 11, color: C.sub, marginTop: 2 },
   switchBtn: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 4,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#CFE0FB',
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   switchBtnText: { color: C.primary, fontSize: 11.5, fontWeight: '700' },
-  secTitle: { fontSize: 10, color: C.faint, fontWeight: '700', letterSpacing: 0.6, marginTop: 16, marginBottom: 7, marginLeft: 4 },
+  secTitle: { fontSize: 10, color: C.faint, fontWeight: '700', letterSpacing: 0.6, marginTop: 8, marginBottom: 4, marginLeft: 4 },
   item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 10 },
   itemIcon: { width: 38, height: 38, borderRadius: 10, backgroundColor: '#E8F0FE', alignItems: 'center', justifyContent: 'center' },
   itemIconRed: { width: 38, height: 38, borderRadius: 10, backgroundColor: '#FBDCDC', alignItems: 'center', justifyContent: 'center' },
@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#F6D8D8',
     padding: 12,
-    marginTop: 16,
+    marginTop: 8,
   },
   logoutTitle: { color: C.red, fontWeight: '700', fontSize: 13 },
   logoutSub: { color: C.sub, fontSize: 10.5, marginTop: 1 },

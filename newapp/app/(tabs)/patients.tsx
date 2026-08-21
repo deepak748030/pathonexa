@@ -1,13 +1,30 @@
 // Patients — UI PDF screen 2
 import React from 'react';
 import { T } from '../../components/T';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { BlueHeader, HeaderIconBtn, HeaderWhiteBtn, ScrollPage, Card, MiniStat, SearchBar, SquareBtn, Avatar, Chevron } from '../../components/kit';
+import {
+  Avatar,
+  BlueHeader,
+  Card,
+  Chevron,
+  HeaderIconBtn,
+  HeaderWhiteBtn,
+  InfiniteListFooter,
+  MiniStat,
+  Page,
+  SearchBar,
+  SectionHead,
+  SquareBtn,
+} from '../../components/kit';
 import { useDrawer } from '../../components/Drawer';
-import { C } from '../../src/theme';
-import { toneColor, patients, patientStats } from '../../src/data';
+import { C, PAGE_GUTTER } from '../../src/theme';
+import { toneColor, patients, patientStats, type Patient } from '../../src/data';
+import { useInfiniteData } from '../../src/useInfiniteData';
+
+const TOTAL_PATIENTS = 1248;
+const PAGE_SIZE = 12;
 
 const footActions = [
   { icon: 'import', label: 'Import Patients' },
@@ -16,11 +33,41 @@ const footActions = [
   { icon: 'content-copy', label: 'Duplicates' },
 ];
 
+function createPatient(index: number): Patient {
+  const source = patients[index % patients.length];
+  const serial = index + 1;
+  return {
+    ...source,
+    id: `patient-${serial}`,
+    pid: `PT${250727000 + serial}`,
+  };
+}
+
 export default function Patients() {
   const { setOpen } = useDrawer();
   const router = useRouter();
-  return (
-    <ScrollPage>
+  const [query, setQuery] = React.useState('');
+  const normalizedQuery = query.trim().toLowerCase();
+  const matchingIndexes = React.useMemo(() => {
+    if (!normalizedQuery) return null;
+    return Array.from({ length: TOTAL_PATIENTS }, (_, index) => index).filter((index) => {
+      const patient = createPatient(index);
+      return [patient.name, patient.pid, patient.phone, patient.test].some((value) => value.toLowerCase().includes(normalizedQuery));
+    });
+  }, [normalizedQuery]);
+  const makePatient = React.useCallback(
+    (index: number) => createPatient(matchingIndexes ? matchingIndexes[index] : index),
+    [matchingIndexes],
+  );
+  const { items, loadMore, refresh, isLoadingMore, isRefreshing, hasMore, loadedCount, total } = useInfiniteData({
+    total: matchingIndexes?.length ?? TOTAL_PATIENTS,
+    pageSize: PAGE_SIZE,
+    createItem: makePatient,
+    resetKey: normalizedQuery,
+  });
+
+  const header = (
+    <>
       <BlueHeader
         menu
         onBack={() => setOpen(true)}
@@ -37,73 +84,129 @@ export default function Patients() {
 
       <View style={styles.body}>
         <View style={styles.statRow}>
-          {patientStats.map((s) => (
-            <MiniStat key={s.label} {...s} />
+          {patientStats.map((stat) => (
+            <MiniStat key={stat.label} {...stat} />
           ))}
         </View>
 
-        <View style={[styles.row, { marginTop: 14 }]}>
-          <SearchBar placeholder="Search by Name, Mobile, Patient ID..." />
+        <View style={[styles.row, styles.searchRow]}>
+          <SearchBar placeholder="Search by Name, Mobile, Patient ID..." value={query} onChangeText={setQuery} />
           <SquareBtn icon="barcode-scan" />
         </View>
 
-        <Card style={{ marginTop: 14, padding: 4 }}>
-          {patients.map((p, i) => (
-            <View key={p.id} style={[styles.pRow, i > 0 && { borderTopWidth: 1, borderTopColor: C.borderSoft }]}>
-              <Avatar initials={p.initials} tone={p.tone} />
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <T style={styles.pName}>{p.name}</T>
-                <View style={styles.row}>
-                  <T style={styles.pPid}>PID: {p.pid}</T>
-                  <MaterialCommunityIcons name="barcode" size={13} color={C.faint} style={{ marginLeft: 6 }} />
-                </View>
-                <T style={styles.pMeta}>
-                  {p.age} &nbsp;•&nbsp; {p.gender} &nbsp;•&nbsp; {p.blood}
-                </T>
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <View style={styles.row}>
-                  <MaterialCommunityIcons name="phone" size={11} color={C.sub} style={{ marginRight: 5 }} />
-                  <T style={styles.pPhone}>{p.phone}</T>
-                </View>
-                <T style={styles.pLast}>Last Test: {p.lastTest}</T>
-                <T style={[styles.pTest, { color: toneColor[p.testTone].fg }]}>{p.test}</T>
-              </View>
-              <View style={{ marginLeft: 8 }}>
-                <Chevron />
-              </View>
-            </View>
-          ))}
-        </Card>
-
-        <Card style={{ marginTop: 14, paddingVertical: 16 }}>
+        <Card style={styles.toolsCard}>
           <View style={styles.row}>
-            {footActions.map((a) => (
-              <TouchableOpacity key={a.label} style={styles.footTile}>
-                <MaterialCommunityIcons name={a.icon as any} size={20} color={C.primary} />
+            {footActions.map((action) => (
+              <TouchableOpacity key={action.label} style={styles.footTile}>
+                <MaterialCommunityIcons name={action.icon as any} size={20} color={C.primary} />
                 <T style={styles.footLabel} numberOfLines={1}>
-                  {a.label}
+                  {action.label}
                 </T>
               </TouchableOpacity>
             ))}
           </View>
         </Card>
+
+        <SectionHead title="Patient Directory" />
+        <T style={styles.loadedText}>
+          {normalizedQuery ? `${loadedCount} of ${total} matching records loaded` : `${loadedCount} of ${total} loaded`}
+        </T>
       </View>
-    </ScrollPage>
+    </>
+  );
+
+  return (
+    <Page>
+      <FlatList
+        data={items}
+        keyExtractor={(patient) => patient.id}
+        ListHeaderComponent={header}
+        renderItem={({ item: patient, index }) => (
+          <View
+            style={[
+              styles.patientRow,
+              index === 0 && styles.firstRow,
+              index === items.length - 1 && styles.lastRow,
+            ]}
+          >
+            <Avatar initials={patient.initials} tone={patient.tone} />
+            <View style={styles.patientMain}>
+              <T style={styles.patientName}>{patient.name}</T>
+              <View style={styles.row}>
+                <T style={styles.patientPid}>PID: {patient.pid}</T>
+                <MaterialCommunityIcons name="barcode" size={13} color={C.faint} style={styles.barcode} />
+              </View>
+              <T style={styles.patientMeta}>
+                {patient.age} &nbsp;•&nbsp; {patient.gender} &nbsp;•&nbsp; {patient.blood}
+              </T>
+            </View>
+            <View style={styles.patientAside}>
+              <View style={styles.row}>
+                <MaterialCommunityIcons name="phone" size={11} color={C.sub} style={styles.phoneIcon} />
+                <T style={styles.patientPhone}>{patient.phone}</T>
+              </View>
+              <T style={styles.patientLast}>Last Test: {patient.lastTest}</T>
+              <T style={[styles.patientTest, { color: toneColor[patient.testTone].fg }]}>{patient.test}</T>
+            </View>
+            <View style={styles.chevron}>
+              <Chevron />
+            </View>
+          </View>
+        )}
+        ListEmptyComponent={<T style={styles.empty}>No matching patients found.</T>}
+        ListFooterComponent={
+          <InfiniteListFooter loading={isLoadingMore} hasMore={hasMore} count={items.length} />
+        }
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.35}
+        refreshing={isRefreshing}
+        onRefresh={refresh}
+        initialNumToRender={PAGE_SIZE}
+        maxToRenderPerBatch={PAGE_SIZE}
+        windowSize={7}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listContent}
+      />
+    </Page>
   );
 }
 
 const styles = StyleSheet.create({
-  body: { paddingHorizontal: 14 },
+  body: { paddingHorizontal: PAGE_GUTTER },
   row: { flexDirection: 'row', alignItems: 'center' },
-  statRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
-  pRow: { flexDirection: 'row', alignItems: 'center', padding: 12 },
-  pName: { fontSize: 13.5, fontWeight: '700', color: C.text },
-  pPid: { fontSize: 10.5, color: C.faint, marginTop: 2 },
-  pMeta: { fontSize: 10.5, color: C.sub, marginTop: 4 },
-  pPhone: { fontSize: 11.5, color: C.text, fontWeight: '600' },
-  pLast: { fontSize: 10, color: C.faint, marginTop: 4 },
-  pTest: { fontSize: 11, fontWeight: '700', marginTop: 4 },
-  footTile: { flex: 1, alignItems: 'center', gap: 8 },
+  statRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 0, marginTop: 8 },
+  searchRow: { marginTop: 8 },
+  toolsCard: { marginTop: 8, paddingVertical: 10 },
+  footTile: { flex: 1, alignItems: 'center', gap: 2 },
   footLabel: { fontSize: 10, color: C.text, fontWeight: '600' },
+  loadedText: { fontSize: 10.5, color: C.faint, marginBottom: 4 },
+  patientRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: PAGE_GUTTER,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    backgroundColor: C.card,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderTopWidth: 1,
+    borderColor: C.borderSoft,
+  },
+  firstRow: { borderTopLeftRadius: 12, borderTopRightRadius: 12, borderTopColor: C.border },
+  lastRow: { borderBottomWidth: 1, borderBottomColor: C.border, borderBottomLeftRadius: 12, borderBottomRightRadius: 12 },
+  patientMain: { flex: 1, marginLeft: 4 },
+  patientAside: { alignItems: 'flex-end' },
+  patientName: { fontSize: 13.5, fontWeight: '700', color: C.text },
+  patientPid: { fontSize: 10.5, color: C.faint, marginTop: 2 },
+  patientMeta: { fontSize: 10.5, color: C.sub, marginTop: 3 },
+  patientPhone: { fontSize: 11.5, color: C.text, fontWeight: '600' },
+  patientLast: { fontSize: 10, color: C.faint, marginTop: 3 },
+  patientTest: { fontSize: 11, fontWeight: '700', marginTop: 3 },
+  barcode: { marginLeft: 4 },
+  phoneIcon: { marginRight: 4 },
+  chevron: { marginLeft: 4 },
+  empty: { textAlign: 'center', color: C.faint, fontSize: 12, paddingVertical: 24 },
+  listContent: { paddingBottom: 110 },
 });

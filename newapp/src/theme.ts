@@ -42,13 +42,9 @@ export const S = {
   tiny: 10.5,
 } as const;
 
-export const shadow = {
-  shadowColor: '#12244A',
-  shadowOffset: { width: 0, height: 4 },
-  shadowOpacity: 0.06,
-  shadowRadius: 12,
-  elevation: 3,
-} as const;
+// Screen content intentionally sits close to the viewport edge.
+export const PAGE_GUTTER = 4;
+export const COMPACT_GAP = 4;
 
 export const fmtINR = (n: number) => '₹' + n.toLocaleString('en-IN');
 

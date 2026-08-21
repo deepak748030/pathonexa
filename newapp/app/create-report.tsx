@@ -19,7 +19,7 @@ import {
   Chevron,
 } from '../components/kit';
 import { useDrawer } from '../components/Drawer';
-import { C, F } from '../src/theme';
+import { C, F, PAGE_GUTTER } from '../src/theme';
 import { patients, refDoctor, testsCatalog, cbcGroups } from '../src/data';
 
 const payModes = [
@@ -78,21 +78,21 @@ export default function CreateReport() {
         right={draftsBtn}
       />
 
-      <Card style={{ marginHorizontal: 14, marginTop: 12, paddingVertical: 4 }}>
+      <Card style={{ marginHorizontal: PAGE_GUTTER, marginTop: 8, paddingVertical: 4 }}>
         <StepIndicator current={step} />
       </Card>
 
       {step === 1 && (
         <View style={styles.body}>
           {/* 1. select patient */}
-          <Card style={{ marginTop: 12 }}>
+          <Card style={{ marginTop: 8 }}>
             <View style={styles.cardHead}>
               <T style={styles.cardHeadTitle}>1. Select Patient</T>
               <SmallOutlineBtn icon="plus" label="New Patient" onPress={() => router.push('/add-patient')} />
             </View>
             <View style={styles.selPatient}>
               <Avatar initials={patient.initials} tone={patient.tone} size={44} />
-              <View style={{ flex: 1, marginLeft: 10 }}>
+              <View style={{ flex: 1, marginLeft: 4 }}>
                 <T style={styles.selName}>{patient.name}</T>
                 <T style={styles.selMeta}>
                   {patient.age} &nbsp;|&nbsp; {patient.gender} &nbsp;|&nbsp; {patient.blood}
@@ -100,10 +100,10 @@ export default function CreateReport() {
                 <T style={styles.selPid}>PID: PT250726001</T>
               </View>
               <View style={styles.row}>
-                <MaterialCommunityIcons name="phone" size={12} color={C.sub} style={{ marginRight: 6 }} />
+                <MaterialCommunityIcons name="phone" size={12} color={C.sub} style={{ marginRight: 4 }} />
                 <T style={styles.selPhone}>{patient.phone}</T>
               </View>
-              <View style={{ marginLeft: 8 }}>
+              <View style={{ marginLeft: 4 }}>
                 <Chevron />
               </View>
             </View>
@@ -114,35 +114,35 @@ export default function CreateReport() {
           </Card>
 
           {/* 2. ref doctor */}
-          <Card style={{ marginTop: 12 }}>
+          <Card style={{ marginTop: 8 }}>
             <View style={styles.cardHead}>
               <T style={styles.cardHeadTitle}>2. Select Ref. Doctor</T>
               <SmallOutlineBtn icon="plus" label="New Doctor" />
             </View>
             <View style={styles.selPatient}>
               <Avatar initials={refDoctor.initials} tone="green" size={44} />
-              <View style={{ flex: 1, marginLeft: 10 }}>
+              <View style={{ flex: 1, marginLeft: 4 }}>
                 <T style={styles.selName}>{refDoctor.name}</T>
                 <T style={styles.selMeta}>{refDoctor.quals}</T>
                 <T style={styles.selComm}>{refDoctor.commission}</T>
               </View>
               <View style={styles.row}>
-                <MaterialCommunityIcons name="phone" size={12} color={C.sub} style={{ marginRight: 6 }} />
+                <MaterialCommunityIcons name="phone" size={12} color={C.sub} style={{ marginRight: 4 }} />
                 <T style={styles.selPhone}>{refDoctor.phone}</T>
               </View>
-              <View style={{ marginLeft: 8 }}>
+              <View style={{ marginLeft: 4 }}>
                 <MaterialCommunityIcons name="chevron-down" size={16} color={C.faint} />
               </View>
             </View>
           </Card>
 
           {/* 3. tests */}
-          <Card style={{ marginTop: 12 }}>
+          <Card style={{ marginTop: 8 }}>
             <T style={styles.cardHeadTitle}>3. Select Test / Package</T>
-            <View style={{ marginTop: 10 }}>
+            <View style={{ marginTop: 8 }}>
               <SegTabs tabs={['All Tests', 'Packages', 'Recent Tests']} active={0} />
             </View>
-            <View style={{ marginTop: 10 }}>
+            <View style={{ marginTop: 8 }}>
               <SearchBar placeholder="Search test or package name" />
             </View>
             <View style={{ marginTop: 6 }}>
@@ -153,12 +153,12 @@ export default function CreateReport() {
                     <View style={[styles.checkbox, on && { backgroundColor: C.primary, borderColor: C.primary }]}>
                       {on && <MaterialCommunityIcons name="check" size={12} color="#fff" />}
                     </View>
-                    <View style={{ flex: 1, marginLeft: 10 }}>
+                    <View style={{ flex: 1, marginLeft: 4 }}>
                       <T style={styles.testName}>{t.name}</T>
                       <T style={styles.testCat}>{t.cat}</T>
                     </View>
                     <T style={styles.testPrice}>₹{t.price}</T>
-                    <MaterialCommunityIcons name="information-outline" size={16} color={C.primary} style={{ marginLeft: 10 }} />
+                    <MaterialCommunityIcons name="information-outline" size={16} color={C.primary} style={{ marginLeft: 4 }} />
                   </TouchableOpacity>
                 );
               })}
@@ -179,7 +179,7 @@ export default function CreateReport() {
                 <T style={styles.dateText}>26 Jul 2024</T>
                 <T style={styles.dateText}>08:45 AM</T>
               </View>
-              <T style={[styles.dateLabel, { marginTop: 12 }]}>Expected Report Date</T>
+              <T style={[styles.dateLabel, { marginTop: 8 }]}>Expected Report Date</T>
               <View style={styles.dateBox}>
                 <MaterialCommunityIcons name="calendar-month-outline" size={15} color={C.primary} />
                 <T style={styles.dateText}>26 Jul 2024</T>
@@ -224,7 +224,7 @@ export default function CreateReport() {
           </View>
 
           {/* payment mode */}
-          <Card style={{ marginTop: 12 }}>
+          <Card style={{ marginTop: 8 }}>
             <T style={styles.dateLabel}>Payment Mode</T>
             <View style={styles.payRow}>
               {payModes.map((m) => {
@@ -239,18 +239,18 @@ export default function CreateReport() {
             </View>
           </Card>
 
-          <PrimaryBtn label="Create Report" icon="file-document-outline" style={{ marginTop: 16 }} onPress={() => setStep(2)} />
+          <PrimaryBtn label="Create Report" icon="file-document-outline" style={{ marginTop: 8 }} onPress={() => setStep(2)} />
         </View>
       )}
 
       {step === 2 && (
         <View style={styles.body}>
-          <Card style={{ marginTop: 12, padding: 10 }}>
+          <Card style={{ marginTop: 8, padding: 10 }}>
             <View style={styles.sumRow}>
               <View style={[styles.sumCell, { flex: 1.3 }]}>
                 <View style={styles.row}>
                   <Avatar initials={patient.initials} tone={patient.tone} size={40} />
-                  <View style={{ marginLeft: 8, flex: 1 }}>
+                  <View style={{ marginLeft: 4, flex: 1 }}>
                     <T style={styles.selName}>{patient.name}</T>
                     <T style={styles.selMeta}>
                       {patient.age} &nbsp;|&nbsp; {patient.gender} &nbsp;|&nbsp; {patient.blood}
@@ -279,9 +279,9 @@ export default function CreateReport() {
             </View>
           </Card>
 
-          <Card style={{ marginTop: 12 }}>
+          <Card style={{ marginTop: 8 }}>
             <T style={styles.cardHeadTitle}>Enter Test Values</T>
-            <View style={[styles.row, { marginTop: 10, gap: 8 }]}>
+            <View style={[styles.row, { marginTop: 8, gap: 4 }]}>
               <View style={{ flex: 1 }}>
                 <SearchBar placeholder="Search parameter" />
               </View>
@@ -291,7 +291,7 @@ export default function CreateReport() {
             </View>
 
             {cbcGroups.map((g) => (
-              <View key={g.title} style={{ marginTop: 12 }}>
+              <View key={g.title}>
                 <View style={styles.groupHead}>
                   <T style={styles.groupHeadText}>{g.title}</T>
                 </View>
@@ -354,14 +354,14 @@ export default function CreateReport() {
 
           <View style={styles.btnRow}>
             <OutlineBtn label="Back" icon="arrow-left" onPress={() => setStep(1)} style={{ flex: 1 }} />
-            <PrimaryBtn label="Save & Preview" onPress={() => setStep(3)} style={{ flex: 1.6, marginLeft: 10 }} />
+            <PrimaryBtn label="Save & Preview" onPress={() => setStep(3)} style={{ flex: 1.6, marginLeft: 4 }} />
           </View>
         </View>
       )}
 
       {step === 3 && (
         <View style={styles.body}>
-          <Card style={{ marginTop: 12 }}>
+          <Card style={{ marginTop: 8 }}>
             <View style={styles.cardHead}>
               <T style={styles.cardHeadTitle}>Report Summary</T>
               <SmallOutlineBtn icon="pencil-outline" label="Edit" onPress={() => setStep(1)} />
@@ -370,7 +370,7 @@ export default function CreateReport() {
               <View style={styles.prevIcon}>
                 <Avatar initials={patient.initials} tone={patient.tone} size={34} />
               </View>
-              <View style={{ flex: 1, marginLeft: 10 }}>
+              <View style={{ flex: 1, marginLeft: 4 }}>
                 <T style={styles.sumLbl}>Patient</T>
                 <T style={styles.selName}>{patient.name}</T>
                 <T style={styles.selMeta}>
@@ -379,7 +379,7 @@ export default function CreateReport() {
                 <T style={styles.selPid}>PID: PT250726001</T>
               </View>
               <View style={styles.row}>
-                <MaterialCommunityIcons name="phone" size={12} color={C.sub} style={{ marginRight: 6 }} />
+                <MaterialCommunityIcons name="phone" size={12} color={C.sub} style={{ marginRight: 4 }} />
                 <T style={styles.selPhone}>{patient.phone}</T>
               </View>
             </View>
@@ -387,13 +387,13 @@ export default function CreateReport() {
               <View style={styles.prevIcon}>
                 <MaterialCommunityIcons name="doctor" size={17} color={C.green} />
               </View>
-              <View style={{ flex: 1, marginLeft: 10 }}>
+              <View style={{ flex: 1, marginLeft: 4 }}>
                 <T style={styles.sumLbl}>Ref. Doctor</T>
                 <T style={styles.selName}>{refDoctor.name}</T>
                 <T style={styles.selMeta}>{refDoctor.quals}</T>
               </View>
               <View style={styles.row}>
-                <MaterialCommunityIcons name="phone" size={12} color={C.sub} style={{ marginRight: 6 }} />
+                <MaterialCommunityIcons name="phone" size={12} color={C.sub} style={{ marginRight: 4 }} />
                 <T style={styles.selPhone}>{refDoctor.phone}</T>
               </View>
             </View>
@@ -401,7 +401,7 @@ export default function CreateReport() {
               <View style={styles.prevIcon}>
                 <MaterialCommunityIcons name="clipboard-text-outline" size={17} color={C.purple} />
               </View>
-              <View style={{ flex: 1, marginLeft: 10 }}>
+              <View style={{ flex: 1, marginLeft: 4 }}>
                 <T style={styles.sumLbl}>Test / Package</T>
                 <T style={styles.selName}>Complete Blood Count (CBC)</T>
                 <T style={styles.selMeta}>Hematology</T>
@@ -411,7 +411,7 @@ export default function CreateReport() {
               <View style={styles.prevIcon}>
                 <MaterialCommunityIcons name="calendar-month-outline" size={17} color={C.primary} />
               </View>
-              <View style={{ flex: 1, marginLeft: 10 }}>
+              <View style={{ flex: 1, marginLeft: 4 }}>
                 <T style={styles.sumLbl}>Report Date</T>
                 <T style={styles.selMeta}>
                   <T style={{ color: C.text, fontWeight: '700' }}>26 Jul 2024</T> &nbsp;|&nbsp;{' '}
@@ -421,7 +421,7 @@ export default function CreateReport() {
             </View>
           </Card>
 
-          <Card style={{ marginTop: 12 }}>
+          <Card style={{ marginTop: 8 }}>
             <T style={styles.cardHeadTitle}>Test Summary</T>
             <View style={styles.tsRow}>
               <T style={styles.tsLabel}>Total Parameters</T>
@@ -445,7 +445,7 @@ export default function CreateReport() {
             </View>
           </Card>
 
-          <Card style={{ marginTop: 12 }}>
+          <Card style={{ marginTop: 8 }}>
             <T style={styles.cardHeadTitle}>Values Preview</T>
             <View style={[styles.tblHead, { marginTop: 8 }]}>
               <T style={[styles.tblHeadText, { flex: 1.3 }]}>Parameter</T>
@@ -482,12 +482,12 @@ export default function CreateReport() {
 
           <View style={styles.btnRow}>
             <OutlineBtn label="Back" icon="arrow-left" onPress={() => setStep(2)} style={{ flex: 1 }} />
-            <PrimaryBtn label="Save Report" icon="file-document-outline" onPress={() => router.push('/report-preview')} style={{ flex: 1.6, marginLeft: 10 }} />
+            <PrimaryBtn label="Save Report" icon="file-document-outline" onPress={() => router.push('/report-preview')} style={{ flex: 1.6, marginLeft: 4 }} />
           </View>
 
           <View style={styles.safeNote}>
             <MaterialCommunityIcons name="lock-outline" size={16} color={C.primary} />
-            <View style={{ marginLeft: 10 }}>
+            <View style={{ marginLeft: 4 }}>
               <T style={styles.safeNoteTitle}>Your data is safe and secure</T>
               <T style={styles.safeNoteSub}>All report data is stored only on this device.</T>
             </View>
@@ -499,12 +499,12 @@ export default function CreateReport() {
 }
 
 const styles = StyleSheet.create({
-  body: { paddingHorizontal: 14 },
+  body: { paddingHorizontal: PAGE_GUTTER },
   row: { flexDirection: 'row', alignItems: 'center' },
   draftsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.55)',
     borderRadius: 9,
@@ -539,21 +539,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 4,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 10,
     paddingVertical: 10,
-    marginTop: 10,
+    marginTop: 8,
   },
   addMoreText: { color: C.primary, fontSize: 12, fontWeight: '700' },
-  twoCol: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
+  twoCol: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 8 },
   twoColCard: { flexBasis: '48%', flexGrow: 1 },
   dateLabel: { fontSize: 10.5, color: C.sub, marginBottom: 6, fontWeight: '600' },
   dateBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 4,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 10,
@@ -568,11 +568,11 @@ const styles = StyleSheet.create({
   amtRs: { fontSize: 11, color: C.sub, marginRight: 4 },
   amtInput: { flex: 1, fontSize: 11.5, color: C.text, paddingVertical: 7, fontFamily: F.regular },
   amtPct: { fontSize: 10, color: C.faint },
-  payRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  payRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 0 },
   payChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 9,
@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   payChipText: { fontSize: 11, color: C.sub, fontWeight: '600' },
-  btnRow: { flexDirection: 'row', marginTop: 16 },
+  btnRow: { flexDirection: 'row', marginTop: 8 },
   sumRow: { flexDirection: 'row', alignItems: 'center' },
   sumCell: { flex: 1, paddingHorizontal: 8 },
   vDiv: { width: 1, alignSelf: 'stretch', backgroundColor: C.borderSoft },
@@ -608,21 +608,21 @@ const styles = StyleSheet.create({
     fontFamily: F.regular,
   },
   flag: { color: C.red, fontSize: 11, fontWeight: '800' },
-  remarksBox: { borderWidth: 1, borderColor: C.border, borderRadius: 10, padding: 10, marginTop: 14 },
+  remarksBox: { borderWidth: 1, borderColor: C.border, borderRadius: 10, padding: 10, marginTop: 8 },
   remarksLabel: { fontSize: 10.5, color: C.sub, fontWeight: '600' },
   remarksInput: { minHeight: 54, fontSize: 11.5, color: C.text, marginTop: 4, fontFamily: F.regular },
   remarksCount: { textAlign: 'right', fontSize: 9.5, color: C.faint },
   okBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 4,
     backgroundColor: '#E9F8EF',
     borderWidth: 1,
     borderColor: '#BFE8CF',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    marginTop: 12,
+    marginTop: 8,
   },
   okBannerText: { color: C.green, fontSize: 11, fontWeight: '600', flex: 1 },
   prevRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
@@ -630,7 +630,7 @@ const styles = StyleSheet.create({
   tsRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.borderSoft },
   tsLabel: { fontSize: 11.5, color: C.sub },
   tsValue: { fontSize: 12, fontWeight: '800', color: C.text },
-  pvGroup: { color: C.primary, fontSize: 11, fontWeight: '700', marginTop: 10, marginBottom: 2 },
+  pvGroup: { color: C.primary, fontSize: 11, fontWeight: '700', marginTop: 0, marginBottom: 2 },
   arrow: { color: C.red, fontSize: 12, fontWeight: '800' },
   dotOk: { width: 7, height: 7, borderRadius: 4, backgroundColor: C.green },
   safeNote: {
@@ -639,7 +639,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#EAF2FE',
     borderRadius: 12,
     padding: 12,
-    marginTop: 14,
+    marginTop: 8,
   },
   safeNoteTitle: { color: C.primary, fontSize: 11.5, fontWeight: '700' },
   safeNoteSub: { color: C.sub, fontSize: 10, marginTop: 2 },

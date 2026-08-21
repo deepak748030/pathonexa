@@ -7,7 +7,7 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { C } from '../../src/theme';
+import { C, PAGE_GUTTER } from '../../src/theme';
 import { MAXW, Press } from '../../components/kit';
 
 const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
@@ -75,23 +75,20 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
-  barWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center' },
+  barWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center', paddingHorizontal: PAGE_GUTTER },
   bar: {
-    width: '94%',
-    maxWidth: MAXW - 12,
+    width: '100%',
+    maxWidth: MAXW - PAGE_GUTTER * 2,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
     borderRadius: 20,
-    paddingTop: 8,
-    paddingBottom: 8,
-    shadowColor: '#0B2A66',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 8,
+    borderWidth: 1,
+    borderColor: C.border,
+    paddingTop: 7,
+    paddingBottom: 7,
   },
-  tab: { flex: 1, alignItems: 'center', gap: 3 },
+  tab: { flex: 1, alignItems: 'center', gap: 2 },
   tabLabel: { fontSize: 10.5, color: '#93A0B4', fontWeight: '600' },
   fabSlot: { flex: 1, alignItems: 'center', marginTop: -34 },
   fab: {
@@ -101,12 +98,7 @@ const styles = StyleSheet.create({
     backgroundColor: C.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 5,
+    borderWidth: 3,
     borderColor: '#fff',
-    shadowColor: '#0B4FC0',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 8,
   },
 });

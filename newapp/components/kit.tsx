@@ -12,13 +12,14 @@ import {
   Platform,
   Keyboard,
   Dimensions,
+  ActivityIndicator,
   type ViewStyle,
   type StyleProp,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { C, F, R, S, shadow } from '../src/theme';
+import { C, F, PAGE_GUTTER, R, S } from '../src/theme';
 import { toneColor, type Tone } from '../src/data';
 import { fieldFocusProps, lastFieldRect, onFieldFocus } from '../src/focusBus';
 
@@ -193,7 +194,7 @@ export function HeaderIconBtn({ icon, badge, onPress }: { icon: string; badge?: 
 export function HeaderWhiteBtn({ label, icon, onPress }: { label: string; icon?: string; onPress?: () => void }) {
   return (
     <Press onPress={onPress} style={styles.headerWhiteBtn}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
         {!!icon && <MaterialCommunityIcons name={icon as any} size={16} color={C.primary} />}
         <T style={styles.headerWhiteBtnText}>{label}</T>
       </View>
@@ -297,7 +298,7 @@ export function Field(props: {
         {props.required ? <T style={{ color: C.red }}> *</T> : null}
       </T>
       <View style={[styles.fieldBox, props.multiline && { minHeight: 74 }, props.disabled && { backgroundColor: '#F5F7FB' }]}>
-        {!!props.icon && <MaterialCommunityIcons name={props.icon as any} size={15} color={C.faint} style={{ marginRight: 6 }} />}
+        {!!props.icon && <MaterialCommunityIcons name={props.icon as any} size={15} color={C.faint} style={{ marginRight: 4 }} />}
         <TextInput
           style={[styles.fieldInput, props.multiline && { minHeight: 66, textAlignVertical: 'top' }]}
           placeholder={props.placeholder}
@@ -316,7 +317,17 @@ export function Field(props: {
   );
 }
 
-export function SearchBar({ placeholder, right }: { placeholder: string; right?: React.ReactNode }) {
+export function SearchBar({
+  placeholder,
+  right,
+  value,
+  onChangeText,
+}: {
+  placeholder: string;
+  right?: React.ReactNode;
+  value?: string;
+  onChangeText?: (value: string) => void;
+}) {
   return (
     <View style={styles.searchBox}>
       <MaterialCommunityIcons name="magnify" size={17} color={C.faint} />
@@ -325,6 +336,8 @@ export function SearchBar({ placeholder, right }: { placeholder: string; right?:
         placeholder={placeholder}
         placeholderTextColor={C.faint}
         selectionColor={C.primary}
+        value={value}
+        onChangeText={onChangeText}
         {...fieldFocusProps()}
       />
       {right}
@@ -346,7 +359,7 @@ export function PrimaryBtn({ label, icon, onPress, style }: { label: string; ico
   return (
     <Press style={[styles.primaryBtn, style]} onPress={onPress}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-        {!!icon && <MaterialCommunityIcons name={icon as any} size={18} color="#fff" style={{ marginRight: 8 }} />}
+        {!!icon && <MaterialCommunityIcons name={icon as any} size={18} color="#fff" style={{ marginRight: 4 }} />}
         <T style={styles.primaryBtnText}>{label}</T>
       </View>
     </Press>
@@ -357,7 +370,7 @@ export function OutlineBtn({ label, icon, onPress, style }: { label: string; ico
   return (
     <Press style={[styles.outlineBtn, style]} onPress={onPress}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-        {!!icon && <MaterialCommunityIcons name={icon as any} size={17} color={C.primary} style={{ marginRight: 8 }} />}
+        {!!icon && <MaterialCommunityIcons name={icon as any} size={17} color={C.primary} style={{ marginRight: 4 }} />}
         <T style={styles.outlineBtnText}>{label}</T>
       </View>
     </Press>
@@ -367,7 +380,7 @@ export function OutlineBtn({ label, icon, onPress, style }: { label: string; ico
 export function SmallOutlineBtn({ label, icon, onPress }: { label: string; icon?: string; onPress?: () => void }) {
   return (
     <Press style={styles.smallOutlineBtn} onPress={onPress} scaleTo={0.93}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
         {!!icon && <MaterialCommunityIcons name={icon as any} size={14} color={C.primary} />}
         <T style={styles.smallOutlineBtnText}>{label}</T>
       </View>
@@ -396,7 +409,7 @@ export function SegTabs({ tabs, active, onChange }: { tabs: string[]; active: nu
 export function StepIndicator({ current }: { current: number }) {
   const steps = ['Patient & Test', 'Report Values', 'Preview & Save'];
   return (
-    <View style={[styles.row, { paddingHorizontal: 18, paddingVertical: 14, justifyContent: 'center' }]}>
+    <View style={[styles.row, { paddingHorizontal: PAGE_GUTTER, paddingVertical: 10, justifyContent: 'center' }]}>
       {steps.map((s, i) => {
         const n = i + 1;
         const done = n < current;
@@ -423,6 +436,36 @@ export function StepIndicator({ current }: { current: number }) {
   );
 }
 
+export function InfiniteListFooter({
+  loading,
+  hasMore,
+  count,
+}: {
+  loading: boolean;
+  hasMore: boolean;
+  count: number;
+}) {
+  if (loading) {
+    return (
+      <View style={styles.listFooter}>
+        <ActivityIndicator size="small" color={C.primary} />
+        <T style={styles.listFooterText}>Loading more…</T>
+      </View>
+    );
+  }
+
+  if (count > 0 && !hasMore) {
+    return (
+      <View style={styles.listFooter}>
+        <MaterialCommunityIcons name="check-circle-outline" size={15} color={C.green} />
+        <T style={styles.listFooterText}>All records loaded</T>
+      </View>
+    );
+  }
+
+  return <View style={styles.listFooterSpacer} />;
+}
+
 export function StatusPill({ status }: { status: string }) {
   const paid = status === 'Completed' || status === 'Paid';
   return <T style={{ color: paid ? C.green : status === 'Cancelled' ? C.red : '#F59E0B', fontSize: 11, fontWeight: '600' }}>{status}</T>;
@@ -443,11 +486,10 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingBottom: 16,
+    paddingHorizontal: PAGE_GUTTER,
+    paddingBottom: 12,
     borderBottomLeftRadius: 14,
     borderBottomRightRadius: 14,
-    ...shadow,
   },
   headerBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { color: '#fff', fontSize: S.h2, fontWeight: '700' },
@@ -470,9 +512,8 @@ const styles = StyleSheet.create({
   headerWhiteBtn: {
     backgroundColor: '#fff',
     borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    ...shadow,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
   },
   headerWhiteBtnText: { color: C.primary, fontWeight: '700', fontSize: 12.5 },
   card: {
@@ -480,8 +521,7 @@ const styles = StyleSheet.create({
     borderRadius: R.card,
     borderWidth: 1,
     borderColor: C.border,
-    padding: 14,
-    ...shadow,
+    padding: 10,
   },
   row: { flexDirection: 'row', alignItems: 'center' },
   bubble: { alignItems: 'center', justifyContent: 'center' },
@@ -490,12 +530,11 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: C.border,
-    padding: 10,
+    padding: 8,
     flexBasis: '30%',
     flexGrow: 1,
-    ...shadow,
   },
-  dashStatLabel: { fontSize: 11, color: C.text, fontWeight: '600', marginLeft: 7, flex: 1 },
+  dashStatLabel: { fontSize: 11, color: C.text, fontWeight: '600', marginLeft: 4, flex: 1 },
   dashStatValue: { fontSize: 17, fontWeight: '800', color: C.text },
   dashStatFoot: { fontSize: 10.5, color: C.faint, marginTop: 6 },
   miniChev: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
@@ -506,10 +545,9 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: C.border,
-    paddingVertical: 14,
-    paddingHorizontal: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
     alignItems: 'center',
-    ...shadow,
   },
   miniStatValue: { fontSize: 16, fontWeight: '800', color: C.text, marginTop: 8 },
   miniStatLabel: { fontSize: 10, color: C.faint, marginTop: 3, textAlign: 'center' },
@@ -534,10 +572,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 12,
-    paddingHorizontal: 12,
-    ...shadow,
+    paddingHorizontal: 8,
   },
-  searchInput: { flex: 1, fontSize: 12.5, color: C.text, paddingVertical: 12, marginLeft: 8, fontFamily: F.regular },
+  searchInput: { flex: 1, fontSize: 12.5, color: C.text, paddingVertical: 12, marginLeft: 4, fontFamily: F.regular },
   squareBtn: {
     width: 44,
     height: 44,
@@ -547,13 +584,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 8,
+    marginLeft: 4,
   },
   primaryBtn: {
     backgroundColor: C.primary,
     borderRadius: 12,
-    paddingVertical: 14,
-    ...shadow,
+    paddingVertical: 13,
   },
   primaryBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   outlineBtn: {
@@ -589,6 +625,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepLabel: { fontSize: 11.5, color: C.sub, marginLeft: 6, maxWidth: 92 },
-  stepLine: { flex: 1, height: 2, backgroundColor: '#E2E7F0', marginHorizontal: 8, minWidth: 16 },
+  stepLabel: { fontSize: 11.5, color: C.sub, marginLeft: 4, maxWidth: 92 },
+  stepLine: { flex: 1, height: 2, backgroundColor: '#E2E7F0', marginHorizontal: 4, minWidth: 12 },
+  listFooter: {
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 10,
+  },
+  listFooterText: { color: C.sub, fontSize: 11, fontWeight: '600' },
+  listFooterSpacer: { height: 12 },
 });
