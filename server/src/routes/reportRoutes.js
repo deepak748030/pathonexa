@@ -9,7 +9,7 @@ const store = require('../lib/store');
  */
 router.get('/', async (req, res, next) => {
   try {
-    res.json(await store.reports.list());
+    res.json(await store.reports.list(req.query));
   } catch (err) {
     next(err);
   }

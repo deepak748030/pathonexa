@@ -34,7 +34,9 @@ function PersistentStatusBarBackground() {
 }
 
 function AppNavigator() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isReady } = useAuth();
+
+  if (!isReady) return <View style={styles.sessionLoading} />;
 
   return (
     <DrawerProvider>
@@ -118,6 +120,7 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
+  sessionLoading: { flex: 1, backgroundColor: C.bg },
   statusBarBackground: {
     position: 'absolute',
     top: 0,

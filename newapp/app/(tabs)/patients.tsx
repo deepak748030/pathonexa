@@ -16,14 +16,14 @@ import {
   Page,
   SearchBar,
   SectionHead,
+  Skeleton,
   SquareBtn,
 } from '../../components/kit';
 import { useDrawer } from '../../components/Drawer';
 import { C, PAGE_GUTTER } from '../../src/theme';
-import { toneColor, patients, patientStats, type Patient } from '../../src/data';
+import { api, type Patient } from '../../src/api';
 import { useInfiniteData } from '../../src/useInfiniteData';
 
-const TOTAL_PATIENTS = 1248;
 const PAGE_SIZE = 12;
 const PATIENT_FILTERS = ['All', 'Male', 'Female'] as const;
 type PatientFilter = (typeof PATIENT_FILTERS)[number];
@@ -35,14 +35,23 @@ const footActions = [
   { icon: 'content-copy', label: 'Duplicates' },
 ];
 
-function createPatient(index: number): Patient {
-  const source = patients[index % patients.length];
-  const serial = index + 1;
-  return {
-    ...source,
-    id: `patient-${serial}`,
-    pid: `PT${250727000 + serial}`,
-  };
+const patientStatIcons = ['account-multiple', 'account-plus-outline', 'clipboard-text-outline', 'currency-rupee'];
+const patientStatTones = ['blue', 'green', 'purple', 'orange'] as const;
+const avatarTones = ['blue', 'green', 'purple', 'orange', 'pink'] as const;
+
+function patientInitials(name: string) {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'P';
+}
+
+function patientTone(name: string) {
+  const hash = Array.from(name).reduce((sum, character) => sum + character.charCodeAt(0), 0);
+  return avatarTones[hash % avatarTones.length];
+}
+
+function displayDate(value?: string) {
+  if (!value) return 'No previous test';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 export default function Patients() {
@@ -52,26 +61,27 @@ export default function Patients() {
   const [query, setQuery] = React.useState('');
   const [filterOpen, setFilterOpen] = React.useState(false);
   const [patientFilter, setPatientFilter] = React.useState<PatientFilter>('All');
-  const normalizedQuery = query.trim().toLowerCase();
-  const matchingIndexes = React.useMemo(() => {
-    if (!normalizedQuery && patientFilter === 'All') return null;
-    return Array.from({ length: TOTAL_PATIENTS }, (_, index) => index).filter((index) => {
-      const patient = createPatient(index);
-      const matchesQuery =
-        !normalizedQuery ||
-        [patient.name, patient.pid, patient.phone, patient.test].some((value) => value.toLowerCase().includes(normalizedQuery));
-      return matchesQuery && (patientFilter === 'All' || patient.gender === patientFilter);
-    });
-  }, [normalizedQuery, patientFilter]);
-  const makePatient = React.useCallback(
-    (index: number) => createPatient(matchingIndexes ? matchingIndexes[index] : index),
-    [matchingIndexes],
-  );
-  const { items, loadMore, refresh, isLoadingMore, isRefreshing, hasMore, loadedCount, total } = useInfiniteData({
-    total: matchingIndexes?.length ?? TOTAL_PATIENTS,
-    pageSize: PAGE_SIZE,
-    createItem: makePatient,
-    resetKey: `${normalizedQuery}:${patientFilter}`,
+  const [serverQuery, setServerQuery] = React.useState('');
+  const [stats, setStats] = React.useState<Array<{ label: string; value: string; tone: string }>>([]);
+  React.useEffect(() => {
+    const timer = setTimeout(() => setServerQuery(query.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+  React.useEffect(() => {
+    api.patients.stats().then(setStats).catch(() => setStats([]));
+  }, []);
+
+  const fetchPage = React.useCallback((page: number) => api.patients.list({
+    page,
+    limit: PAGE_SIZE,
+    search: serverQuery,
+    gender: patientFilter === 'All' ? undefined : patientFilter,
+  }), [patientFilter, serverQuery]);
+  const {
+    items, loadMore, refresh, isLoading, isLoadingMore, isRefreshing, hasMore, loadedCount, total, error,
+  } = useInfiniteData<Patient>({
+    fetchPage,
+    resetKey: `${serverQuery}:${patientFilter}`,
   });
 
   const header = (
@@ -101,8 +111,18 @@ export default function Patients() {
 
       <View style={styles.body}>
         <View style={styles.statRow}>
-          {patientStats.map((stat) => (
-            <MiniStat key={stat.label} {...stat} />
+          {(stats.length ? stats : patientStatIcons.map((icon, index) => ({ icon, label: '', value: '', tone: patientStatTones[index] }))).map((stat, index) => (
+            stats.length ? (
+              <MiniStat
+                key={stat.label}
+                icon={patientStatIcons[index]}
+                tone={patientStatTones[index]}
+                value={stat.value}
+                label={stat.label}
+              />
+            ) : (
+              <View key={index} style={styles.statSkeleton}><Skeleton width={28} height={28} /><Skeleton width="60%" height={11} /><Skeleton width="75%" height={9} /></View>
+            )
           ))}
         </View>
 
@@ -163,7 +183,7 @@ export default function Patients() {
 
         <SectionHead title="Patient Directory" />
         <T style={styles.loadedText}>
-          {normalizedQuery || patientFilter !== 'All'
+          {serverQuery || patientFilter !== 'All'
             ? `${loadedCount} of ${total} matching records loaded`
             : `${loadedCount} of ${total} loaded`}
         </T>
@@ -175,7 +195,7 @@ export default function Patients() {
     <Page>
       <FlatList
         data={items}
-        keyExtractor={(patient) => patient.id}
+        keyExtractor={(patient) => patient._id}
         ListHeaderComponent={header}
         renderItem={({ item: patient, index }) => (
           <View
@@ -185,7 +205,7 @@ export default function Patients() {
               index === items.length - 1 && styles.lastRow,
             ]}
           >
-            <Avatar initials={patient.initials} tone={patient.tone} />
+            <Avatar initials={patientInitials(patient.name)} tone={patientTone(patient.name)} />
             <View style={styles.patientMain}>
               <T style={styles.patientName}>{patient.name}</T>
               <View style={styles.row}>
@@ -193,23 +213,35 @@ export default function Patients() {
                 <MaterialCommunityIcons name="barcode" size={13} color={C.faint} style={styles.barcode} />
               </View>
               <T style={styles.patientMeta}>
-                {patient.age} &nbsp;•&nbsp; {patient.gender} &nbsp;•&nbsp; {patient.blood}
+                {patient.age} Yrs &nbsp;•&nbsp; {patient.gender} &nbsp;•&nbsp; {patient.blood || '—'}
               </T>
             </View>
             <View style={styles.patientAside}>
               <View style={styles.row}>
                 <MaterialCommunityIcons name="phone" size={11} color={C.sub} style={styles.phoneIcon} />
-                <T style={styles.patientPhone}>{patient.phone}</T>
+                <T style={styles.patientPhone}>{patient.mobile || '—'}</T>
               </View>
-              <T style={styles.patientLast}>Last Test: {patient.lastTest}</T>
-              <T style={[styles.patientTest, { color: toneColor[patient.testTone].fg }]}>{patient.test}</T>
+              <T style={styles.patientLast}>Last Test: {displayDate(patient.lastTestDate)}</T>
+              <T style={[styles.patientTest, { color: C.primary }]}>{patient.lastTest || 'No test'}</T>
             </View>
             <View style={styles.chevron}>
               <Chevron />
             </View>
           </View>
         )}
-        ListEmptyComponent={<T style={styles.empty}>No matching patients found.</T>}
+        ListEmptyComponent={
+          isLoading ? (
+            <View style={styles.skeletonList}>
+              {Array.from({ length: 6 }, (_, index) => (
+                <View key={index} style={styles.patientRowSkeleton}>
+                  <Skeleton width={44} height={44} radius={22} />
+                  <View style={styles.patientSkeletonCopy}><Skeleton width="55%" height={12} /><Skeleton width="38%" height={9} /><Skeleton width="68%" height={9} /></View>
+                  <View style={styles.patientSkeletonAside}><Skeleton width={78} height={10} /><Skeleton width={64} height={9} /></View>
+                </View>
+              ))}
+            </View>
+          ) : <T style={styles.empty}>{error || 'No matching patients found.'}</T>
+        }
         ListFooterComponent={
           <InfiniteListFooter loading={isLoadingMore} hasMore={hasMore} count={items.length} />
         }
@@ -236,6 +268,7 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: PAGE_GUTTER },
   row: { flexDirection: 'row', alignItems: 'center' },
   statRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 0, marginTop: 8 },
+  statSkeleton: { width: '25%', minHeight: 76, alignItems: 'center', justifyContent: 'center', gap: 5 },
   searchRow: { marginTop: 6 },
   filterBar: {
     minHeight: 34,
@@ -292,6 +325,10 @@ const styles = StyleSheet.create({
   phoneIcon: { marginRight: 4 },
   chevron: { marginLeft: 4 },
   empty: { textAlign: 'center', color: C.faint, fontSize: 12, paddingVertical: 24 },
+  skeletonList: { marginHorizontal: PAGE_GUTTER },
+  patientRowSkeleton: { minHeight: 76, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderBottomWidth: 0, borderColor: C.borderSoft, backgroundColor: C.card },
+  patientSkeletonCopy: { flex: 1, marginLeft: 4, gap: 6 },
+  patientSkeletonAside: { alignItems: 'flex-end', gap: 7 },
   list: { backgroundColor: C.headerTop },
   listContent: { paddingBottom: 110, backgroundColor: C.bg },
 });

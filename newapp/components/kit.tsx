@@ -13,17 +13,43 @@ import {
   Keyboard,
   Dimensions,
   ActivityIndicator,
+  RefreshControl,
   type ViewStyle,
   type StyleProp,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { C, F, PAGE_GUTTER, R, S } from '../src/theme';
-import { toneColor, type Tone } from '../src/data';
+import { C, F, PAGE_GUTTER, R, S, toneColor, type Tone } from '../src/theme';
 import { fieldFocusProps, lastFieldRect, onFieldFocus } from '../src/focusBus';
 
 export const MAXW = 520;
+
+/** Layout-preserving loading placeholder shared by every API-backed screen. */
+export function Skeleton({
+  width = '100%',
+  height = 12,
+  radius = 3,
+  style,
+}: {
+  width?: ViewStyle['width'];
+  height?: number;
+  radius?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const opacity = React.useRef(new Animated.Value(0.48)).current;
+  React.useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.9, duration: 650, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.48, duration: 650, useNativeDriver: true }),
+      ]),
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [opacity]);
+  return <Animated.View style={[{ width, height, borderRadius: radius, backgroundColor: '#DDE5F0', opacity }, style]} />;
+}
 
 /* ---------- motion helpers ---------- */
 
@@ -90,7 +116,7 @@ export function Page({ children }: { children: React.ReactNode }) {
  * Android uses system "pan" mode; iOS gets JS keyboard-aware scrolling;
  * the browser handles it on web. The floating tab bar never moves.
  */
-export function ScrollPage({ children }: { children: React.ReactNode }) {
+export function ScrollPage({ children, refreshing = false, onRefresh }: { children: React.ReactNode; refreshing?: boolean; onRefresh?: () => void }) {
   const scrollRef = React.useRef<ScrollView>(null);
   const scrollY = React.useRef(0);
   const kb = React.useRef(0);
@@ -134,6 +160,7 @@ export function ScrollPage({ children }: { children: React.ReactNode }) {
           overScrollMode="never"
           contentInsetAdjustmentBehavior="never"
           automaticallyAdjustContentInsets={false}
+          refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} colors={[C.primary]} /> : undefined}
           onScroll={(e) => {
             scrollY.current = e.nativeEvent.contentOffset.y;
           }}
@@ -315,6 +342,7 @@ export function Field(props: {
   multiline?: boolean;
   value?: string;
   onChange?: (v: string) => void;
+  onPress?: () => void;
   keyboardType?: 'default' | 'numeric' | 'phone-pad' | 'email-address' | 'number-pad';
 }) {
   return (
@@ -331,7 +359,8 @@ export function Field(props: {
           placeholderTextColor={C.faint}
           selectionColor={C.primary}
           multiline={props.multiline}
-          editable={!props.disabled}
+          editable={!props.disabled && !props.onPress}
+          onPressIn={props.onPress}
           value={props.value}
           onChangeText={props.onChange}
           keyboardType={props.keyboardType}

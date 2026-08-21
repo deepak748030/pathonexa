@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { T } from '../components/T';
-import { BlueHeader, HeaderWhiteBtn, Page } from '../components/kit';
+import { BlueHeader, HeaderWhiteBtn, Page, Skeleton } from '../components/kit';
 import { C, PAGE_GUTTER } from '../src/theme';
 import { type AppNotification, type NotificationTone, useNotifications } from '../src/notifications';
 
@@ -23,59 +23,21 @@ const notificationColors: Record<NotificationTone, { foreground: string; backgro
 export default function NotificationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
+  const {
+    notifications, unreadCount, totalCount, setUnreadOnly, markRead, markAllRead,
+    isLoading, isLoadingMore, isRefreshing, hasMore, error, loadMore, refresh,
+  } = useNotifications();
   const [filter, setFilter] = React.useState<NotificationFilter>('All');
-  const [visibleCount, setVisibleCount] = React.useState(PAGE_SIZE);
-  const [isLoadingMore, setIsLoadingMore] = React.useState(false);
-  const [isRefreshing, setIsRefreshing] = React.useState(false);
-  const loadTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const refreshTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const filteredNotifications = React.useMemo(
-    () => (filter === 'Unread' ? notifications.filter((notification) => notification.unread) : notifications),
-    [filter, notifications],
-  );
-  const visibleNotifications = React.useMemo(
-    () => filteredNotifications.slice(0, visibleCount),
-    [filteredNotifications, visibleCount],
-  );
-  const hasMore = visibleNotifications.length < filteredNotifications.length;
+  const visibleNotifications = notifications;
 
   React.useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-    setIsLoadingMore(false);
-    if (loadTimer.current) clearTimeout(loadTimer.current);
-  }, [filter]);
-
-  React.useEffect(
-    () => () => {
-      if (loadTimer.current) clearTimeout(loadTimer.current);
-      if (refreshTimer.current) clearTimeout(refreshTimer.current);
-    },
-    [],
-  );
-
-  const loadMore = React.useCallback(() => {
-    if (!hasMore || isLoadingMore) return;
-    setIsLoadingMore(true);
-    loadTimer.current = setTimeout(() => {
-      setVisibleCount((count) => Math.min(count + PAGE_SIZE, filteredNotifications.length));
-      setIsLoadingMore(false);
-    }, 250);
-  }, [filteredNotifications.length, hasMore, isLoadingMore]);
-
-  const refresh = React.useCallback(() => {
-    if (isRefreshing) return;
-    if (loadTimer.current) clearTimeout(loadTimer.current);
-    setIsLoadingMore(false);
-    setIsRefreshing(true);
-    setVisibleCount(PAGE_SIZE);
-    refreshTimer.current = setTimeout(() => setIsRefreshing(false), 350);
-  }, [isRefreshing]);
+    setUnreadOnly(filter === 'Unread');
+    return () => setUnreadOnly(false);
+  }, [filter, setUnreadOnly]);
 
   const openNotification = React.useCallback(
     (notification: AppNotification) => {
-      markRead(notification.id);
+      markRead(notification.id).catch(() => {});
       if (notification.route) router.push(notification.route);
     },
     [markRead, router],
@@ -87,7 +49,7 @@ export default function NotificationsScreen() {
         title="Notifications"
         sub="Lab updates and recent activity"
         onBack={() => router.back()}
-        right={unreadCount > 0 ? <HeaderWhiteBtn label="Read all" icon="check-all" onPress={markAllRead} /> : null}
+        right={unreadCount > 0 ? <HeaderWhiteBtn label="Read all" icon="check-all" onPress={() => markAllRead().catch(() => {})} /> : null}
       />
 
       <View style={styles.headerBody}>
@@ -104,7 +66,7 @@ export default function NotificationsScreen() {
         <View style={styles.filterRow}>
           {FILTERS.map((item) => {
             const selected = filter === item;
-            const count = item === 'All' ? notifications.length : unreadCount;
+            const count = item === 'All' ? totalCount : unreadCount;
             return (
               <TouchableOpacity
                 key={item}
@@ -166,13 +128,24 @@ export default function NotificationsScreen() {
           );
         }}
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIcon}>
-              <MaterialCommunityIcons name="bell-check-outline" size={28} color={C.green} />
+          isLoading ? (
+            <View style={styles.skeletonList}>
+              {Array.from({ length: 6 }, (_, index) => (
+                <View key={index} style={styles.notificationSkeleton}>
+                  <Skeleton width={38} height={38} radius={4} />
+                  <View style={styles.skeletonCopy}><Skeleton width="55%" height={11} /><Skeleton width="88%" height={9} /><Skeleton width="35%" height={8} /></View>
+                </View>
+              ))}
             </View>
-            <T style={styles.emptyTitle}>No unread notifications</T>
-            <T style={styles.emptyText}>New lab updates will appear here.</T>
-          </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIcon}>
+                <MaterialCommunityIcons name={error ? 'alert-circle-outline' : 'bell-check-outline'} size={28} color={error ? C.red : C.green} />
+              </View>
+              <T style={styles.emptyTitle}>{error ? 'Unable to load notifications' : filter === 'Unread' ? 'No unread notifications' : 'No notifications yet'}</T>
+              <T style={styles.emptyText}>{error || 'New lab updates will appear here.'}</T>
+            </View>
+          )
         }
         ListFooterComponent={
           visibleNotifications.length > 0 ? (
@@ -308,6 +281,9 @@ const styles = StyleSheet.create({
   unreadDot: { width: 7, height: 7, marginLeft: 4, borderRadius: 4, backgroundColor: C.primary },
   notificationMessage: { marginTop: 2, color: C.sub, fontSize: 10.5, lineHeight: 14 },
   notificationTime: { marginTop: 3, color: C.faint, fontSize: 9.5, fontWeight: '600' },
+  skeletonList: { paddingHorizontal: PAGE_GUTTER, paddingTop: 8 },
+  notificationSkeleton: { minHeight: 78, paddingHorizontal: PAGE_GUTTER, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderBottomWidth: 0, borderColor: C.border, backgroundColor: C.card },
+  skeletonCopy: { flex: 1, marginLeft: 4, gap: 7 },
   emptyState: {
     flex: 1,
     minHeight: 280,

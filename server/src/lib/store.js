@@ -1,17 +1,9 @@
 /**
- * Unified data store for PathoNexa.
+ * Tenant-isolated PathoNexa data store.
  *
- * Uses MongoDB (via mongoose models) when the connection is healthy, and
- * transparently falls back to an in-memory store when Mongo is not configured
- * or unreachable — so the API always responds and the app can be tested
- * locally with zero infrastructure.
- *
- * All route handlers talk to this module; they never touch models directly.
- *
- * Modules implemented here (mirroring the PathoNexa specification):
- *   auth · patients · reports · dashboard · meta (masters) · doctors ledger
- *   commissions · transactions (payment ledger) · expenses summary · analytics
- *   notifications · subscription · settings · backup · roles
+ * Production uses MongoDB. Development may explicitly use the in-memory
+ * adapter, which is partitioned by authenticated account and never contains
+ * demo patients, reports, doctors, transactions, or notifications.
  */
 const crypto = require('crypto');
 const mongoose = require('mongoose');
@@ -21,12 +13,10 @@ const Patient = require('../models/Patient');
 const Report = require('../models/Report');
 const User = require('../models/User');
 const Meta = require('../models/Meta');
-const seed = require('./seedData');
+const TenantCounter = require('../models/TenantCounter');
+const defaults = require('./seedData');
 const cfg = require('../config/appConfig');
-
-/* ------------------------------------------------------------------ */
-/* In-memory state                                                     */
-/* ------------------------------------------------------------------ */
+const { currentTenant, requireTenantId } = require('./tenantContext');
 
 const COLLECTIONS = [
   'tests', 'doctors', 'employees', 'centers', 'payments', 'discounts',
@@ -34,17 +24,29 @@ const COLLECTIONS = [
   'drafts', 'labs', 'roles',
 ];
 
-const mem = {
-  patients: [],
-  reports: [],
-  users: [],
-  deleted: [],
-  notificationState: {},
-  settings: null,
-  subscription: null,
-  seeded: false,
-};
-COLLECTIONS.forEach((k) => { mem[k] = []; });
+const globalMem = { users: [], otpChallenges: new Map(), tenants: new Map() };
+
+function newTenantState() {
+  const state = {
+    patients: [], reports: [], deleted: [], notificationState: {}, settings: null,
+    subscription: null, seeded: false, lastBackupAt: null, sequences: {},
+  };
+  COLLECTIONS.forEach((kind) => { state[kind] = []; });
+  return state;
+}
+
+function tenantMemory() {
+  const ownerId = requireTenantId();
+  if (!globalMem.tenants.has(ownerId)) globalMem.tenants.set(ownerId, newTenantState());
+  return globalMem.tenants.get(ownerId);
+}
+
+// Existing store operations use mem.*. This proxy guarantees those reads and
+// writes resolve only inside the active authenticated account.
+const mem = new Proxy({}, {
+  get(_target, key) { return tenantMemory()[key]; },
+  set(_target, key, value) { tenantMemory()[key] = value; return true; },
+});
 
 function byIdOrPid(id) {
   if (mongoose.isValidObjectId(id)) return { $or: [{ _id: id }, { pid: id }, { reportId: id }] };
@@ -58,133 +60,121 @@ const fmt = (n) => num(n).toLocaleString('en-IN');
 const inr = (n) => `₹${fmt(Math.round(num(n)))}`;
 
 function genPid(now = new Date(), seq = 1) {
-  const d = now;
-  const ymd = `${String(d.getFullYear()).slice(-2)}${pad(d.getMonth() + 1, 2)}${pad(d.getDate(), 2)}`;
+  const ymd = `${String(now.getFullYear()).slice(-2)}${pad(now.getMonth() + 1, 2)}${pad(now.getDate(), 2)}`;
   return `PT${ymd}${pad(seq)}`;
 }
-
 function genReportId(seq = 1, now = new Date()) {
   const ymd = `${String(now.getFullYear()).slice(-2)}${pad(now.getMonth() + 1, 2)}${pad(now.getDate(), 2)}`;
   return `RP${ymd}${pad(seq)}`;
 }
-
-function hoursAgo(h) {
-  return new Date(Date.now() - h * 3600 * 1000);
+async function nextSequence(key) {
+  ensureSeeded();
+  if (useMemory()) {
+    mem.sequences[key] = num(mem.sequences[key]) + 1;
+    return mem.sequences[key];
+  }
+  const counter = await TenantCounter.findOneAndUpdate(
+    { key },
+    { $inc: { value: 1 } },
+    { new: true, upsert: true, setDefaultsOnInsert: true },
+  ).lean();
+  return counter.value;
 }
-
-function daysAgo(d) {
-  return new Date(Date.now() - d * 24 * 3600 * 1000);
+async function setSequenceAtLeast(key, value) {
+  const minimum = Math.max(0, Math.floor(num(value)));
+  if (useMemory()) {
+    mem.sequences[key] = Math.max(num(mem.sequences[key]), minimum);
+    return;
+  }
+  await TenantCounter.findOneAndUpdate(
+    { key },
+    { $max: { value: minimum } },
+    { upsert: true, setDefaultsOnInsert: true },
+  );
 }
-
-function dateLabel(d = new Date()) {
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+function maxSequence(records, field) {
+  return records.reduce((max, record) => {
+    const id = String(record?.[field] || '');
+    return Math.max(max, /^\D{2}\d{6}\d+$/.test(id) ? num(id.slice(8)) : 0);
+  }, 0);
 }
+async function sequenceState() {
+  if (useMemory()) return { patient: num(mem.sequences.patient), report: num(mem.sequences.report) };
+  const counters = await TenantCounter.find({ key: { $in: ['patient', 'report'] } }).lean();
+  return Object.fromEntries(counters.map((counter) => [counter.key, num(counter.value)]));
+}
+function daysAgo(d) { return new Date(Date.now() - d * 24 * 3600 * 1000); }
+function dateLabel(d = new Date()) { return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); }
+function timeLabel(d = new Date()) { return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }); }
 
-function timeLabel(d = new Date()) {
-  return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+function paged(list, query = {}) {
+  const wantsPage = query.page !== undefined || query.limit !== undefined;
+  if (!wantsPage) return list;
+  const page = Math.max(1, Math.floor(num(query.page) || 1));
+  const limit = Math.min(50, Math.max(1, Math.floor(num(query.limit) || 10)));
+  const total = list.length;
+  const pages = Math.max(1, Math.ceil(total / limit));
+  const items = list.slice((page - 1) * limit, page * limit);
+  return { items, pagination: { page, limit, total, pages, hasMore: page * limit < total } };
 }
 
 function withIds(list) {
-  return (list || []).map((item, i) => ({
-    ...item,
-    _id: makeId(),
-    id: undefined,
-    seedId: item.id,
-    createdAt: hoursAgo(i),
-    updatedAt: hoursAgo(i),
-  })).map((x) => ({ ...x, id: x._id }));
+  return (list || []).map((item) => {
+    const _id = makeId();
+    return { ...structuredClone(item), _id, id: _id, seedId: item.id, createdAt: new Date(), updatedAt: new Date() };
+  });
 }
 
-/* ------------------------------------------------------------------ */
-/* Seeding                                                             */
-/* ------------------------------------------------------------------ */
+function defaultSettings() {
+  const tenant = currentTenant();
+  return {
+    name: 'My Pathology Lab', shortName: 'My Pathology Lab', city: '',
+    labId: `LAB${String(tenant?.id || '').slice(-6).toUpperCase()}`, phone: tenant?.mobile ? `+91 ${tenant.mobile}` : '',
+    altPhone: '', email: '', website: '', address: '', pathologist: '', gst: '',
+    logo: '', signature: '', stamp: '',
+    footer: 'This is a computer generated report and does not require physical signature.',
+    reportNote: 'Kindly correlate clinically. Results relate only to the sample tested.',
+    whatsappTemplate: 'Hello {patient},\n\nYour pathology report is ready.\nReport ID: {reportId}\n\nThank You.\n{lab}',
+    theme: 'Blue', language: 'English', autoPrint: true, notifications: true,
+    ownerVerification: true, autoBackup: true, currency: cfg.currencySymbol,
+  };
+}
 
 function defaultSubscription() {
-  const startedAt = daysAgo(2);
-  // Trial length comes from .env (TRIAL_DAYS) via appConfig.
+  const startedAt = new Date();
   const expiresAt = new Date(startedAt.getTime() + cfg.trialDays * 24 * 3600 * 1000);
-  return { ...seed.subscription, startedAt, expiresAt, history: [] };
+  return { plan: 'Free Trial', planId: 'trial', status: 'Active', startedAt, expiresAt, amount: 0, autoRenew: false, history: [] };
 }
 
 function seedMemory() {
   if (mem.seeded) return;
   mem.seeded = true;
-  mem.patients = (seed.patients || []).map((p, i) => ({
-    ...p,
-    _id: makeId(),
-    pid: genPid(new Date(), i + 1),
-    createdAt: hoursAgo(i * 6),
-    updatedAt: hoursAgo(i * 6),
-  }));
-  mem.reports = (seed.reports || []).map((r, i) => {
-    const p = mem.patients[r.patientIndex] || mem.patients[0];
-    return {
-      ...r,
-      _id: makeId(),
-      patient: p,
-      color: p?.color,
-      createdAt: hoursAgo(Math.min(i, 5) * 2),
-      updatedAt: hoursAgo(Math.min(i, 5) * 2),
-    };
-  });
-  COLLECTIONS.forEach((k) => { mem[k] = withIds(seed[k] || []); });
-  mem.settings = { ...seed.settings };
+  // Clinical test definitions are account-owned onboarding templates, not
+  // demo activity. All business records start empty.
+  mem.tests = withIds(defaults.tests || []);
+  mem.settings = defaultSettings();
   mem.subscription = defaultSubscription();
-
-  // Seed the payment ledger from the demo reports so the module is never empty.
-  mem.transactions = mem.reports
-    .filter((r) => num(r.paidAmount) > 0)
-    .map((r, i) => ({
-      _id: makeId(),
-      txnId: `TXN${Date.now().toString().slice(-6)}${i}`,
-      reportId: r.reportId,
-      report: r._id,
-      patient: r.patient?.name,
-      patientId: r.patient?._id,
-      amount: num(r.paidAmount),
-      mode: r.paymentMode || 'Cash',
-      type: 'Collection',
-      note: 'Report billing',
-      date: r.date,
-      createdAt: r.createdAt,
-      updatedAt: r.createdAt,
-    }));
 }
 
-async function seedMongo() {
-  // Master data is seeded once so a fresh database is immediately usable.
-  const existing = await Meta.countDocuments();
-  if (existing > 0) return;
-  const docs = [];
-  COLLECTIONS.forEach((kind) => {
-    (seed[kind] || []).forEach((item) => docs.push({ kind, data: { ...item, id: undefined } }));
-  });
-  docs.push({ kind: 'settings', data: { ...seed.settings } });
-  docs.push({ kind: 'subscription', data: defaultSubscription() });
-  if (docs.length) await Meta.insertMany(docs);
-}
-
-/* ------------------------------------------------------------------ */
-/* Mode helpers                                                        */
-/* ------------------------------------------------------------------ */
-
-const useMemory = () => !db.isReady();
-
-function ensureSeeded() {
-  if (useMemory()) seedMemory();
-}
-
-let mongoSeedPromise = null;
+const mongoOnboarding = new Map();
 async function ensureMongoSeeded() {
   if (useMemory()) return;
-  if (!mongoSeedPromise) mongoSeedPromise = seedMongo().catch((e) => {
-    mongoSeedPromise = null;
-    console.warn('[store] mongo seed failed:', e.message);
-  });
-  await mongoSeedPromise;
+  const ownerId = requireTenantId();
+  if (!mongoOnboarding.has(ownerId)) {
+    mongoOnboarding.set(ownerId, (async () => {
+      const marker = await Meta.findOne({ kind: 'onboarding' });
+      if (marker) return;
+      const docs = (defaults.tests || []).map(({ id, ...data }) => ({ kind: 'tests', data }));
+      if (docs.length) await Meta.insertMany(docs);
+      await Meta.create({ kind: 'onboarding', data: { version: 1, completedAt: new Date() } });
+    })().catch((error) => { mongoOnboarding.delete(ownerId); throw error; }));
+  }
+  await mongoOnboarding.get(ownerId);
 }
 
-/** Loads every record of a master collection, whichever backend is active. */
+const useMemory = () => !db.isReady();
+function ensureSeeded() { if (useMemory()) seedMemory(); }
+
 async function all(kind) {
   ensureSeeded();
   if (useMemory()) return [...(mem[kind] || [])];
@@ -200,86 +190,87 @@ async function allReports() {
   return Report.find().populate('patient').lean();
 }
 
-/* ------------------------------------------------------------------ */
-/* Auth & roles                                                        */
-/* ------------------------------------------------------------------ */
-
-// Demo OTP is configurable via .env (DEMO_OTP) until a real SMS gateway exists.
-const OTP = cfg.demoOtp;
-const signToken = (id) =>
-  jwt.sign({ id: String(id) }, process.env.JWT_SECRET || 'pathonexa-dev-secret', { expiresIn: '30d' });
-
+const OTP = cfg.internalOtp;
+function authSecret() {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || (process.env.NODE_ENV === 'production' && secret.length < 32)) {
+    throw Object.assign(new Error('Server authentication is not configured'), { status: 503 });
+  }
+  return secret;
+}
+const signToken = (user) => jwt.sign(
+  { mobile: user.mobile, role: user.role }, authSecret(),
+  { subject: String(user._id), expiresIn: '30d', algorithm: 'HS256', issuer: 'pathonexa-api', audience: 'pathonexa-app' },
+);
+function otpHash(mobile, otp) { return crypto.createHmac('sha256', authSecret()).update(`${mobile}:${otp}`).digest('hex'); }
 function permissionsFor(roleName) {
-  const role = (seed.roles || []).find((r) => r.name.toLowerCase() === String(roleName || '').toLowerCase());
-  return role ? role.permissions : (seed.roles[1]?.permissions || []);
+  const role = (defaults.roles || []).find((r) => r.name.toLowerCase() === String(roleName || '').toLowerCase());
+  return role ? role.permissions : (defaults.PERMISSIONS || []);
+}
+function publicUser(user) {
+  return { id: String(user._id), mobile: user.mobile, name: user.name, role: user.role, permissions: permissionsFor(user.role) };
 }
 
 const auth = {
   async login(mobile) {
-    if (!mobile || !/^\d{10}$/.test(mobile)) {
-      const err = new Error('A valid 10-digit mobile number is required');
-      err.status = 400;
-      throw err;
-    }
-    return { message: `OTP sent to +91 ${mobile} (demo OTP: ${OTP})` };
+    await db.whenReady();
+    mobile = String(mobile || '').trim();
+    if (!/^[6-9]\d{9}$/.test(mobile)) throw Object.assign(new Error('A valid 10-digit Indian mobile number is required'), { status: 400 });
+    const now = Date.now();
+    const existing = globalMem.otpChallenges.get(mobile);
+    if (existing && now - existing.requestedAt < 1500) throw Object.assign(new Error('Please wait before requesting another OTP'), { status: 429 });
+    globalMem.otpChallenges.set(mobile, { hash: otpHash(mobile, OTP), expiresAt: now + 5 * 60_000, requestedAt: now, attempts: 0 });
+    return { message: 'OTP sent successfully', expiresInSeconds: 300 };
   },
 
   async verify(mobile, otp) {
-    if (!mobile || !otp) {
-      const err = new Error('Mobile number and OTP are required');
-      err.status = 400;
-      throw err;
+    await db.whenReady();
+    mobile = String(mobile || '').trim();
+    otp = String(otp || '').trim();
+    if (!/^[6-9]\d{9}$/.test(mobile) || !/^\d{6}$/.test(otp)) throw Object.assign(new Error('Mobile number and OTP are required'), { status: 400 });
+    const challenge = globalMem.otpChallenges.get(mobile);
+    if (!challenge || challenge.expiresAt < Date.now() || challenge.attempts >= 5) {
+      globalMem.otpChallenges.delete(mobile);
+      throw Object.assign(new Error('Invalid or expired OTP'), { status: 400 });
     }
-    if (otp !== OTP) {
-      const err = new Error(`Invalid OTP. The demo OTP is ${OTP}.`);
-      err.status = 400;
-      throw err;
-    }
-    ensureSeeded();
-
-    // A staff member registered under Lab Employees signs in with their role.
-    const staff = (await all('employees')).find((e) => e.mobile === mobile);
-    const name = staff?.name || 'Ravi Sharma';
-    const role = staff?.role || 'Lab Owner';
+    challenge.attempts += 1;
+    const actual = Buffer.from(challenge.hash, 'hex');
+    const supplied = Buffer.from(otpHash(mobile, otp), 'hex');
+    if (actual.length !== supplied.length || !crypto.timingSafeEqual(actual, supplied)) throw Object.assign(new Error('Invalid or expired OTP'), { status: 400 });
+    globalMem.otpChallenges.delete(mobile);
 
     let user;
     if (useMemory()) {
-      user = mem.users.find((u) => u.mobile === mobile);
+      user = globalMem.users.find((item) => item.mobile === mobile);
       if (!user) {
-        user = { _id: makeId(), mobile, name, role, createdAt: new Date() };
-        mem.users.push(user);
-      } else {
-        user.name = name;
-        user.role = role;
+        user = { _id: makeId(), mobile, name: 'Lab Owner', role: 'Lab Owner', createdAt: new Date() };
+        globalMem.users.push(user);
       }
     } else {
       user = await User.findOne({ mobile });
-      if (!user) user = await User.create({ mobile, name, role });
-      else if (user.role !== role || user.name !== name) {
-        user.role = role;
-        user.name = name;
-        await user.save();
-      }
+      if (!user) user = await User.create({ mobile, name: 'Lab Owner', role: 'Lab Owner' });
     }
-    return {
-      token: signToken(user._id),
-      user: {
-        mobile: user.mobile,
-        name: user.name,
-        role: user.role,
-        permissions: permissionsFor(user.role),
-      },
-    };
+    return { token: signToken(user), user: publicUser(user) };
+  },
+
+  async findUser(id) {
+    if (db.isReady()) return User.findById(id).lean();
+    return globalMem.users.find((user) => String(user._id) === String(id)) || null;
+  },
+
+  async me(id) {
+    const user = await auth.findUser(id);
+    if (!user) throw Object.assign(new Error('Account not found'), { status: 404 });
+    return { user: publicUser(user) };
   },
 };
 
 const roles = {
   async list() {
     const custom = await all('roles');
-    if (custom.length) return custom;
-    return seed.roles;
+    return custom.length ? custom : defaults.roles;
   },
-  permissions: () => seed.PERMISSIONS,
+  permissions: () => defaults.PERMISSIONS,
 };
 
 /* ------------------------------------------------------------------ */
@@ -293,11 +284,20 @@ const PATIENT_FIELDS = [
 ];
 
 const patients = {
-  async list() {
+  async list(query = {}) {
     ensureSeeded();
-    if (useMemory()) return [...mem.patients].sort((a, b) => b.createdAt - a.createdAt);
-    await ensureMongoSeeded();
-    return Patient.find().sort({ createdAt: -1 }).lean();
+    let list;
+    if (useMemory()) list = [...mem.patients].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    else {
+      await ensureMongoSeeded();
+      list = await Patient.find().sort({ createdAt: -1 }).lean();
+    }
+    const q = String(query.q || query.search || '').trim().toLowerCase().slice(0, 100);
+    const gender = String(query.gender || '');
+    if (q) list = list.filter((patient) => [patient.name, patient.pid, patient.mobile, patient.lastTest]
+      .some((value) => String(value || '').toLowerCase().includes(q)));
+    if (['Male', 'Female', 'Other'].includes(gender)) list = list.filter((patient) => patient.gender === gender);
+    return paged(list, query);
   },
 
   async getById(id) {
@@ -437,7 +437,7 @@ const patients = {
       const doc = {
         ...data,
         _id: makeId(),
-        pid: genPid(new Date(), mem.patients.length + 1),
+        pid: genPid(new Date(), await nextSequence('patient')),
         color: data.color || '#DBEAFE',
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -451,9 +451,15 @@ const patients = {
       err.status = 400;
       throw err;
     }
-    const count = await Patient.countDocuments();
-    const doc = await Patient.create({ ...data, pid: genPid(new Date(), count + 1) });
-    return doc.toObject();
+    try {
+      const doc = await Patient.create({ ...data, pid: genPid(new Date(), await nextSequence('patient')) });
+      return doc.toObject();
+    } catch (error) {
+      if (error?.code === 11000 && error?.keyPattern?.mobile) {
+        throw Object.assign(new Error('A patient with this mobile number already exists'), { status: 400 });
+      }
+      throw error;
+    }
   },
 };
 
@@ -500,11 +506,27 @@ function assertDiscountAllowed(amount, discount) {
 }
 
 const reports = {
-  async list() {
+  async list(query = {}) {
     ensureSeeded();
-    if (useMemory()) return [...mem.reports].sort((a, b) => b.createdAt - a.createdAt);
-    await ensureMongoSeeded();
-    return Report.find().populate('patient').sort({ createdAt: -1 }).lean();
+    let list;
+    if (useMemory()) list = [...mem.reports].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    else {
+      await ensureMongoSeeded();
+      list = await Report.find().populate('patient').sort({ createdAt: -1 }).lean();
+    }
+    const q = String(query.q || query.search || '').trim().toLowerCase().slice(0, 100);
+    const status = String(query.status || '');
+    const from = query.from ? new Date(String(query.from)) : null;
+    const to = query.to ? new Date(String(query.to)) : null;
+    if (q) list = list.filter((report) => [report.patient?.name, report.patient?.pid, report.reportId, report.test, report.doctor]
+      .some((value) => String(value || '').toLowerCase().includes(q)));
+    if (['Pending', 'Completed', 'Cancelled'].includes(status)) list = list.filter((report) => report.status === status);
+    if (from && !Number.isNaN(from.getTime())) list = list.filter((report) => new Date(report.createdAt) >= from);
+    if (to && !Number.isNaN(to.getTime())) {
+      to.setHours(23, 59, 59, 999);
+      list = list.filter((report) => new Date(report.createdAt) <= to);
+    }
+    return paged(list, query);
   },
 
   async getById(id) {
@@ -528,8 +550,7 @@ const reports = {
   },
 
   async nextReportId() {
-    const list = await allReports();
-    return genReportId(list.length + 1);
+    return genReportId(await nextSequence('report'));
   },
 
   async create(data) {
@@ -551,24 +572,24 @@ const reports = {
     payload.date = payload.date || dateLabel();
     payload.time = payload.time || timeLabel();
 
+    // Resolve the reference through the tenant-scoped patient API before any
+    // report is created. A valid ObjectId belonging to another account is
+    // indistinguishable from a missing patient and can never be attached.
+    const ownPatient = await patients.getById(String(patient));
+    const ownPatientId = String(ownPatient._id);
+
     let doc;
     if (useMemory()) {
-      const p = mem.patients.find((x) => x._id === patient || x.pid === patient);
-      if (!p) {
-        const err = new Error('Patient not found');
-        err.status = 400;
-        throw err;
-      }
-      doc = { ...payload, _id: makeId(), patient: p, createdAt: new Date(), updatedAt: new Date() };
-      p.lastTest = payload.test;
-      p.lastTestDate = payload.date;
+      doc = { ...payload, _id: makeId(), patient: ownPatient, createdAt: new Date(), updatedAt: new Date() };
+      ownPatient.lastTest = payload.test;
+      ownPatient.lastTestDate = payload.date;
       mem.reports.unshift(doc);
     } else {
-      const created = await Report.create({ ...payload, patient });
-      await Patient.findOneAndUpdate(byIdOrPid(String(patient)), {
+      const created = await Report.create({ ...payload, patient: ownPatientId });
+      await Patient.findOneAndUpdate(byIdOrPid(ownPatientId), {
         $set: { lastTest: payload.test, lastTestDate: payload.date },
       });
-      doc = (await Report.findById(created._id).populate('patient').lean());
+      doc = await Report.findById(created._id).populate('patient').lean();
     }
 
     // Every billed rupee lands in the payment ledger.
@@ -861,22 +882,22 @@ const meta = {
 const settings = {
   async get() {
     ensureSeeded();
-    if (useMemory()) return { ...(mem.settings || seed.settings) };
+    if (useMemory()) return { ...(mem.settings || defaultSettings()) };
     await ensureMongoSeeded();
     const doc = await Meta.findOne({ kind: 'settings' });
     if (!doc) {
-      const created = await Meta.create({ kind: 'settings', data: { ...seed.settings } });
+      const created = await Meta.create({ kind: 'settings', data: defaultSettings() });
       return { ...created.data };
     }
-    return { ...seed.settings, ...doc.data };
+    return { ...defaultSettings(), ...doc.data };
   },
   async update(patch) {
     ensureSeeded();
     if (useMemory()) {
-      mem.settings = { ...(mem.settings || seed.settings), ...(patch || {}) };
+      mem.settings = { ...(mem.settings || defaultSettings()), ...(patch || {}) };
       return { ...mem.settings };
     }
-    const doc = (await Meta.findOne({ kind: 'settings' })) || (await Meta.create({ kind: 'settings', data: { ...seed.settings } }));
+    const doc = (await Meta.findOne({ kind: 'settings' })) || (await Meta.create({ kind: 'settings', data: defaultSettings() }));
     doc.data = { ...doc.data, ...(patch || {}) };
     doc.markModified('data');
     await doc.save();
@@ -1098,7 +1119,7 @@ const commissions = {
 /* ------------------------------------------------------------------ */
 
 const expenses = {
-  categories: () => seed.EXPENSE_CATEGORIES,
+  categories: () => defaults.EXPENSE_CATEGORIES,
 
   async summary() {
     const list = await all('expenses');
@@ -1131,7 +1152,7 @@ const expenses = {
         .map(([category, amount]) => ({ category, amount }))
         .sort((a, b) => b.amount - a.amount),
       monthly: Array.from(monthly.values()).sort((a, b) => (a.key < b.key ? 1 : -1)),
-      categories: seed.EXPENSE_CATEGORIES,
+      categories: defaults.EXPENSE_CATEGORIES,
     };
   },
 };
@@ -1323,7 +1344,7 @@ const analytics = {
 /* ------------------------------------------------------------------ */
 
 const subscription = {
-  plans: () => seed.plans,
+  plans: () => defaults.plans,
 
   async get() {
     ensureSeeded();
@@ -1344,12 +1365,12 @@ const subscription = {
       daysLeft,
       status: daysLeft > 0 ? 'Active' : 'Expired',
       expiringSoon: daysLeft > 0 && daysLeft <= 5,
-      plans: seed.plans,
+      plans: defaults.plans,
     };
   },
 
   async subscribe(planId) {
-    const plan = (seed.plans || []).find((p) => p.id === planId);
+    const plan = (defaults.plans || []).find((p) => p.id === planId);
     if (!plan) {
       const err = new Error('Unknown plan');
       err.status = 400;
@@ -1396,83 +1417,88 @@ const subscription = {
 /* Notifications                                                       */
 /* ------------------------------------------------------------------ */
 
+async function notificationState() {
+  ensureSeeded();
+  if (useMemory()) return mem.notificationState;
+  const doc = (await Meta.findOne({ kind: 'notification-state' }))
+    || (await Meta.create({ kind: 'notification-state', data: { read: {} } }));
+  return { doc, read: doc.data?.read || {} };
+}
+
+async function persistNotificationState(state) {
+  if (useMemory()) {
+    mem.notificationState = state;
+    return;
+  }
+  const holder = await notificationState();
+  holder.doc.data = { ...(holder.doc.data || {}), read: state };
+  holder.doc.markModified('data');
+  await holder.doc.save();
+}
+
 const notifications = {
-  async list() {
+  async list(query = {}) {
     const reportList = await allReports();
     const sub = await subscription.get();
     const wallet = await commissions.summary();
     const out = [];
 
-    reportList
-      .filter((r) => r.status === 'Completed' && !r.notified)
-      .slice(0, 10)
-      .forEach((r) => out.push({
-        id: `ready-${r._id}`,
-        type: 'Report Ready',
-        tone: 'green',
-        title: `Report ready · ${r.test}`,
-        subtitle: `${r.patient?.name || 'Patient'} · ${r.reportId}`,
-        reportId: String(r._id),
-        at: r.updatedAt || r.createdAt,
-      }));
+    reportList.filter((r) => r.status === 'Completed').slice(0, 50).forEach((r) => out.push({
+      id: `ready-${r._id}`, type: 'Report Ready', tone: 'green',
+      title: `Report ready · ${r.test}`,
+      subtitle: `${r.patient?.name || 'Patient'} · ${r.reportId}`,
+      reportId: String(r._id), at: r.updatedAt || r.createdAt,
+    }));
 
-    reportList
-      .filter((r) => num(r.pendingAmount ?? (r.paid ? 0 : r.amount)) > 0)
-      .slice(0, 20)
-      .forEach((r) => out.push({
-        id: `pay-${r._id}`,
-        type: 'Payment Pending',
-        tone: 'orange',
-        title: `Payment pending · ${inr(num(r.pendingAmount ?? r.amount))}`,
-        subtitle: `${r.patient?.name || 'Patient'} · ${r.reportId}`,
-        reportId: String(r._id),
-        at: r.createdAt,
-      }));
+    reportList.filter((r) => num(r.pendingAmount ?? (r.paid ? 0 : r.amount)) > 0).slice(0, 50).forEach((r) => out.push({
+      id: `pay-${r._id}`, type: 'Payment Pending', tone: 'orange',
+      title: `Payment pending · ${inr(num(r.pendingAmount ?? r.amount))}`,
+      subtitle: `${r.patient?.name || 'Patient'} · ${r.reportId}`,
+      reportId: String(r._id), at: r.createdAt,
+    }));
 
-    if (wallet.pendingCommission > 0) {
-      out.push({
-        id: 'commission-due',
-        type: 'Doctor Commission Due',
-        tone: 'purple',
-        title: `Commission payout due · ${inr(wallet.pendingCommission)}`,
-        subtitle: `${wallet.doctors.filter((d) => d.pendingCommission > 0).length} doctors waiting`,
-        at: new Date(),
-      });
-    }
+    if (wallet.pendingCommission > 0) out.push({
+      id: 'commission-due', type: 'Doctor Commission Due', tone: 'purple',
+      title: `Commission payout due · ${inr(wallet.pendingCommission)}`,
+      subtitle: `${wallet.doctors.filter((d) => d.pendingCommission > 0).length} doctors waiting`, at: new Date(),
+    });
 
-    if (sub.daysLeft <= 7) {
-      out.push({
-        id: 'subscription',
-        type: 'Subscription Expiry',
-        tone: sub.daysLeft > 0 ? 'orange' : 'red',
-        title: sub.daysLeft > 0
-          ? `${sub.plan} expires in ${sub.daysLeft} day${sub.daysLeft === 1 ? '' : 's'}`
-          : `${sub.plan} has expired`,
-        subtitle: 'Renew to keep cloud backup and WhatsApp sharing active',
-        at: new Date(),
-      });
-    }
+    if (sub.daysLeft <= 7) out.push({
+      id: 'subscription', type: 'Subscription Expiry', tone: sub.daysLeft > 0 ? 'orange' : 'red',
+      title: sub.daysLeft > 0 ? `${sub.plan} expires in ${sub.daysLeft} day${sub.daysLeft === 1 ? '' : 's'}` : `${sub.plan} has expired`,
+      subtitle: 'Renew to keep cloud backup and WhatsApp sharing active', at: new Date(),
+    });
 
-    const read = mem.notificationState;
-    return out
-      .map((n) => ({ ...n, read: !!read[n.id] }))
+    const holder = await notificationState();
+    const read = useMemory() ? holder : holder.read;
+    const list = out.map((item) => ({ ...item, read: !!read[item.id] }))
       .sort((a, b) => new Date(b.at) - new Date(a.at));
+    const filtered = String(query.unread || '') === 'true' ? list.filter((item) => !item.read) : list;
+    return paged(filtered, query);
   },
 
   async markRead(id) {
-    mem.notificationState[id] = true;
+    const list = await notifications.list();
+    if (!list.some((item) => item.id === id)) throw Object.assign(new Error('Notification not found'), { status: 404 });
+    const holder = await notificationState();
+    const read = useMemory() ? holder : holder.read;
+    read[id] = true;
+    await persistNotificationState(read);
     return { id, read: true };
   },
 
   async markAllRead() {
     const list = await notifications.list();
-    list.forEach((n) => { mem.notificationState[n.id] = true; });
+    const holder = await notificationState();
+    const read = useMemory() ? holder : holder.read;
+    list.forEach((item) => { read[item.id] = true; });
+    await persistNotificationState(read);
     return { read: list.length };
   },
 
   async unreadCount() {
     const list = await notifications.list();
-    return list.filter((n) => !n.read).length;
+    return list.filter((item) => !item.read).length;
   },
 };
 
@@ -1480,102 +1506,179 @@ const notifications = {
 /* Backup & restore                                                    */
 /* ------------------------------------------------------------------ */
 
+function backupOwnerProof() {
+  return crypto.createHmac('sha256', authSecret()).update(`backup:${requireTenantId()}`).digest('hex');
+}
+
+function pick(source, fields) {
+  const out = {};
+  fields.forEach((field) => { if (source?.[field] !== undefined) out[field] = source[field]; });
+  return out;
+}
+
+function reportPatientKeys(value) {
+  if (value && typeof value === 'object') return [value._id, value.id, value.pid].filter(Boolean).map(String);
+  return value == null ? [] : [String(value)];
+}
+
+function validateUnique(list, field, label) {
+  const values = list.map((item) => String(item[field] || '')).filter(Boolean);
+  if (new Set(values).size !== values.length) throw Object.assign(new Error(`Backup contains duplicate ${label}`), { status: 400 });
+}
+
+async function backupState() {
+  if (useMemory()) return { lastBackupAt: mem.lastBackupAt || null };
+  const doc = await Meta.findOne({ kind: 'backup-state' });
+  return { lastBackupAt: doc?.data?.lastBackupAt || null, doc };
+}
+
 const backup = {
   async export() {
     ensureSeeded();
+    const holder = await notificationState();
+    const notificationRead = useMemory() ? holder : holder.read;
     const data = {
       meta: {
-        app: 'PathoNexa',
-        version: 1,
-        exportedAt: new Date().toISOString(),
-        storage: useMemory() ? 'memory' : 'mongodb',
+        app: 'PathoNexa', version: 2, owner: backupOwnerProof(),
+        exportedAt: new Date().toISOString(), storage: useMemory() ? 'memory' : 'mongodb',
       },
-      patients: await patients.list(),
-      reports: await reports.list(),
-      settings: await settings.get(),
-      subscription: await subscription.get(),
+      patients: await patients.list(), reports: await reports.list(),
+      settings: await settings.get(), subscription: await subscription.get(),
+      notificationRead, sequences: await sequenceState(),
     };
-    for (const kind of COLLECTIONS) {
-      // eslint-disable-next-line no-await-in-loop
-      data[kind] = await all(kind);
-    }
+    for (const kind of COLLECTIONS) data[kind] = await all(kind); // eslint-disable-line no-restricted-syntax
     data.deleted = await meta.deleted();
     return data;
   },
 
   async restore(payload) {
-    if (!payload || typeof payload !== 'object') {
-      const err = new Error('A backup JSON body is required');
-      err.status = 400;
-      throw err;
+    if (!payload || typeof payload !== 'object' || payload.meta?.app !== 'PathoNexa' || payload.meta?.version !== 2) {
+      throw Object.assign(new Error('A valid PathoNexa backup is required'), { status: 400 });
     }
-    ensureSeeded();
-    const counts = {};
-    if (useMemory()) {
-      if (Array.isArray(payload.patients)) {
-        mem.patients = payload.patients.map((p) => ({ ...p, _id: p._id || makeId(), createdAt: new Date(p.createdAt || Date.now()) }));
-        counts.patients = mem.patients.length;
-      }
-      if (Array.isArray(payload.reports)) {
-        mem.reports = payload.reports.map((r) => ({ ...r, _id: r._id || makeId(), createdAt: new Date(r.createdAt || Date.now()) }));
-        counts.reports = mem.reports.length;
-      }
-      COLLECTIONS.forEach((kind) => {
-        if (Array.isArray(payload[kind])) {
-          mem[kind] = payload[kind].map((x) => ({ ...x, _id: x._id || makeId() }));
-          counts[kind] = mem[kind].length;
-        }
-      });
-      if (payload.settings) mem.settings = { ...seed.settings, ...payload.settings };
-      if (payload.subscription) mem.subscription = payload.subscription;
-      return { restored: counts, storage: 'memory' };
+    const suppliedOwner = Buffer.from(String(payload.meta.owner || ''));
+    const expectedOwner = Buffer.from(backupOwnerProof());
+    if (suppliedOwner.length !== expectedOwner.length || !crypto.timingSafeEqual(suppliedOwner, expectedOwner)) {
+      throw Object.assign(new Error('This backup belongs to a different account'), { status: 403 });
     }
 
-    if (Array.isArray(payload.patients)) {
-      await Patient.deleteMany({});
-      await Patient.insertMany(payload.patients.map(({ _id, ...p }) => p));
-      counts.patients = payload.patients.length;
+    const hasPatients = Array.isArray(payload.patients);
+    const hasReports = Array.isArray(payload.reports);
+    const incomingPatients = hasPatients ? payload.patients.slice(0, 100000) : await patients.list();
+    if (hasPatients && incomingPatients.length !== payload.patients.length) throw Object.assign(new Error('Backup is too large'), { status: 413 });
+
+    const preparedPatients = incomingPatients.map((item) => ({
+      ...pick(item, ['pid', ...PATIENT_FIELDS]),
+      name: String(item?.name || '').trim(), mobile: String(item?.mobile || '').trim(),
+      age: num(item?.age), gender: item?.gender,
+      pid: String(item?.pid || '').trim(),
+      _sourceKeys: [item?._id, item?.id, item?.pid].filter(Boolean).map(String),
+    }));
+    preparedPatients.forEach((item) => {
+      if (!item.pid || !item.name || !/^[6-9]\d{9}$/.test(item.mobile) || !['Male', 'Female', 'Other'].includes(item.gender)) {
+        throw Object.assign(new Error('Backup contains an invalid patient'), { status: 400 });
+      }
+    });
+    validateUnique(preparedPatients, 'pid', 'patient IDs');
+    validateUnique(preparedPatients, 'mobile', 'patient mobile numbers');
+
+    const sourcePatientIndex = new Map();
+    preparedPatients.forEach((item, index) => item._sourceKeys.forEach((key) => sourcePatientIndex.set(key, index)));
+    const preparedReports = (hasReports ? payload.reports : []).map((item) => {
+      const sourceIndex = reportPatientKeys(item?.patient).map((key) => sourcePatientIndex.get(key)).find((value) => value !== undefined);
+      if (sourceIndex === undefined) throw Object.assign(new Error('Backup report references an unavailable patient'), { status: 400 });
+      const report = {
+        ...pick(item, ['reportId', ...REPORT_FIELDS]),
+        reportId: String(item?.reportId || '').trim(), test: String(item?.test || '').trim(), amount: num(item?.amount),
+        _sourcePatientIndex: sourceIndex,
+      };
+      if (!report.reportId || !report.test || report.amount < 0) throw Object.assign(new Error('Backup contains an invalid report'), { status: 400 });
+      return report;
+    });
+    validateUnique(preparedReports, 'reportId', 'report IDs');
+
+    const counts = {};
+    let restoredPatients;
+    if (hasPatients) {
+      if (useMemory()) {
+        mem.patients = preparedPatients.map(({ _sourceKeys, ...item }) => ({ ...item, _id: makeId(), createdAt: new Date(), updatedAt: new Date() }));
+        restoredPatients = mem.patients;
+        // Replacing patients invalidates reports unless reports are restored too.
+        mem.reports = [];
+      } else {
+        await Report.deleteMany({});
+        await Patient.deleteMany({});
+        restoredPatients = await Patient.insertMany(preparedPatients.map(({ _sourceKeys, ...item }) => item));
+      }
+      counts.patients = restoredPatients.length;
+    } else {
+      restoredPatients = incomingPatients;
     }
-    if (Array.isArray(payload.reports)) {
-      await Report.deleteMany({});
-      counts.reports = payload.reports.length;
-    }
+
+    if (hasReports) {
+      const records = preparedReports.map(({ _sourcePatientIndex, ...item }) => ({
+        ...item,
+        patient: useMemory() ? restoredPatients[_sourcePatientIndex] : restoredPatients[_sourcePatientIndex]._id,
+      }));
+      if (useMemory()) {
+        mem.reports = records.map((item) => ({ ...item, _id: makeId(), createdAt: new Date(), updatedAt: new Date() }));
+      } else {
+        if (!hasPatients) await Report.deleteMany({});
+        await Report.insertMany(records);
+      }
+      counts.reports = records.length;
+    } else if (hasPatients) counts.reports = 0;
+
+    if (hasPatients) await setSequenceAtLeast('patient', Math.max(maxSequence(preparedPatients, 'pid'), num(payload.sequences?.patient)));
+    if (hasReports) await setSequenceAtLeast('report', Math.max(maxSequence(preparedReports, 'reportId'), num(payload.sequences?.report)));
+
     for (const kind of COLLECTIONS) {
-      if (Array.isArray(payload[kind])) {
-        // eslint-disable-next-line no-await-in-loop
-        await Meta.deleteMany({ kind });
-        // eslint-disable-next-line no-await-in-loop
-        await Meta.insertMany(payload[kind].map(({ _id, ...data }) => ({ kind, data })));
-        counts[kind] = payload[kind].length;
+      if (!Array.isArray(payload[kind])) continue;
+      const records = payload[kind].slice(0, 100000).map(({ _id, id, ownerId, createdAt, updatedAt, ...data }) => data);
+      if (records.length !== payload[kind].length) throw Object.assign(new Error('Backup is too large'), { status: 413 });
+      if (useMemory()) mem[kind] = records.map((data) => ({ ...data, _id: makeId(), id: makeId(), createdAt: new Date(), updatedAt: new Date() }));
+      else {
+        await Meta.deleteMany({ kind }); // tenant plugin makes this account-local
+        if (records.length) await Meta.insertMany(records.map((data) => ({ kind, data })));
+      }
+      counts[kind] = records.length;
+    }
+
+    if (payload.settings && typeof payload.settings === 'object') await settings.update(payload.settings);
+    if (payload.subscription && typeof payload.subscription === 'object') {
+      if (useMemory()) mem.subscription = payload.subscription;
+      else {
+        const doc = (await Meta.findOne({ kind: 'subscription' })) || await Meta.create({ kind: 'subscription', data: {} });
+        doc.data = payload.subscription; doc.markModified('data'); await doc.save();
       }
     }
-    if (payload.settings) await settings.update(payload.settings);
-    return { restored: counts, storage: 'mongodb' };
+    if (payload.notificationRead && typeof payload.notificationRead === 'object') await persistNotificationState(payload.notificationRead);
+    return { restored: counts, storage: useMemory() ? 'memory' : 'mongodb' };
   },
 
   async status() {
     const data = {
-      patients: (await patients.list()).length,
-      reports: (await reports.list()).length,
-      tests: (await all('tests')).length,
-      doctors: (await all('doctors')).length,
-      transactions: (await all('transactions')).length,
-      expenses: (await all('expenses')).length,
+      patients: (await patients.list()).length, reports: (await reports.list()).length,
+      tests: (await all('tests')).length, doctors: (await all('doctors')).length,
+      transactions: (await all('transactions')).length, expenses: (await all('expenses')).length,
     };
-    const s = await settings.get();
+    const labSettings = await settings.get();
+    const state = await backupState();
     return {
-      storage: useMemory() ? 'In-memory (demo)' : 'MongoDB (cloud)',
-      autoBackup: !!s.autoBackup,
-      lastBackupAt: mem.lastBackupAt || null,
-      records: data,
-      totalRecords: Object.values(data).reduce((a, b) => a + b, 0),
+      storage: useMemory() ? 'Development memory' : 'MongoDB', autoBackup: !!labSettings.autoBackup,
+      lastBackupAt: state.lastBackupAt, records: data,
+      totalRecords: Object.values(data).reduce((sum, value) => sum + value, 0),
     };
   },
 
   async run() {
-    mem.lastBackupAt = new Date();
+    const at = new Date();
+    if (useMemory()) mem.lastBackupAt = at;
+    else {
+      const doc = (await Meta.findOne({ kind: 'backup-state' })) || await Meta.create({ kind: 'backup-state', data: {} });
+      doc.data = { ...(doc.data || {}), lastBackupAt: at }; doc.markModified('data'); await doc.save();
+    }
     const snapshot = await backup.export();
-    return { ok: true, at: mem.lastBackupAt, records: Object.keys(snapshot).length };
+    return { ok: true, at, records: Object.keys(snapshot).length };
   },
 };
 

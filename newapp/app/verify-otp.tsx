@@ -60,8 +60,10 @@ export default function VerifyOtpScreen() {
 
     setSubmitting(true);
     setError('');
-    const verified = await verifyOtp(otp);
-    if (!verified) {
+    try {
+      const verified = await verifyOtp(otp);
+      if (verified) return;
+
       const nextAttempts = attempts + 1;
       setAttempts(nextAttempts);
       setOtp('');
@@ -76,6 +78,9 @@ export default function VerifyOtpScreen() {
         );
         requestAnimationFrame(() => inputRef.current?.focus());
       }
+    } catch (verificationError) {
+      setError(verificationError instanceof Error ? verificationError.message : 'Unable to verify OTP. Try again.');
+    } finally {
       setSubmitting(false);
     }
   };

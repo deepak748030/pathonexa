@@ -3,10 +3,9 @@
 Production-grade REST API for the **PathoNexa Lab Management app** — built with
 **Node.js + Express + MongoDB (Mongoose)**.
 
-> 💡 **Zero-setup local demo:** if MongoDB is not available, the server
-> automatically falls back to a built-in **in-memory store** (seeded with demo
-> data) so the API always responds. Perfect for running the app locally and
-> checking the full flow without installing a database.
+> 🔐 **Persistent by default:** MongoDB is required for account data. The server
+> fails closed when persistence is unavailable. A disposable, tenant-partitioned
+> in-memory adapter exists only for automated tests or explicit local opt-in.
 
 ---
 
@@ -30,7 +29,7 @@ Notifications, Subscriptions).
 | 📋 **Reports API** | List (patient populated), get-by-id, create |
 | 📊 **Dashboard API** | Headline stats + last-7-days chart data |
 | 🧬 **Meta API** | Tests catalogue & referring doctors list |
-| 🛡️ **Resilient store** | MongoDB ↔ in-memory fallback, auto demo-data seeding |
+| 🛡️ **Tenant-safe store** | Mandatory account ownership, persistent MongoDB, account-scoped IDs and backup proofs |
 | 🌍 **Deploy-ready** | Works locally and on Vercel (`vercel.json` included) |
 
 ---
@@ -52,11 +51,11 @@ Verify it's alive:
 
 ```bash
 curl http://localhost:5000/api/health
-# → { "status": "ok", "db": "memory", ... }   (or "db": "mongodb")
+# → { "status": "ok", "db": "mongodb", "persistent": true, ... }
 ```
 
-The server **seeds demo data automatically** on first start (patients, reports,
-tests, doctors), so the app is never empty. Set `SEED_DEMO=false` to disable.
+New accounts start without patients, reports, doctors, transactions, or
+notifications. Only the account-owned clinical test catalogue is initialized.
 
 ---
 
@@ -65,10 +64,10 @@ tests, doctors), so the app is never empty. Set `SEED_DEMO=false` to disable.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `PORT` | `5000` | Port the API listens on |
-| `MONGODB_URI` | `mongodb://localhost:27017/pathonexa` | Mongo connection string. Empty ⇒ in-memory store |
-| `JWT_SECRET` | — | Secret for signing JWT tokens (**change in production**) |
-| `NODE_ENV` | `development` | `production` disables auto-listen (for Vercel) |
-| `SEED_DEMO` | `true` | Seed demo data when the DB is empty |
+| `MONGODB_URI` | `mongodb://localhost:27017/pathonexa` | Required persistent Mongo connection string |
+| `JWT_SECRET` | — | Secret for signing JWT tokens (**32+ random characters in production**) |
+| `NODE_ENV` | `development` | Runtime environment |
+| `ALLOW_IN_MEMORY` | `false` | Explicit disposable local adapter; never enable in production |
 | `DEFAULT_COMMISSION_PERCENT` | `10` | Doctor commission % applied when a doctor is added without one |
 | `MAX_DISCOUNT_PERCENT` | `50` | Max discount allowed on a report (% of the gross bill) |
 | `CURRENCY_SYMBOL` | `₹` | Currency symbol used on receipts / seeded settings |
@@ -77,10 +76,10 @@ tests, doctors), so the app is never empty. Set `SEED_DEMO=false` to disable.
 | `MONTHLY_PLAN_DAYS` | `30` | Monthly plan validity in days |
 | `YEARLY_PLAN_PRICE` | `7999` | Yearly subscription price |
 | `YEARLY_PLAN_DAYS` | `365` | Yearly plan validity in days |
-| `DEMO_OTP` | `123456` | OTP accepted at login until a real SMS gateway exists |
+| `INTERNAL_OTP` | `123456` | Internal OTP used by the expiring, attempt-limited challenge flow |
 
-> The business values are exposed (minus the OTP) at `GET /api/config`, and the
-> app reads them from there — change the `.env`, restart the server, done.
+> Authenticated clients can read the business values (minus the OTP) at
+> `GET /api/config`; change the `.env` and restart the server to update them.
 
 **MongoDB Atlas:** create a free cluster at [mongodb.com](https://www.mongodb.com/cloud/atlas),
 whitelist your IP in *Network Access*, and paste the connection string into
@@ -100,7 +99,7 @@ Base URL: `http://localhost:5000/api`
 ### Auth
 | Method | Endpoint | Body | Description |
 | --- | --- | --- | --- |
-| `POST` | `/auth/login` | `{ mobile }` | Sends OTP (demo OTP: **123456**) |
+| `POST` | `/auth/login` | `{ mobile }` | Starts an expiring OTP challenge (OTP is never returned) |
 | `POST` | `/auth/verify` | `{ mobile, otp }` | Returns `{ token, user }` |
 
 ### Patients
@@ -116,7 +115,7 @@ Base URL: `http://localhost:5000/api`
 | --- | --- | --- | --- |
 | `GET` | `/reports` | — | All reports (patient object embedded) |
 | `GET` | `/reports/:id` | — | One report (by `_id` or `reportId`) |
-| `POST` | `/reports` | `{ reportId, patient, test, doctor?, date?, time?, amount, paid?, status? }` | Create report |
+| `POST` | `/reports` | `{ patient, test, doctor?, date?, time?, amount, paid?, status? }` | Create report (account-scoped ID generated automatically) |
 
 ### Dashboard
 | Method | Endpoint | Description |
@@ -183,10 +182,10 @@ packages · expenses · transactions · commissions · drafts · labs · roles`
 server/
 ├── src/
 │   ├── index.js              # Express app entry (routes, middleware, error handling)
-│   ├── config/db.js          # MongoDB connection (never crashes — memory fallback)
+│   ├── config/db.js          # Required MongoDB connection + index synchronization
 │   ├── lib/
-│   │   ├── store.js          # Unified data store (MongoDB ↔ in-memory)
-│   │   └── seedData.js       # Demo seed data
+│   │   ├── store.js          # Tenant-isolated persistent data store
+│   │   └── seedData.js       # Account-owned test catalogue definitions
 │   ├── models/               # Mongoose schemas (User, Patient, Report, Meta)
 │   └── routes/               # authRoutes, patientRoutes, reportRoutes,
 │                             # dashboardRoutes, moduleRoutes, metaRoutes
@@ -199,7 +198,7 @@ server/
 
 ## 🔌 Connecting the App to This Server
 
-The app reads `EXPO_PUBLIC_API_URL` (see `app/README.md`):
+The app reads `EXPO_PUBLIC_API_URL` (see `newapp/README.md`):
 
 | App runs on | API base URL to use |
 | --- | --- |
@@ -207,8 +206,8 @@ The app reads `EXPO_PUBLIC_API_URL` (see `app/README.md`):
 | Android emulator | `http://10.0.2.2:5000/api` |
 | Physical phone (Expo Go) | `http://<your-PC-LAN-IP>:5000/api` (auto-detected) |
 
-The server listens on `0.0.0.0` and has CORS fully enabled, so all of the
-above work out of the box.
+The server listens on `0.0.0.0`. Configure `CORS_ORIGINS` for browser deployments;
+native app requests do not send a browser Origin header.
 
 ---
 
@@ -228,7 +227,7 @@ vercel                      # inside the server/ folder
 
 | Problem | Fix |
 | --- | --- |
-| `MongoDB connection failed` in logs | Server runs on the in-memory store — fine for demo. Check your `MONGODB_URI` / Atlas IP whitelist for persistence. |
+| `MongoDB connection failed` in logs | The server fails closed. Check `MONGODB_URI`, database availability, and the Atlas IP allowlist. |
 | App can't reach the server | Ensure the server is running (`npm run dev`) and the app's `EXPO_PUBLIC_API_URL` matches your platform (table above). |
 | `EADDRINUSE` on port 5000 | Change `PORT` in `.env` and update `EXPO_PUBLIC_API_URL` in the app. |
-| CORS errors | Not expected — `cors()` is enabled for all origins. |
+| CORS errors | Add the exact browser origin to `CORS_ORIGINS`; native requests do not require a browser origin. |

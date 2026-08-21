@@ -1,12 +1,7 @@
 const mongoose = require('mongoose');
+const tenantPlugin = require('../lib/tenantPlugin');
 
-/**
- * Generic persistence bucket for the "master data" collections
- * (tests, doctors, packages, expenses, transactions, …).
- *
- * Using one polymorphic collection keeps the API surface small while still
- * giving every module real MongoDB persistence when a database is configured.
- */
+/** Tenant-owned persistence bucket for master data and account state. */
 const metaSchema = new mongoose.Schema(
   {
     kind: { type: String, required: true, index: true },
@@ -14,5 +9,8 @@ const metaSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+metaSchema.plugin(tenantPlugin);
+metaSchema.index({ ownerId: 1, kind: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Meta', metaSchema);

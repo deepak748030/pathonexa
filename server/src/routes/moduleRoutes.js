@@ -89,7 +89,7 @@ router.post('/subscription/subscribe', async (req, res, next) => {
 /* Notifications ---------------------------------------------------------- */
 router.get('/notifications', async (req, res, next) => {
   try {
-    res.json(await store.notifications.list());
+    res.json(await store.notifications.list(req.query));
   } catch (err) { next(err); }
 });
 

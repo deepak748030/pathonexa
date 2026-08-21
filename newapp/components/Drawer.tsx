@@ -2,14 +2,16 @@
 import React, { createContext, useContext, useState } from 'react';
 import { T } from './T';
 import { BrandIcon } from './Brand';
-import { View, StyleSheet, TouchableOpacity, ScrollView, Animated, Dimensions, Platform } from 'react-native';
+import { Alert, View, StyleSheet, TouchableOpacity, ScrollView, Animated, Dimensions, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, usePathname } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { C, PAGE_GUTTER } from '../src/theme';
-import { lab, user, drawerSections } from '../src/data';
+import { drawerSections } from '../src/navigation';
+import { api, type LabSettings } from '../src/api';
 import { useAuth } from '../src/auth';
+import { Skeleton } from './kit';
 
 const DrawerCtx = createContext<{ open: boolean; setOpen: (v: boolean) => void }>({ open: false, setOpen: () => {} });
 export const useDrawer = () => useContext(DrawerCtx);
@@ -26,13 +28,30 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
 
 function DrawerPanel() {
   const { open, setOpen } = useDrawer();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const router = useRouter();
   const path = usePathname();
   const insets = useSafeAreaInsets();
   const W = Math.min(Dimensions.get('window').width * 0.86, 340);
   const anim = React.useRef(new Animated.Value(-1)).current;
   const last = React.useRef(false);
+  const [lab, setLab] = React.useState<LabSettings | null>(null);
+  const [loadingLab, setLoadingLab] = React.useState(false);
+
+  React.useEffect(() => {
+    setLab(null);
+  }, [user?.id]);
+
+  React.useEffect(() => {
+    let active = true;
+    if (!open || !user || lab) return () => { active = false; };
+    setLoadingLab(true);
+    api.settings()
+      .then((settings) => { if (active) setLab(settings); })
+      .catch(() => {})
+      .finally(() => { if (active) setLoadingLab(false); });
+    return () => { active = false; };
+  }, [lab, open, user]);
 
   React.useEffect(() => {
     if (open !== last.current) {
@@ -41,9 +60,10 @@ function DrawerPanel() {
     }
   }, [open]);
 
-  const go = (route?: string) => {
+  const go = (route?: string, label?: string) => {
     setOpen(false);
     if (route) router.push(route as any);
+    else if (label) Alert.alert(label, `${label} is not available in this app version.`);
   };
 
   const handleLogout = () => {
@@ -67,27 +87,35 @@ function DrawerPanel() {
             <BrandIcon size={52} circular />
           </View>
           <View style={{ flex: 1, marginLeft: 4 }}>
-            <View style={styles.row}>
-              <T style={styles.labName} numberOfLines={1}>
-                PathoNexa Diagnostics
-              </T>
-              <View style={styles.activeBadge}>
-                <T style={styles.activeBadgeText}>Active</T>
-              </View>
-            </View>
-            <T style={styles.labSub}>{lab.city}</T>
-            <T style={styles.labSub}>Lab ID: {lab.labId}</T>
+            {!lab || loadingLab ? (
+              <>
+                <Skeleton width="78%" height={14} style={styles.headerSkeleton} />
+                <Skeleton width="42%" height={10} style={styles.headerSkeletonLine} />
+                <Skeleton width="56%" height={10} style={styles.headerSkeletonLine} />
+              </>
+            ) : (
+              <>
+                <View style={styles.row}>
+                  <T style={styles.labName} numberOfLines={1}>{lab.name}</T>
+                  <View style={styles.activeBadge}>
+                    <T style={styles.activeBadgeText}>Active</T>
+                  </View>
+                </View>
+                <T style={styles.labSub}>{lab.city || 'City not configured'}</T>
+                <T style={styles.labSub}>Lab ID: {lab.labId || '—'}</T>
+              </>
+            )}
           </View>
         </LinearGradient>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}>
           <View style={styles.userCard}>
             <View style={styles.userAvatar}>
-              <T style={styles.userAvatarText}>{user.initials}</T>
+              <T style={styles.userAvatarText}>{(user?.name || 'User').split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase()}</T>
             </View>
             <View style={{ flex: 1, marginLeft: 4 }}>
-              <T style={styles.userName}>{user.name}</T>
-              <T style={styles.userRole}>{user.role}</T>
+              <T style={styles.userName}>{user?.name || 'Account'}</T>
+              <T style={styles.userRole}>{user?.role || 'Owner'} · +91 {user?.mobile || ''}</T>
               <View style={styles.row}>
                 <View style={styles.onlineDot} />
                 <T style={styles.onlineText}>Online</T>
@@ -105,7 +133,7 @@ function DrawerPanel() {
                   <TouchableOpacity
                     key={it.label}
                     style={[styles.item, active && { backgroundColor: '#E9F1FE', borderRadius: 4 }]}
-                    onPress={() => go(it.route)}
+                    onPress={() => go(it.route, it.label)}
                   >
                     <MaterialCommunityIcons name={it.icon as any} size={19} color={C.primary} />
                     <T style={[styles.itemLabel, active && { color: C.primary, fontWeight: '700' }]}>{it.label}</T>
@@ -158,6 +186,8 @@ const styles = StyleSheet.create({
   activeBadge: { backgroundColor: '#22C55E', borderRadius: 3, paddingHorizontal: 7, paddingVertical: 2.5 },
   activeBadgeText: { color: '#fff', fontSize: 9.5, fontWeight: '700' },
   labSub: { color: 'rgba(255,255,255,0.85)', fontSize: 11, marginTop: 3 },
+  headerSkeleton: { backgroundColor: 'rgba(255,255,255,0.7)' },
+  headerSkeletonLine: { marginTop: 5, backgroundColor: 'rgba(255,255,255,0.55)' },
   userCard: {
     flexDirection: 'row',
     alignItems: 'center',

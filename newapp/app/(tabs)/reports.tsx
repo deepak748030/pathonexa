@@ -15,24 +15,21 @@ import {
   Page,
   SearchBar,
   SectionHead,
+  Skeleton,
   SquareBtn,
   StatusPill,
 } from '../../components/kit';
 import { useDrawer } from '../../components/Drawer';
 import { C, PAGE_GUTTER } from '../../src/theme';
-import { toneColor, reportStats, reportRows, dateChips, type ReportRow } from '../../src/data';
+import { api, type Report } from '../../src/api';
 import { useInfiniteData } from '../../src/useInfiniteData';
 
 const PAGE_SIZE = 10;
 const STATUS_FILTERS = ['All', 'Pending', 'Completed', 'Cancelled'] as const;
-const PRESET_TOTALS = [48, 40, 240, 960];
-const PRESET_DATES = [
-  ['26 Jul 2024'],
-  ['25 Jul 2024'],
-  ['26 Jul 2024', '25 Jul 2024', '24 Jul 2024', '23 Jul 2024', '22 Jul 2024', '21 Jul 2024', '20 Jul 2024'],
-  ['26 Jul 2024', '19 Jul 2024', '12 Jul 2024', '05 Jul 2024', '28 Jun 2024'],
-];
 const DAY_MS = 86_400_000;
+const reportStatIcons = ['clipboard-text-outline', 'timer-sand', 'check-circle-outline', 'currency-rupee'];
+const reportStatTones = ['blue', 'orange', 'green', 'purple'] as const;
+const avatarTones = ['blue', 'green', 'purple', 'orange', 'pink'] as const;
 
 function formatDateInput(value: string) {
   const digits = value.replace(/\D/g, '').slice(0, 8);
@@ -56,26 +53,46 @@ function formatDate(timestamp: number) {
   return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(timestamp));
 }
 
-function getTabTotals(dateIndex: number, customDays: number) {
-  const all = dateIndex === 4 ? customDays * 48 : PRESET_TOTALS[dateIndex] ?? PRESET_TOTALS[0];
-  const pending = Math.round(all / 4);
-  return [all, pending, all - pending, 0];
+function initials(name: string) {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'P';
 }
 
-function createReport(index: number, tab: number, dateIndex: number, customStart: number, customDays: number): ReportRow {
-  const source = reportRows[index % reportRows.length];
-  const serial = index + 1;
-  const status: ReportRow['status'] = tab === 1 ? 'Pending' : tab === 2 ? 'Completed' : serial % 4 === 0 ? 'Pending' : 'Completed';
-  const presetDates = PRESET_DATES[dateIndex] ?? PRESET_DATES[0];
-  const date = dateIndex === 4 ? formatDate(customStart + (index % customDays) * DAY_MS) : presetDates[index % presetDates.length];
-  return {
-    ...source,
-    id: `date-${dateIndex}-tab-${tab}-report-${serial}`,
-    pid: `PT${250726000 + serial}`,
-    rid: `RP${250726000 + serial}`,
-    date,
-    status,
-  };
+function avatarTone(name: string) {
+  const hash = Array.from(name).reduce((sum, character) => sum + character.charCodeAt(0), 0);
+  return avatarTones[hash % avatarTones.length];
+}
+
+function inputDate(timestamp: number) {
+  const date = new Date(timestamp);
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+}
+
+function isoDay(timestamp: number) {
+  const date = new Date(timestamp);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function datePreset(index: number, customStart: number, customDays: number) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const end = today.getTime();
+  if (index === 0) return { from: isoDay(end), to: isoDay(end) };
+  if (index === 1) return { from: isoDay(end - DAY_MS), to: isoDay(end - DAY_MS) };
+  if (index === 2) return { from: isoDay(end - 6 * DAY_MS), to: isoDay(end) };
+  if (index === 3) return { from: isoDay(end - 29 * DAY_MS), to: isoDay(end) };
+  return { from: isoDay(customStart), to: isoDay(customStart + (customDays - 1) * DAY_MS) };
+}
+
+function reportDateChips() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const label = (timestamp: number) => new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short' }).format(new Date(timestamp));
+  return [
+    { t: 'Today', s: label(today.getTime()) },
+    { t: 'Yesterday', s: label(today.getTime() - DAY_MS) },
+    { t: 'Last 7 Days', s: `${label(today.getTime() - 6 * DAY_MS)} - ${label(today.getTime())}` },
+    { t: 'Last 30 Days', s: `${label(today.getTime() - 29 * DAY_MS)} - ${label(today.getTime())}` },
+  ];
 }
 
 export default function Reports() {
@@ -87,31 +104,51 @@ export default function Reports() {
   const [query, setQuery] = React.useState('');
   const [filterOpen, setFilterOpen] = React.useState(false);
   const [customRangeOpen, setCustomRangeOpen] = React.useState(false);
-  const [customStartText, setCustomStartText] = React.useState('01/07/2024');
-  const [customEndText, setCustomEndText] = React.useState('26/07/2024');
-  const [customStart, setCustomStart] = React.useState(() => new Date(2024, 6, 1).getTime());
-  const [customDays, setCustomDays] = React.useState(26);
+  const today = React.useMemo(() => { const date = new Date(); date.setHours(0, 0, 0, 0); return date.getTime(); }, []);
+  const [customStartText, setCustomStartText] = React.useState(() => inputDate(today - 29 * DAY_MS));
+  const [customEndText, setCustomEndText] = React.useState(() => inputDate(today));
+  const [customStart, setCustomStart] = React.useState(today - 29 * DAY_MS);
+  const [customDays, setCustomDays] = React.useState(30);
   const [dateError, setDateError] = React.useState('');
-  const tabTotals = React.useMemo(() => getTabTotals(dateIndex, customDays), [dateIndex, customDays]);
-  const normalizedQuery = query.trim().toLowerCase();
-  const matchingIndexes = React.useMemo(() => {
-    if (!normalizedQuery) return null;
-    return Array.from({ length: tabTotals[tab] }, (_, index) => index).filter((index) => {
-      const report = createReport(index, tab, dateIndex, customStart, customDays);
-      return [report.name, report.pid, report.rid, report.test, report.doctor].some((value) =>
-        value.toLowerCase().includes(normalizedQuery),
-      );
-    });
-  }, [normalizedQuery, tab, tabTotals, dateIndex, customStart, customDays]);
-  const makeReport = React.useCallback(
-    (index: number) => createReport(matchingIndexes ? matchingIndexes[index] : index, tab, dateIndex, customStart, customDays),
-    [matchingIndexes, tab, dateIndex, customStart, customDays],
-  );
-  const { items, loadMore, refresh, isLoadingMore, isRefreshing, hasMore, loadedCount, total } = useInfiniteData({
-    total: matchingIndexes?.length ?? tabTotals[tab],
-    pageSize: PAGE_SIZE,
-    createItem: makeReport,
-    resetKey: `${dateIndex}:${customStart}:${customDays}:${tab}:${normalizedQuery}`,
+  const [serverQuery, setServerQuery] = React.useState('');
+  const [stats, setStats] = React.useState<Array<{ label: string; value: string; tone: string }>>([]);
+  const [tabTotals, setTabTotals] = React.useState([0, 0, 0, 0]);
+  const dateChips = React.useMemo(reportDateChips, []);
+  const range = React.useMemo(() => datePreset(dateIndex, customStart, customDays), [customDays, customStart, dateIndex]);
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => setServerQuery(query.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+  React.useEffect(() => {
+    api.reports.stats().then(setStats).catch(() => setStats([]));
+  }, []);
+  React.useEffect(() => {
+    let active = true;
+    Promise.all(STATUS_FILTERS.map((status) => api.reports.list({
+      page: 1,
+      limit: 1,
+      search: serverQuery,
+      status: status === 'All' ? undefined : status,
+      ...range,
+    }).then((result) => result.pagination.total)))
+      .then((counts) => { if (active) setTabTotals(counts); })
+      .catch(() => { if (active) setTabTotals([0, 0, 0, 0]); });
+    return () => { active = false; };
+  }, [range, serverQuery]);
+
+  const fetchPage = React.useCallback((page: number) => api.reports.list({
+    page,
+    limit: PAGE_SIZE,
+    search: serverQuery,
+    status: tab === 0 ? undefined : STATUS_FILTERS[tab],
+    ...range,
+  }), [range, serverQuery, tab]);
+  const {
+    items, loadMore, refresh, isLoading, isLoadingMore, isRefreshing, hasMore, loadedCount, total, error,
+  } = useInfiniteData<Report>({
+    fetchPage,
+    resetKey: `${range.from}:${range.to}:${tab}:${serverQuery}`,
   });
 
   const applyCustomRange = React.useCallback(() => {
@@ -156,8 +193,12 @@ export default function Reports() {
 
       <View style={styles.body}>
         <View style={styles.statRow}>
-          {reportStats.map((stat) => (
-            <MiniStat key={stat.label} {...stat} />
+          {(stats.length ? stats : reportStatIcons.map((icon, index) => ({ icon, label: '', value: '', tone: reportStatTones[index] }))).map((stat, index) => (
+            stats.length ? (
+              <MiniStat key={stat.label} icon={reportStatIcons[index]} tone={reportStatTones[index]} value={stat.value} label={stat.label} />
+            ) : (
+              <View key={index} style={styles.statSkeleton}><Skeleton width={28} height={28} /><Skeleton width="60%" height={11} /><Skeleton width="75%" height={9} /></View>
+            )
           ))}
         </View>
 
@@ -278,7 +319,7 @@ export default function Reports() {
 
         <SectionHead title="Report Records" />
         <T style={styles.loadedText}>
-          {normalizedQuery ? `${loadedCount} of ${total} matching records loaded` : `${loadedCount} of ${total} loaded`}
+          {serverQuery ? `${loadedCount} of ${total} matching records loaded` : `${loadedCount} of ${total} loaded`}
         </T>
       </View>
     </>
@@ -288,42 +329,57 @@ export default function Reports() {
     <Page>
       <FlatList
         data={items}
-        keyExtractor={(report) => report.id}
+        keyExtractor={(report) => report._id}
         ListHeaderComponent={header}
         renderItem={({ item: report, index }) => (
-          <View
+          <TouchableOpacity
+            activeOpacity={0.72}
+            onPress={() => router.push({ pathname: '/report-preview', params: { id: report._id } })}
             style={[
               styles.reportRow,
               index === 0 && styles.firstRow,
               index === items.length - 1 && styles.lastRow,
             ]}
           >
-            <Avatar initials={report.initials} tone={report.tone} size={42} />
+            <Avatar initials={initials(report.patient?.name || 'Patient')} tone={avatarTone(report.patient?.name || 'Patient')} size={42} />
             <View style={styles.reportMain}>
-              <T style={styles.reportName}>{report.name}</T>
+              <T style={styles.reportName}>{report.patient?.name || 'Patient'}</T>
               <T style={styles.reportMeta} numberOfLines={1}>
-                PID: {report.pid} &nbsp;|&nbsp; {report.meta}
+                PID: {report.patient?.pid || '—'} &nbsp;|&nbsp; {report.patient ? `${report.patient.age} Yrs | ${report.patient.gender}` : 'Patient unavailable'}
               </T>
-              <T style={[styles.reportTest, { color: toneColor[report.testTone].fg }]}>{report.test}</T>
-              <T style={styles.reportDoctor}>{report.doctor}</T>
+              <T style={[styles.reportTest, { color: C.primary }]}>{report.test}</T>
+              <T style={styles.reportDoctor}>{report.doctor ? `Ref. ${report.doctor}` : 'Self referred'}</T>
             </View>
             <View style={styles.reportDetails}>
               <T style={styles.reportLabel}>Report ID</T>
-              <T style={styles.reportValue}>{report.rid}</T>
+              <T style={styles.reportValue}>{report.reportId}</T>
               <T style={[styles.reportLabel, styles.dateLabel]}>Report Date</T>
-              <T style={styles.reportValue}>{report.date}</T>
-              <T style={styles.reportValue}>{report.time}</T>
+              <T style={styles.reportValue}>{formatDate(new Date(report.createdAt || report.date || Date.now()).getTime())}</T>
+              <T style={styles.reportValue}>{new Date(report.createdAt || Date.now()).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</T>
             </View>
             <View style={styles.reportAside}>
-              <T style={styles.reportAmount}>{report.amount}</T>
+              <T style={styles.reportAmount}>₹{Number(report.amount || 0).toLocaleString('en-IN')}</T>
               <StatusPill status={report.status} />
             </View>
             <View style={styles.chevron}>
               <Chevron />
             </View>
-          </View>
+          </TouchableOpacity>
         )}
-        ListEmptyComponent={<T style={styles.empty}>No reports in this filter.</T>}
+        ListEmptyComponent={
+          isLoading ? (
+            <View style={styles.skeletonList}>
+              {Array.from({ length: 6 }, (_, index) => (
+                <View key={index} style={styles.reportRowSkeleton}>
+                  <Skeleton width={42} height={42} radius={21} />
+                  <View style={styles.reportSkeletonMain}><Skeleton width="65%" height={12} /><Skeleton width="50%" height={9} /><Skeleton width="75%" height={9} /></View>
+                  <View style={styles.reportSkeletonDetails}><Skeleton width={65} height={9} /><Skeleton width={72} height={9} /></View>
+                  <Skeleton width={48} height={18} />
+                </View>
+              ))}
+            </View>
+          ) : <T style={styles.empty}>{error || 'No reports in this filter.'}</T>
+        }
         ListFooterComponent={
           <InfiniteListFooter loading={isLoadingMore} hasMore={hasMore} count={items.length} />
         }
@@ -350,6 +406,7 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: PAGE_GUTTER },
   row: { flexDirection: 'row', alignItems: 'center' },
   statRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 0, marginTop: 8 },
+  statSkeleton: { width: '25%', minHeight: 76, alignItems: 'center', justifyContent: 'center', gap: 5 },
   searchRow: { marginTop: 6 },
   filterBar: {
     minHeight: 34,
@@ -455,6 +512,10 @@ const styles = StyleSheet.create({
   reportAmount: { fontSize: 12.5, fontWeight: '800', color: C.text },
   chevron: { marginLeft: 4 },
   empty: { textAlign: 'center', color: C.faint, fontSize: 12, paddingVertical: 24 },
+  skeletonList: { marginHorizontal: PAGE_GUTTER },
+  reportRowSkeleton: { minHeight: 86, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderBottomWidth: 0, borderColor: C.borderSoft, backgroundColor: C.card },
+  reportSkeletonMain: { flex: 1.4, marginLeft: 4, gap: 6 },
+  reportSkeletonDetails: { flex: 1, gap: 7 },
   list: { backgroundColor: C.headerTop },
   listContent: { paddingBottom: 110, backgroundColor: C.bg },
 });

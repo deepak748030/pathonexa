@@ -2,12 +2,13 @@
 import React from 'react';
 import { T } from '../../components/T';
 import { BrandIcon } from '../../components/Brand';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { Alert, View, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { BlueHeader, HeaderIconBtn, ScrollPage, Card, Chevron } from '../../components/kit';
+import { BlueHeader, HeaderIconBtn, ScrollPage, Card, Chevron, Skeleton } from '../../components/kit';
 import { C, PAGE_GUTTER } from '../../src/theme';
-import { lab, moreSections } from '../../src/data';
+import { moreSections } from '../../src/navigation';
+import { api, type LabSettings } from '../../src/api';
 import { useAuth } from '../../src/auth';
 import { useNotifications } from '../../src/notifications';
 
@@ -15,9 +16,29 @@ export default function More() {
   const { logout } = useAuth();
   const { unreadCount } = useNotifications();
   const router = useRouter();
+  const [lab, setLab] = React.useState<LabSettings | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [refreshing, setRefreshing] = React.useState(false);
+  const [error, setError] = React.useState('');
+
+  const loadLab = React.useCallback(async (refresh = false) => {
+    refresh ? setRefreshing(true) : setLoading(true);
+    try {
+      setLab(await api.settings());
+      setError('');
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to load lab profile.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  React.useEffect(() => { loadLab().catch(() => {}); }, [loadLab]);
+  const unavailable = (label: string) => Alert.alert(label, `${label} is not available in this app version.`);
 
   return (
-    <ScrollPage>
+    <ScrollPage refreshing={refreshing} onRefresh={() => loadLab(true)}>
       <BlueHeader
         title="More"
         sub="Manage your lab and support"
@@ -37,22 +58,37 @@ export default function More() {
             <BrandIcon size={48} circular />
           </View>
           <View style={{ flex: 1, marginLeft: 4 }}>
-            <T style={styles.labName}>{lab.name}</T>
-            <T style={styles.labSub}>{lab.city}</T>
-            <T style={styles.labSub}>Lab ID: {lab.labId}</T>
+            {loading ? (
+              <>
+                <Skeleton width="72%" height={14} />
+                <Skeleton width="45%" height={10} style={{ marginTop: 4 }} />
+                <Skeleton width="58%" height={10} style={{ marginTop: 4 }} />
+              </>
+            ) : (
+              <>
+                <T style={styles.labName}>{lab?.name || 'My Pathology Lab'}</T>
+                <T style={styles.labSub}>{lab?.city || 'City not configured'}</T>
+                <T style={styles.labSub}>Lab ID: {lab?.labId || '—'}</T>
+              </>
+            )}
           </View>
-          <TouchableOpacity style={styles.switchBtn}>
+          <TouchableOpacity style={styles.switchBtn} onPress={() => Alert.alert('Switch Lab', 'Each mobile account is securely linked to one lab.')}>
             <MaterialCommunityIcons name="swap-horizontal" size={15} color={C.primary} />
             <T style={styles.switchBtnText}>Switch Lab</T>
           </TouchableOpacity>
         </Card>
+        {!!error && <T style={styles.error}>{error}</T>}
 
         {moreSections.map((sec) => (
           <View key={sec.title}>
             <T style={styles.secTitle}>{sec.title}</T>
             <Card style={{ padding: 4 }}>
               {sec.items.map((it, i) => (
-                <TouchableOpacity key={it.label} style={[styles.item, i > 0 && { borderTopWidth: 1, borderTopColor: C.borderSoft }]}>
+                <TouchableOpacity
+                  key={it.label}
+                  style={[styles.item, i > 0 && { borderTopWidth: 1, borderTopColor: C.borderSoft }]}
+                  onPress={() => it.route ? router.push(it.route as any) : unavailable(it.label)}
+                >
                   <View style={styles.itemIcon}>
                     <MaterialCommunityIcons name={it.icon as any} size={19} color={C.primary} />
                   </View>
@@ -123,4 +159,5 @@ const styles = StyleSheet.create({
   },
   logoutTitle: { color: C.red, fontWeight: '700', fontSize: 13 },
   logoutSub: { color: C.sub, fontSize: 10.5, marginTop: 1 },
+  error: { color: C.red, fontSize: 10.5, marginTop: 4, marginHorizontal: 4 },
 });

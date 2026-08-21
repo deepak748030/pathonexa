@@ -1,33 +1,86 @@
 const mongoose = require('mongoose');
 
-/**
- * Connects to MongoDB. The server NEVER crashes when Mongo is unavailable:
- * the store layer falls back to an in-memory database automatically, so the
- * API keeps working for local development / demos.
- */
-const state = { ready: false };
+const state = {
+  mode: 'connecting',
+  ready: false,
+  error: null,
+  promise: null,
+};
 
-async function connectDB() {
+function memoryAllowed() {
+  // Persistence is mandatory unless an operator explicitly enables the
+  // disposable adapter (or the isolated test suite is running).
+  return process.env.NODE_ENV === 'test' || process.env.ALLOW_IN_MEMORY === 'true';
+}
+
+async function syncTenantIndexes() {
+  // Models are registered by store.js before connectDB is called from index.js.
+  // syncIndexes removes the old globally-unique pid/reportId indexes and
+  // installs owner-scoped compound indexes.
+  const names = ['Patient', 'Report', 'Meta', 'TenantCounter'];
+  await Promise.all(names.filter((name) => mongoose.models[name]).map((name) => mongoose.models[name].syncIndexes()));
+}
+
+async function connectOnce() {
   const uri = process.env.MONGODB_URI;
   if (!uri) {
-    console.warn('[db] MONGODB_URI not set — running with the in-memory store.');
+    const error = new Error('MONGODB_URI is required');
+    state.error = error;
+    if (!memoryAllowed()) {
+      state.mode = 'unavailable';
+      throw error;
+    }
+    state.mode = 'memory';
+    console.warn('[db] MONGODB_URI is not set; explicit development in-memory storage is active.');
     return false;
   }
+
   try {
     const conn = await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 4000,
+      serverSelectionTimeoutMS: Number(process.env.MONGODB_TIMEOUT_MS) || 4000,
+      autoIndex: false,
     });
     state.ready = true;
+    state.mode = 'mongodb';
+    state.error = null;
+    await syncTenantIndexes();
     console.log(`[db] MongoDB connected → ${conn.connection.host}/${conn.connection.name}`);
     return true;
   } catch (error) {
     state.ready = false;
-    console.warn(`[db] MongoDB connection failed (${error.message}) — falling back to the in-memory store.`);
+    state.error = error;
+    if (!memoryAllowed()) {
+      state.mode = 'unavailable';
+      console.error(`[db] MongoDB is required but unavailable: ${error.message}`);
+      throw error;
+    }
+    state.mode = 'memory';
+    console.warn(`[db] MongoDB unavailable; explicit development in-memory storage is active (${error.message}).`);
     return false;
   }
 }
 
+function connectDB() {
+  if (!state.promise) state.promise = connectOnce();
+  return state.promise;
+}
+
+async function whenReady() {
+  try {
+    await connectDB();
+  } catch (error) {
+    throw Object.assign(new Error('Persistent database is unavailable'), { status: 503, cause: error });
+  }
+  if (state.mode === 'unavailable' || state.mode === 'connecting') {
+    throw Object.assign(new Error('Persistent database is unavailable'), { status: 503 });
+  }
+  return state.mode;
+}
+
 module.exports = {
   connectDB,
+  whenReady,
   isReady: () => state.ready,
+  mode: () => state.mode,
+  memoryAllowed,
 };

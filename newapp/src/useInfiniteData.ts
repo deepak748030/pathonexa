@@ -1,107 +1,112 @@
 import React from 'react';
-
-const DEFAULT_PAGE_SIZE = 10;
-const LOAD_DELAY_MS = 350;
+import type { Paged } from './api';
 
 type InfiniteDataOptions<T> = {
-  total: number;
-  createItem: (index: number) => T;
-  pageSize?: number;
+  fetchPage: (page: number) => Promise<Paged<T>>;
   resetKey?: string | number;
 };
 
-/**
- * Small paged-data controller for the offline UI demo.
- *
- * It mirrors a real cursor-based request: only one page is appended at a time,
- * duplicate end-reached events are ignored, stale requests are cancelled when
- * a filter changes, and pull-to-refresh starts again from page one.
- */
-export function useInfiniteData<T>({
-  total,
-  createItem,
-  pageSize = DEFAULT_PAGE_SIZE,
-  resetKey = 'default',
-}: InfiniteDataOptions<T>) {
-  const factoryRef = React.useRef(createItem);
+/** Server-backed infinite pagination with stale-request and duplicate-load protection. */
+export function useInfiniteData<T>({ fetchPage, resetKey = 'default' }: InfiniteDataOptions<T>) {
+  const fetchRef = React.useRef(fetchPage);
   const generationRef = React.useRef(0);
-  const loadingRef = React.useRef(false);
-  const mountedRef = React.useRef(true);
-  const safeTotal = Math.max(0, total);
+  const loadingMoreRef = React.useRef(false);
+  fetchRef.current = fetchPage;
 
-  factoryRef.current = createItem;
-
-  const makePage = React.useCallback(
-    (start: number) => {
-      const end = Math.min(start + pageSize, safeTotal);
-      return Array.from({ length: Math.max(0, end - start) }, (_, offset) => factoryRef.current(start + offset));
-    },
-    [pageSize, safeTotal],
-  );
-
-  const [items, setItems] = React.useState<T[]>(() => makePage(0));
+  const [items, setItems] = React.useState<T[]>([]);
+  const [page, setPage] = React.useState(0);
+  const [total, setTotal] = React.useState(0);
+  const [hasMore, setHasMore] = React.useState(true);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      generationRef.current += 1;
-    };
+  const requestFirstPage = React.useCallback(async (refreshing: boolean) => {
+    const generation = ++generationRef.current;
+    loadingMoreRef.current = true;
+    setError(null);
+    setIsLoading(!refreshing);
+    setIsRefreshing(refreshing);
+    setIsLoadingMore(false);
+    try {
+      const response = await fetchRef.current(1);
+      if (generation !== generationRef.current) return;
+      setItems(response.items);
+      setPage(response.pagination.page);
+      setTotal(response.pagination.total);
+      setHasMore(response.pagination.hasMore);
+    } catch (requestError) {
+      if (generation !== generationRef.current) return;
+      setError(requestError instanceof Error ? requestError.message : 'Unable to load data.');
+      setItems([]);
+      setPage(0);
+      setTotal(0);
+      setHasMore(false);
+    } finally {
+      if (generation === generationRef.current) {
+        loadingMoreRef.current = false;
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+    }
   }, []);
 
   React.useEffect(() => {
-    generationRef.current += 1;
-    loadingRef.current = false;
-    setIsLoadingMore(false);
-    setIsRefreshing(false);
-    setItems(makePage(0));
-  }, [makePage, resetKey]);
-
-  const wait = React.useCallback(() => new Promise<void>((resolve) => setTimeout(resolve, LOAD_DELAY_MS)), []);
+    requestFirstPage(false);
+    return () => {
+      generationRef.current += 1;
+      loadingMoreRef.current = false;
+    };
+  }, [requestFirstPage, resetKey]);
 
   const loadMore = React.useCallback(async () => {
-    if (loadingRef.current || items.length >= safeTotal) return;
-
-    const requestGeneration = generationRef.current;
-    loadingRef.current = true;
+    if (loadingMoreRef.current || !hasMore) return;
+    const generation = generationRef.current;
+    loadingMoreRef.current = true;
     setIsLoadingMore(true);
-    await wait();
+    setError(null);
+    try {
+      const response = await fetchRef.current(page + 1);
+      if (generation !== generationRef.current) return;
+      setItems((current) => {
+        const existing = new Set(current.map((item: any) => String(item?._id ?? item?.id)));
+        return [...current, ...response.items.filter((item: any) => !existing.has(String(item?._id ?? item?.id)))];
+      });
+      setPage(response.pagination.page);
+      setTotal(response.pagination.total);
+      setHasMore(response.pagination.hasMore);
+    } catch (requestError) {
+      if (generation === generationRef.current) {
+        setError(requestError instanceof Error ? requestError.message : 'Unable to load more data.');
+      }
+    } finally {
+      if (generation === generationRef.current) {
+        loadingMoreRef.current = false;
+        setIsLoadingMore(false);
+      }
+    }
+  }, [hasMore, page]);
 
-    if (!mountedRef.current || requestGeneration !== generationRef.current) return;
+  const refresh = React.useCallback(() => requestFirstPage(true), [requestFirstPage]);
 
-    setItems((current) => {
-      if (current.length >= safeTotal) return current;
-      return [...current, ...makePage(current.length)];
-    });
-    loadingRef.current = false;
-    setIsLoadingMore(false);
-  }, [items.length, makePage, safeTotal, wait]);
-
-  const refresh = React.useCallback(async () => {
-    const requestGeneration = generationRef.current + 1;
-    generationRef.current = requestGeneration;
-    loadingRef.current = true;
-    setIsLoadingMore(false);
-    setIsRefreshing(true);
-    await wait();
-
-    if (!mountedRef.current || requestGeneration !== generationRef.current) return;
-
-    setItems(makePage(0));
-    loadingRef.current = false;
-    setIsRefreshing(false);
-  }, [makePage, wait]);
+  const updateItem = React.useCallback((id: string, update: Partial<T>) => {
+    setItems((current) => current.map((item: any) =>
+      String(item?._id ?? item?.id) === id ? { ...item, ...update } : item,
+    ));
+  }, []);
 
   return {
     items,
     loadMore,
     refresh,
+    updateItem,
+    isLoading,
     isLoadingMore,
     isRefreshing,
-    hasMore: items.length < safeTotal,
+    hasMore,
     loadedCount: items.length,
-    total: safeTotal,
+    total,
+    error,
   };
 }

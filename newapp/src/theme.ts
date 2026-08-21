@@ -50,6 +50,16 @@ export const S = {
 export const PAGE_GUTTER = 4;
 export const COMPACT_GAP = 4;
 
+export type Tone = 'blue' | 'green' | 'orange' | 'purple' | 'pink' | 'red';
+export const toneColor: Record<Tone, { fg: string; bg: string }> = {
+  blue: { fg: '#1467E8', bg: '#E8F0FE' },
+  green: { fg: '#16A34A', bg: '#E6F6EC' },
+  orange: { fg: '#F59E0B', bg: '#FEF3E0' },
+  purple: { fg: '#7C3AED', bg: '#F1E9FE' },
+  pink: { fg: '#EC4899', bg: '#FDE9F1' },
+  red: { fg: '#EF4444', bg: '#FDEBEC' },
+};
+
 export const fmtINR = (n: number) => '₹' + n.toLocaleString('en-IN');
 
 /* Plus Jakarta Sans — loaded via @expo-google-fonts (same package version as app/) */

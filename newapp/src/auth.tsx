@@ -1,6 +1,5 @@
 import React from 'react';
-
-export const DEMO_OTP = '123456';
+import { api, AuthUser, loadToken, onUnauthorized, removeToken, saveToken } from './api';
 
 export function normalizeIndianMobile(value: string) {
   const digits = value.replace(/\D/g, '');
@@ -19,56 +18,92 @@ export function formatIndianMobile(value: string) {
 
 type AuthContextValue = {
   isAuthenticated: boolean;
+  isReady: boolean;
   pendingPhone: string | null;
+  user: AuthUser | null;
   requestOtp: (phone: string) => Promise<void>;
   verifyOtp: (otp: string) => Promise<boolean>;
   clearPendingPhone: () => void;
-  logout: () => void;
+  logout: () => Promise<void>;
 };
 
 const AuthContext = React.createContext<AuthContextValue | null>(null);
 
-const pause = (duration: number) => new Promise<void>((resolve) => setTimeout(resolve, duration));
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [isAuthenticated, setAuthenticated] = React.useState(false);
+  const [isReady, setReady] = React.useState(false);
+  const [user, setUser] = React.useState<AuthUser | null>(null);
   const [pendingPhone, setPendingPhone] = React.useState<string | null>(null);
   const requestVersion = React.useRef(0);
 
-  const requestOtp = React.useCallback(async (phone: string) => {
-    if (!isValidIndianMobile(phone)) throw new Error('Enter a valid mobile number.');
+  const clearSession = React.useCallback(async () => {
     requestVersion.current += 1;
-    setAuthenticated(false);
-    setPendingPhone(phone);
-    await pause(350);
+    await removeToken();
+    setUser(null);
+    setPendingPhone(null);
   }, []);
 
-  const verifyOtp = React.useCallback(
-    async (otp: string) => {
-      const version = requestVersion.current;
-      await pause(450);
-      if (version !== requestVersion.current || !pendingPhone || otp !== DEMO_OTP) return false;
-      setAuthenticated(true);
+  React.useEffect(() => {
+    let active = true;
+    onUnauthorized(clearSession);
+    (async () => {
+      try {
+        if (!(await loadToken())) return;
+        const response = await api.auth.me();
+        if (active) setUser(response.user);
+      } catch {
+        await removeToken();
+      } finally {
+        if (active) setReady(true);
+      }
+    })();
+    return () => {
+      active = false;
+      onUnauthorized(null);
+    };
+  }, [clearSession]);
+
+  const requestOtp = React.useCallback(async (phone: string) => {
+    const normalized = normalizeIndianMobile(phone);
+    if (!isValidIndianMobile(normalized)) throw new Error('Enter a valid mobile number.');
+    const version = ++requestVersion.current;
+    await api.auth.requestOtp(normalized);
+    if (version === requestVersion.current) {
+      setUser(null);
+      setPendingPhone(normalized);
+    }
+  }, []);
+
+  const verifyOtp = React.useCallback(async (otp: string) => {
+    if (!pendingPhone) throw new Error('Request a new OTP to continue.');
+    const version = requestVersion.current;
+    try {
+      const response = await api.auth.verifyOtp(pendingPhone, otp);
+      if (version !== requestVersion.current) return false;
+      await saveToken(response.token);
+      setUser(response.user);
+      setPendingPhone(null);
       return true;
-    },
-    [pendingPhone],
-  );
+    } catch (error: any) {
+      if (error?.status === 400 || error?.status === 429) return false;
+      throw error;
+    }
+  }, [pendingPhone]);
 
   const clearPendingPhone = React.useCallback(() => {
     requestVersion.current += 1;
     setPendingPhone(null);
   }, []);
 
-  const logout = React.useCallback(() => {
-    requestVersion.current += 1;
-    setAuthenticated(false);
-    setPendingPhone(null);
-  }, []);
-
-  const value = React.useMemo(
-    () => ({ isAuthenticated, pendingPhone, requestOtp, verifyOtp, clearPendingPhone, logout }),
-    [isAuthenticated, pendingPhone, requestOtp, verifyOtp, clearPendingPhone, logout],
-  );
+  const value = React.useMemo<AuthContextValue>(() => ({
+    isAuthenticated: !!user,
+    isReady,
+    pendingPhone,
+    user,
+    requestOtp,
+    verifyOtp,
+    clearPendingPhone,
+    logout: clearSession,
+  }), [clearPendingPhone, clearSession, isReady, pendingPhone, requestOtp, user, verifyOtp]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
