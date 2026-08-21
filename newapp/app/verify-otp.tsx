@@ -111,7 +111,7 @@ export default function VerifyOtpScreen() {
       <View style={styles.form}>
         <View style={styles.phoneSummary}>
           <View style={styles.phoneIcon}>
-            <MaterialCommunityIcons name="message-lock-outline" size={21} color={C.primary} />
+            <MaterialCommunityIcons name="message-lock-outline" size={18} color={C.primary} />
           </View>
           <View style={styles.phoneCopy}>
             <T style={styles.sentLabel}>OTP sent to</T>
@@ -239,22 +239,22 @@ export default function VerifyOtpScreen() {
 }
 
 const styles = StyleSheet.create({
-  form: { marginTop: 24 },
+  form: { marginTop: 20 },
   phoneSummary: {
-    minHeight: 64,
-    paddingHorizontal: 10,
+    minHeight: 56,
+    paddingHorizontal: 8,
     borderWidth: 1,
     borderColor: '#DDE9F9',
-    borderRadius: 14,
+    borderRadius: 12,
     backgroundColor: '#F6FAFF',
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 18,
   },
   phoneIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: C.card,
@@ -263,9 +263,9 @@ const styles = StyleSheet.create({
   sentLabel: { color: C.sub, fontFamily: F.regular, fontSize: 10 },
   phoneNumber: { marginTop: 2, color: C.text, fontFamily: F.bold, fontSize: 13 },
   changeButton: {
-    minHeight: 34,
-    paddingHorizontal: 8,
-    borderRadius: 11,
+    minHeight: 30,
+    paddingHorizontal: 7,
+    borderRadius: 9,
     borderWidth: 1,
     borderColor: C.primaryBorder,
     backgroundColor: C.card,
@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
   },
   changeText: { marginLeft: 3, color: C.primary, fontFamily: F.semibold, fontSize: 10 },
   otpHeading: {
-    marginBottom: 8,
+    marginBottom: 6,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -284,14 +284,14 @@ const styles = StyleSheet.create({
   secureTagText: { marginLeft: 3, color: C.green, fontFamily: F.semibold, fontSize: 10 },
   otpRow: {
     width: '100%',
-    height: 56,
+    height: 48,
     flexDirection: 'row',
     gap: 0,
     position: 'relative',
   },
   otpCell: {
     flex: 1,
-    height: 56,
+    height: 48,
     borderWidth: 1,
     borderColor: C.borderStrong,
     backgroundColor: '#F9FBFE',
@@ -299,12 +299,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   otpCellJoined: { borderLeftWidth: 0 },
-  otpCellFirst: { borderTopLeftRadius: 14, borderBottomLeftRadius: 14 },
-  otpCellLast: { borderTopRightRadius: 14, borderBottomRightRadius: 14 },
+  otpCellFirst: { borderTopLeftRadius: 12, borderBottomLeftRadius: 12 },
+  otpCellLast: { borderTopRightRadius: 12, borderBottomRightRadius: 12 },
   otpCellActive: { borderWidth: 2, borderColor: C.primary, backgroundColor: C.primaryPale },
   otpCellFilled: { borderColor: C.primaryBorder, backgroundColor: C.primaryPale },
   otpCellError: { borderColor: C.red, backgroundColor: '#FFF8F8' },
-  otpDigit: { color: C.text, fontFamily: F.bold, fontSize: 20 },
+  otpDigit: { color: C.text, fontFamily: F.bold, fontSize: 18 },
   hiddenInput: {
     position: 'absolute',
     top: 0,
@@ -316,13 +316,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     outlineStyle: 'none',
   } as any,
-  errorRow: { marginTop: 7, flexDirection: 'row', alignItems: 'flex-start' },
+  errorRow: { marginTop: 5, flexDirection: 'row', alignItems: 'flex-start' },
   errorText: { flex: 1, marginLeft: 5, color: C.red, fontFamily: F.regular, fontSize: 10.5, lineHeight: 15 },
   verifyButton: {
-    minHeight: 56,
-    marginTop: 18,
+    minHeight: 50,
+    marginTop: 14,
     paddingHorizontal: 7,
-    borderRadius: 14,
+    borderRadius: 12,
     backgroundColor: C.primary,
     flexDirection: 'row',
     alignItems: 'center',
@@ -333,23 +333,23 @@ const styles = StyleSheet.create({
   verifyIcon: {
     position: 'absolute',
     right: 7,
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.14)',
   },
   resendRow: {
-    minHeight: 38,
-    marginTop: 13,
+    minHeight: 34,
+    marginTop: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
   resendPrompt: { color: C.sub, fontFamily: F.regular, fontSize: 10.5 },
   timerPill: {
-    minHeight: 31,
+    minHeight: 28,
     marginLeft: 7,
     paddingHorizontal: 10,
     borderRadius: 11,
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
   },
   timerText: { marginLeft: 4, color: C.sub, fontFamily: F.semibold, fontSize: 10.5 },
   resendButton: {
-    minHeight: 32,
+    minHeight: 30,
     marginLeft: 7,
     paddingHorizontal: 9,
     borderRadius: 11,

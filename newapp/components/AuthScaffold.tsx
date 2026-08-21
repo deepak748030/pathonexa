@@ -10,7 +10,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { T } from './T';
-import { BrandLogo } from './Brand';
 import { Press } from './kit';
 import { C, F, PAGE_GUTTER } from '../src/theme';
 
@@ -51,9 +50,6 @@ export function AuthScaffold({ title, subtitle, children, onBack }: AuthScaffold
                   <MaterialCommunityIcons name="arrow-left" size={20} color="#fff" />
                 </Press>
               ) : null}
-              <View style={styles.logoPlate}>
-                <BrandLogo width={190} />
-              </View>
             </View>
           </LinearGradient>
 
@@ -74,17 +70,15 @@ const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: C.headerTop },
   scrollContent: { flexGrow: 1, backgroundColor: C.bg },
   hero: {
-    minHeight: 176,
-    paddingBottom: 34,
+    minHeight: 92,
+    paddingBottom: 14,
     justifyContent: 'center',
   },
   heroInner: {
     width: '100%',
     maxWidth: 520,
-    minHeight: 106,
+    minHeight: 42,
     alignSelf: 'center',
-    alignItems: 'center',
-    justifyContent: 'center',
     paddingHorizontal: PAGE_GUTTER,
   },
   backButton: {
@@ -100,24 +94,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.34)',
   },
-  logoPlate: {
-    width: 214,
-    height: 98,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.72)',
-    overflow: 'hidden',
-  },
   sheet: {
     flexGrow: 1,
     width: '100%',
     maxWidth: 520,
     alignSelf: 'center',
-    marginTop: -20,
-    paddingTop: 30,
+    marginTop: -18,
+    paddingTop: 23,
     paddingHorizontal: PAGE_GUTTER,
     paddingBottom: 28,
     borderTopLeftRadius: 22,
