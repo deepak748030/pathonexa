@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   useFonts,
   PlusJakartaSans_400Regular,
@@ -16,6 +16,20 @@ import { DrawerProvider } from '../components/Drawer';
 import { C, F } from '../src/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+const STATUS_BAR_EXTENSION = 4;
+
+function PersistentStatusBarBackground() {
+  const insets = useSafeAreaInsets();
+  if (insets.top <= 0) return null;
+
+  return (
+    <View
+      pointerEvents="none"
+      style={[styles.statusBarBackground, { height: insets.top + STATUS_BAR_EXTENSION }]}
+    />
+  );
+}
 
 export default function RootLayout() {
   const [loaded] = useFonts({
@@ -40,15 +54,30 @@ export default function RootLayout() {
       `input,textarea,select,button{font-family:inherit}` +
       `input,textarea{caret-color:${C.primary}}`;
     document.head.appendChild(st);
-    return () => st.remove();
+
+    let themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    const createdThemeColor = !themeColor;
+    const previousThemeColor = themeColor?.content;
+    if (!themeColor) {
+      themeColor = document.createElement('meta');
+      themeColor.name = 'theme-color';
+      document.head.appendChild(themeColor);
+    }
+    themeColor.content = C.headerTop;
+
+    return () => {
+      st.remove();
+      if (createdThemeColor) themeColor.remove();
+      else if (previousThemeColor) themeColor.content = previousThemeColor;
+    };
   }, []);
 
   if (!loaded) return null;
 
   return (
     <SafeAreaProvider>
+      <StatusBar style="light" backgroundColor={C.headerTop} translucent />
       <DrawerProvider>
-        <StatusBar style="light" backgroundColor={C.headerTop} translucent={false} />
         <Stack
           screenOptions={{
             headerShown: false,
@@ -56,6 +85,18 @@ export default function RootLayout() {
           }}
         />
       </DrawerProvider>
+      <PersistentStatusBarBackground />
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  statusBarBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    backgroundColor: C.headerTop,
+  },
+});
