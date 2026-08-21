@@ -21,7 +21,7 @@ export default function Dashboard() {
         sub={greeting.sub}
         right={
           <>
-            <HeaderIconBtn icon="bell-outline" badge={3} />
+            <HeaderIconBtn icon="bell" badge={3} />
             <View style={styles.labLogo}>
               <MaterialCommunityIcons name="microscope" size={17} color={C.primary} />
               <Text style={styles.labLogoText}>{'SRPL\nLAB'}</Text>

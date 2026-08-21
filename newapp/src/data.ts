@@ -27,10 +27,10 @@ export interface Stat {
 
 export const dashStats: Stat[] = [
   { icon: 'clipboard-text-outline', tone: 'blue', label: "Today's Reports", value: '48', foot: 'Total Reports' },
-  { icon: 'currency-inr', tone: 'green', label: "Today's Revenue", value: '₹18,650', foot: 'Total Collection' },
+  { icon: 'currency-rupee', tone: 'green', label: "Today's Revenue", value: '₹18,650', foot: 'Total Collection' },
   { icon: 'timer-sand', tone: 'orange', label: 'Pending Reports', value: '12', foot: 'Yet to Complete' },
   { icon: 'wallet-outline', tone: 'purple', label: 'Pending Amount', value: '₹7,340', foot: 'From 15 Patients' },
-  { icon: 'stethoscope', tone: 'blue', label: 'Doctor Commission', value: '₹5,280', foot: 'Pending Payout' },
+  { icon: 'doctor', tone: 'blue', label: 'Doctor Commission', value: '₹5,280', foot: 'Pending Payout' },
   { icon: 'receipt-text-outline', tone: 'pink', label: "Today's Expense", value: '₹2,140', foot: 'Total Expense' },
 ];
 
@@ -38,7 +38,7 @@ export const quickActions: { icon: string; label: string }[] = [
   { icon: 'account-plus-outline', label: 'New Patient' },
   { icon: 'flask-outline', label: 'New Report' },
   { icon: 'wallet-outline', label: 'Payment' },
-  { icon: 'stethoscope', label: 'Add Doctor' },
+  { icon: 'doctor', label: 'Add Doctor' },
   { icon: 'view-grid-outline', label: 'More' },
 ];
 
@@ -82,7 +82,7 @@ export const patientStats = [
   { icon: 'account-multiple', tone: 'blue' as Tone, value: '1,248', label: 'Total Patients' },
   { icon: 'account-plus-outline', tone: 'green' as Tone, value: '28', label: 'New This Week' },
   { icon: 'clipboard-text-outline', tone: 'purple' as Tone, value: '387', label: 'Tests This Week' },
-  { icon: 'currency-inr', tone: 'orange' as Tone, value: '₹3,45,760', label: 'This Week Collection' },
+  { icon: 'currency-rupee', tone: 'orange' as Tone, value: '₹3,45,760', label: 'This Week Collection' },
 ];
 
 export interface ReportRow {
@@ -112,7 +112,7 @@ export const reportStats = [
   { icon: 'clipboard-text-outline', tone: 'blue' as Tone, value: '48', label: "Today's Reports" },
   { icon: 'timer-sand', tone: 'orange' as Tone, value: '12', label: 'Pending Reports' },
   { icon: 'check-circle-outline', tone: 'green' as Tone, value: '36', label: 'Completed' },
-  { icon: 'currency-inr', tone: 'purple' as Tone, value: '₹18,650', label: "Today's Collection" },
+  { icon: 'currency-rupee', tone: 'purple' as Tone, value: '₹18,650', label: "Today's Collection" },
 ];
 
 export const reportRows: ReportRow[] = [
@@ -203,10 +203,10 @@ export const moreSections: { title: string; items: { icon: string; label: string
   {
     title: 'MANAGE',
     items: [
-      { icon: 'stethoscope', label: 'Doctors', sub: 'Manage referring doctors' },
+      { icon: 'doctor', label: 'Doctors', sub: 'Manage referring doctors' },
       { icon: 'test-tube', label: 'Tests & Packages', sub: 'Manage tests and packages' },
       { icon: 'account-multiple-outline', label: 'Patients', sub: 'Manage patient records' },
-      { icon: 'badge-account-horizontal-outline', label: 'Lab Employees', sub: 'Manage lab staff and roles' },
+      { icon: 'account-badge-outline', label: 'Lab Employees', sub: 'Manage lab staff and roles' },
       { icon: 'home-outline', label: 'Sample Collection Center', sub: 'Manage collection centers' },
       { icon: 'percent-outline', label: 'Discount & Charges', sub: 'Manage discounts and extra charges' },
       { icon: 'credit-card-outline', label: 'Payment Methods', sub: 'Manage payment modes' },
@@ -245,9 +245,9 @@ export const drawerSections: { title: string; items: { icon: string; label: stri
   {
     title: 'MANAGE',
     items: [
-      { icon: 'stethoscope', label: 'Doctors' },
+      { icon: 'doctor', label: 'Doctors' },
       { icon: 'test-tube', label: 'Tests & Packages' },
-      { icon: 'badge-account-horizontal-outline', label: 'Lab Employees' },
+      { icon: 'account-badge-outline', label: 'Lab Employees' },
       { icon: 'home-outline', label: 'Sample Collection Center' },
       { icon: 'percent-outline', label: 'Discount & Charges' },
       { icon: 'credit-card-outline', label: 'Payment Methods' },

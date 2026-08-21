@@ -25,7 +25,7 @@ const payModes = [
   { icon: 'cash', label: 'Cash' },
   { icon: 'swap-horizontal', label: 'UPI' },
   { icon: 'credit-card-outline', label: 'Card' },
-  { icon: 'bank-outline', label: 'Bank Transfer' },
+  { icon: 'bank-transfer', label: 'Bank Transfer' },
   { icon: 'circle-outline', label: 'Other' },
 ];
 
@@ -384,7 +384,7 @@ export default function CreateReport() {
             </View>
             <View style={[styles.prevRow, { borderBottomWidth: 1, borderBottomColor: C.borderSoft }]}>
               <View style={styles.prevIcon}>
-                <MaterialCommunityIcons name="stethoscope" size={17} color={C.green} />
+                <MaterialCommunityIcons name="doctor" size={17} color={C.green} />
               </View>
               <View style={{ flex: 1, marginLeft: 10 }}>
                 <Text style={styles.sumLbl}>Ref. Doctor</Text>

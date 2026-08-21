@@ -2,6 +2,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { BlueHeader, HeaderIconBtn } from '../components/kit';
@@ -27,6 +28,7 @@ const infoRows: [string, string, string, string][] = [
 
 export default function ReportPreview() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <View style={styles.phone}>
@@ -153,7 +155,7 @@ export default function ReportPreview() {
         </ScrollView>
 
         {/* dark action bar */}
-        <View style={styles.actionBar}>
+        <View style={[styles.actionBar, { paddingBottom: insets.bottom + 12 }]}>
           <TouchableOpacity style={styles.actionBtn}>
             <MaterialCommunityIcons name="share-variant" size={14} color="#fff" />
             <Text style={styles.actionText}>Share</Text>

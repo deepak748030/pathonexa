@@ -73,9 +73,7 @@ export function BlueHeader(props: {
         <TouchableOpacity onPress={props.onBack} style={styles.headerBtn} accessibilityLabel="Go back">
           <MaterialCommunityIcons name="arrow-left" size={24} color="#fff" />
         </TouchableOpacity>
-      ) : (
-        <View style={{ width: 40 }} />
-      )}
+      ) : null}
       <View style={{ flex: 1 }}>
         <Text style={styles.headerTitle} numberOfLines={1}>
           {props.title}

@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Tabs } from 'expo-router';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { C } from '../../src/theme';
 import { MAXW } from '../../components/kit';
@@ -33,6 +34,7 @@ function Fab() {
 }
 
 function TabBar({ state, navigation }: BottomTabBarProps) {
+  const insets = useSafeAreaInsets();
   const items: React.ReactNode[] = [];
   state.routes.forEach((route, i) => {
     const focused = state.index === i;
@@ -53,7 +55,7 @@ function TabBar({ state, navigation }: BottomTabBarProps) {
     if (route.name === 'patients') items.push(<Fab key="fab" />);
   });
   return (
-    <View style={styles.barWrap} pointerEvents="box-none">
+    <View style={[styles.barWrap, { paddingBottom: insets.bottom + 10 }]} pointerEvents="box-none">
       <View style={styles.bar}>{items}</View>
     </View>
   );
@@ -71,7 +73,7 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
-  barWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center', paddingBottom: 10 },
+  barWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center' },
   bar: {
     width: '94%',
     maxWidth: MAXW - 12,

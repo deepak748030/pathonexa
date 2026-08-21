@@ -9,7 +9,7 @@ import { lab, moreSections } from '../../src/data';
 export default function More() {
   return (
     <ScrollPage>
-      <BlueHeader title="More" sub="Manage your lab, settings and more" right={<HeaderIconBtn icon="bell-outline" badge={3} />} />
+      <BlueHeader title="More" sub="Manage your lab, settings and more" right={<HeaderIconBtn icon="bell" badge={3} />} />
 
       <View style={styles.body}>
         <Card style={[styles.labCard, { marginTop: -6 }]}>

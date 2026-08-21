@@ -1,6 +1,7 @@
 // Slide-in side drawer — layout & content per UI PDF (menu screen)
 import React, { createContext, useContext, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Dimensions, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, usePathname } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -24,6 +25,7 @@ function DrawerPanel() {
   const { open, setOpen } = useDrawer();
   const router = useRouter();
   const path = usePathname();
+  const insets = useSafeAreaInsets();
   const W = Math.min(Dimensions.get('window').width * 0.86, 340);
   const anim = React.useRef(new Animated.Value(-1)).current;
   const last = React.useRef(false);
@@ -46,7 +48,12 @@ function DrawerPanel() {
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
       {open && <TouchableOpacity style={styles.scrim} activeOpacity={1} onPress={() => setOpen(false)} />}
       <Animated.View style={[styles.panel, { width: W, transform: [{ translateX }] }]}>
-        <LinearGradient colors={[C.headerTop, C.headerBottom]} start={[0, 0]} end={[1, 1]} style={styles.panelHeader}>
+        <LinearGradient
+          colors={[C.headerTop, C.headerBottom]}
+          start={[0, 0]}
+          end={[1, 1]}
+          style={[styles.panelHeader, { paddingTop: insets.top + 16, paddingBottom: 16 }]}
+        >
           <View style={styles.logoCircle}>
             <MaterialCommunityIcons name="flask" size={30} color={C.primary} />
           </View>
@@ -64,7 +71,7 @@ function DrawerPanel() {
           </View>
         </LinearGradient>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}>
           <View style={styles.userCard}>
             <View style={styles.userAvatar}>
               <Text style={styles.userAvatarText}>{user.initials}</Text>
@@ -118,7 +125,7 @@ function DrawerPanel() {
 const styles = StyleSheet.create({
   scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10,20,40,0.45)' },
   panel: { position: 'absolute', top: 0, bottom: 0, left: 0, backgroundColor: '#fff', borderTopRightRadius: 18, borderBottomRightRadius: 18, elevation: 10, overflow: 'hidden' },
-  panelHeader: { flexDirection: 'row', alignItems: 'center', padding: 18, paddingTop: 34 },
+  panelHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18 },
   logoCircle: { width: 58, height: 58, borderRadius: 29, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   row: { flexDirection: 'row', alignItems: 'center' },
   labName: { color: '#fff', fontWeight: '800', fontSize: 16, marginRight: 8 },

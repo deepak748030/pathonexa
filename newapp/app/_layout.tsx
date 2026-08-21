@@ -9,7 +9,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <DrawerProvider>
-        <StatusBar style="light" />
+        <StatusBar style="light" backgroundColor={C.headerTop} translucent={false} />
         <Stack
           screenOptions={{
             headerShown: false,
