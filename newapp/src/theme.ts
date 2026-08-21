@@ -27,10 +27,11 @@ export const C = {
   darker: '#141A24',
 } as const;
 
+// Compact radius scale for a flatter, less-rounded interface.
 export const R = {
-  card: 16,
-  field: 10,
-  chip: 10,
+  card: 6,
+  field: 4,
+  chip: 4,
 } as const;
 
 export const S = {

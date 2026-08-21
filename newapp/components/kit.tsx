@@ -398,7 +398,7 @@ export function SegTabs({ tabs, active, onChange }: { tabs: string[]; active: nu
   return (
     <View style={styles.segRow}>
       {tabs.map((t, i) => (
-        <Press key={t} style={[styles.segItem, i === active && { backgroundColor: C.primary, borderRadius: 10 }]} onPress={() => onChange?.(i)}>
+        <Press key={t} style={[styles.segItem, i === active && { backgroundColor: C.primary, borderRadius: 4 }]} onPress={() => onChange?.(i)}>
           <T style={[styles.segText, i === active && { color: '#fff', fontWeight: '700' }]}>{t}</T>
         </Press>
       ))}
@@ -488,8 +488,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: PAGE_GUTTER,
     paddingBottom: 12,
-    borderBottomLeftRadius: 14,
-    borderBottomRightRadius: 14,
+    borderBottomLeftRadius: 6,
+    borderBottomRightRadius: 6,
   },
   headerBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { color: '#fff', fontSize: S.h2, fontWeight: '700' },
@@ -500,7 +500,7 @@ const styles = StyleSheet.create({
     top: 4,
     right: 4,
     backgroundColor: C.red,
-    borderRadius: 8,
+    borderRadius: 4,
     minWidth: 16,
     height: 16,
     alignItems: 'center',
@@ -511,7 +511,7 @@ const styles = StyleSheet.create({
   badgeText: { color: '#fff', fontSize: 9, fontWeight: '700' },
   headerWhiteBtn: {
     backgroundColor: '#fff',
-    borderRadius: 10,
+    borderRadius: 4,
     paddingHorizontal: 8,
     paddingVertical: 8,
   },
@@ -527,7 +527,7 @@ const styles = StyleSheet.create({
   bubble: { alignItems: 'center', justifyContent: 'center' },
   dashStat: {
     backgroundColor: C.card,
-    borderRadius: 14,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: C.border,
     padding: 8,
@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
     flexBasis: '22%',
     flexGrow: 1,
     backgroundColor: C.card,
-    borderRadius: 14,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: C.border,
     paddingVertical: 10,
@@ -571,14 +571,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: C.border,
-    borderRadius: 12,
+    borderRadius: 4,
     paddingHorizontal: 8,
   },
   searchInput: { flex: 1, fontSize: 12.5, color: C.text, paddingVertical: 12, marginLeft: 4, fontFamily: F.regular },
   squareBtn: {
     width: 44,
     height: 44,
-    borderRadius: 12,
+    borderRadius: 4,
     borderWidth: 1,
     borderColor: C.border,
     backgroundColor: '#fff',
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
   },
   primaryBtn: {
     backgroundColor: C.primary,
-    borderRadius: 12,
+    borderRadius: 4,
     paddingVertical: 13,
   },
   primaryBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
@@ -596,7 +596,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: C.primary,
-    borderRadius: 12,
+    borderRadius: 4,
     paddingVertical: 13,
   },
   outlineBtnText: { color: C.primary, fontWeight: '700', fontSize: 13.5 },
@@ -604,7 +604,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#CFE0FB',
     backgroundColor: '#F7FAFF',
-    borderRadius: 8,
+    borderRadius: 4,
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
@@ -612,7 +612,7 @@ const styles = StyleSheet.create({
   segRow: {
     flexDirection: 'row',
     backgroundColor: '#EEF2F9',
-    borderRadius: 10,
+    borderRadius: 4,
     overflow: 'hidden',
   },
   segItem: { flex: 1, paddingVertical: 10, alignItems: 'center' },

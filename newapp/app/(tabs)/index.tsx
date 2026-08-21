@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   quickTile: {
     flex: 1,
     backgroundColor: '#EDF3FE',
-    borderRadius: 12,
+    borderRadius: 6,
     alignItems: 'center',
     paddingVertical: 10,
     gap: 4,
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     gap: 4,
     borderWidth: 1,
     borderColor: C.border,
-    borderRadius: 8,
+    borderRadius: 4,
     paddingHorizontal: 8,
     paddingVertical: 6,
     backgroundColor: '#fff',

@@ -96,7 +96,7 @@ function DrawerPanel() {
                 return (
                   <TouchableOpacity
                     key={it.label}
-                    style={[styles.item, active && { backgroundColor: '#E9F1FE', borderRadius: 10 }]}
+                    style={[styles.item, active && { backgroundColor: '#E9F1FE', borderRadius: 4 }]}
                     onPress={() => go(it.route)}
                   >
                     <MaterialCommunityIcons name={it.icon as any} size={19} color={C.primary} />
@@ -131,8 +131,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     backgroundColor: '#fff',
-    borderTopRightRadius: 18,
-    borderBottomRightRadius: 18,
+    borderTopRightRadius: 6,
+    borderBottomRightRadius: 6,
     borderRightWidth: 1,
     borderRightColor: C.border,
     overflow: 'hidden',
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   logoCircle: { width: 58, height: 58, borderRadius: 29, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   row: { flexDirection: 'row', alignItems: 'center' },
   labName: { color: '#fff', fontWeight: '800', fontSize: 16, marginRight: 4 },
-  activeBadge: { backgroundColor: '#22C55E', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2.5 },
+  activeBadge: { backgroundColor: '#22C55E', borderRadius: 3, paddingHorizontal: 7, paddingVertical: 2.5 },
   activeBadgeText: { color: '#fff', fontSize: 9.5, fontWeight: '700' },
   labSub: { color: 'rgba(255,255,255,0.85)', fontSize: 11, marginTop: 3 },
   userCard: {
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F7F9FD',
     marginHorizontal: PAGE_GUTTER,
     marginVertical: 8,
-    borderRadius: 14,
+    borderRadius: 6,
     padding: 10,
     borderWidth: 1,
     borderColor: C.border,
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     marginHorizontal: PAGE_GUTTER,
     marginTop: 8,
     backgroundColor: '#FDEEEE',
-    borderRadius: 12,
+    borderRadius: 6,
     padding: 10,
     borderWidth: 1,
     borderColor: '#F6D8D8',
