@@ -1,7 +1,7 @@
 // Bottom tab bar with centered FAB — per UI PDF
 import React from 'react';
 import { T } from '../../components/T';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Keyboard, Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useRouter } from 'expo-router';
@@ -34,8 +34,66 @@ function Fab() {
   );
 }
 
+function useKeyboardVisibility() {
+  const [visible, setVisible] = React.useState(() => Platform.OS !== 'web' && Keyboard.isVisible());
+
+  React.useEffect(() => {
+    if (Platform.OS === 'web') {
+      const viewport = window.visualViewport;
+      let baselineHeight = viewport?.height ?? window.innerHeight;
+
+      const hasFocusedInput = () => {
+        const active = document.activeElement as HTMLElement | null;
+        return active?.tagName === 'INPUT' || active?.tagName === 'TEXTAREA' || active?.isContentEditable === true;
+      };
+
+      const update = () => {
+        const currentHeight = viewport?.height ?? window.innerHeight;
+        if (!hasFocusedInput()) {
+          baselineHeight = currentHeight;
+          setVisible(false);
+          return;
+        }
+
+        const viewportOverlap = Math.max(0, window.innerHeight - currentHeight - (viewport?.offsetTop ?? 0));
+        setVisible(Math.max(viewportOverlap, baselineHeight - currentHeight) > 100);
+      };
+
+      window.addEventListener('resize', update);
+      document.addEventListener('focusin', update);
+      document.addEventListener('focusout', update);
+      viewport?.addEventListener('resize', update);
+      viewport?.addEventListener('scroll', update);
+      update();
+
+      return () => {
+        window.removeEventListener('resize', update);
+        document.removeEventListener('focusin', update);
+        document.removeEventListener('focusout', update);
+        viewport?.removeEventListener('resize', update);
+        viewport?.removeEventListener('scroll', update);
+      };
+    }
+
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, () => setVisible(true));
+    const hide = Keyboard.addListener(hideEvent, () => setVisible(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
+  return visible;
+}
+
 function TabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const keyboardVisible = useKeyboardVisibility();
+
+  if (keyboardVisible) return null;
+
   const items: React.ReactNode[] = [];
   state.routes.forEach((route, i) => {
     const focused = state.index === i;
@@ -65,7 +123,7 @@ function TabBar({ state, navigation }: BottomTabBarProps) {
 
 export default function TabsLayout() {
   return (
-    <Tabs screenOptions={{ headerShown: false }} tabBar={(props) => <TabBar {...props} />}>
+    <Tabs screenOptions={{ headerShown: false, tabBarHideOnKeyboard: true }} tabBar={(props) => <TabBar {...props} />}>
       <Tabs.Screen name="index" />
       <Tabs.Screen name="patients" />
       <Tabs.Screen name="reports" />
