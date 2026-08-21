@@ -13,6 +13,7 @@ import {
 } from '@expo-google-fonts/plus-jakarta-sans';
 import * as SplashScreen from 'expo-splash-screen';
 import { DrawerProvider } from '../components/Drawer';
+import { AuthProvider, useAuth } from '../src/auth';
 import { C, F } from '../src/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -28,6 +29,33 @@ function PersistentStatusBarBackground() {
       pointerEvents="none"
       style={[styles.statusBarBackground, { height: insets.top + STATUS_BAR_EXTENSION }]}
     />
+  );
+}
+
+function AppNavigator() {
+  const { isAuthenticated } = useAuth();
+
+  return (
+    <DrawerProvider>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: C.bg },
+          animation: 'fade',
+        }}
+      >
+        <Stack.Protected guard={!isAuthenticated}>
+          <Stack.Screen name="login" />
+          <Stack.Screen name="verify-otp" />
+        </Stack.Protected>
+        <Stack.Protected guard={isAuthenticated}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="add-patient" />
+          <Stack.Screen name="create-report" />
+          <Stack.Screen name="report-preview" />
+        </Stack.Protected>
+      </Stack>
+    </DrawerProvider>
   );
 }
 
@@ -77,14 +105,9 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <StatusBar style="light" backgroundColor={C.headerTop} translucent />
-      <DrawerProvider>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: C.bg },
-          }}
-        />
-      </DrawerProvider>
+      <AuthProvider>
+        <AppNavigator />
+      </AuthProvider>
       <PersistentStatusBarBackground />
     </SafeAreaProvider>
   );

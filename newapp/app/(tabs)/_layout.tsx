@@ -1,7 +1,7 @@
 // Bottom tab bar with centered FAB — per UI PDF
 import React from 'react';
 import { T } from '../../components/T';
-import { View, StyleSheet, Keyboard, Platform } from 'react-native';
+import { Animated, View, StyleSheet, Keyboard, Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useRouter } from 'expo-router';
@@ -23,13 +23,102 @@ const TAB_LABELS: Record<string, string> = {
   more: 'More',
 };
 
+type AnimatedTabItemProps = {
+  label: string;
+  icon: { active: string; inactive: string };
+  focused: boolean;
+  onPress: () => void;
+};
+
+function AnimatedTabItem({ label, icon, focused, onPress }: AnimatedTabItemProps) {
+  const progress = React.useRef(new Animated.Value(focused ? 1 : 0)).current;
+
+  React.useEffect(() => {
+    const animation = Animated.spring(progress, {
+      toValue: focused ? 1 : 0,
+      stiffness: 280,
+      damping: 21,
+      mass: 0.72,
+      useNativeDriver: true,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [focused, progress]);
+
+  const iconScale = progress.interpolate({ inputRange: [0, 1], outputRange: [1, 1.14] });
+  const iconLift = progress.interpolate({ inputRange: [0, 1], outputRange: [0, -2] });
+  const labelLift = progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
+  const labelOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [0.76, 1] });
+  const indicatorScale = progress.interpolate({ inputRange: [0, 1], outputRange: [0.25, 1] });
+
+  return (
+    <Press
+      accessibilityLabel={`${label} tab`}
+      accessibilityState={{ selected: focused }}
+      style={styles.tab}
+      scaleTo={0.91}
+      onPress={onPress}
+    >
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.activeIndicator,
+          { opacity: progress, transform: [{ scaleX: indicatorScale }] },
+        ]}
+      />
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.iconStage,
+          { transform: [{ translateY: iconLift }, { scale: iconScale }] },
+        ]}
+      >
+        <Animated.View style={[styles.iconHalo, { opacity: progress }]} />
+        <MaterialCommunityIcons
+          name={(focused ? icon.active : icon.inactive) as any}
+          size={21}
+          color={focused ? C.primary : '#93A0B4'}
+        />
+      </Animated.View>
+      <Animated.View
+        pointerEvents="none"
+        style={{ opacity: labelOpacity, transform: [{ translateY: labelLift }] }}
+      >
+        <T style={[styles.tabLabel, focused && styles.tabLabelActive]}>{label}</T>
+      </Animated.View>
+    </Press>
+  );
+}
+
 function Fab() {
   const router = useRouter();
+  const entrance = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    const animation = Animated.spring(entrance, {
+      toValue: 1,
+      stiffness: 240,
+      damping: 18,
+      mass: 0.78,
+      useNativeDriver: true,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [entrance]);
+
+  const scale = entrance.interpolate({ inputRange: [0, 1], outputRange: [0.76, 1] });
+  const rotate = entrance.interpolate({ inputRange: [0, 1], outputRange: ['-35deg', '0deg'] });
+
   return (
-    <Press style={styles.fabSlot} onPress={() => router.push('/create-report')} scaleTo={0.9}>
-      <View style={styles.fab}>
+    <Press
+      accessibilityLabel="Create report"
+      style={styles.fabSlot}
+      onPress={() => router.push('/create-report')}
+      scaleTo={0.9}
+    >
+      <Animated.View style={[styles.fab, { transform: [{ scale }, { rotate }] }]}>
         <MaterialCommunityIcons name="plus" size={28} color="#fff" />
-      </View>
+      </Animated.View>
     </Press>
   );
 }
@@ -99,18 +188,16 @@ function TabBar({ state, navigation }: BottomTabBarProps) {
     const focused = state.index === i;
     const ic = TAB_ICONS[route.name] ?? TAB_ICONS.index;
     items.push(
-      <Press
+      <AnimatedTabItem
         key={route.name}
-        style={styles.tab}
-        scaleTo={0.9}
+        label={TAB_LABELS[route.name]}
+        icon={ic}
+        focused={focused}
         onPress={() => {
           const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
           if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
         }}
-      >
-        <MaterialCommunityIcons name={(focused ? ic.active : ic.inactive) as any} size={21} color={focused ? C.primary : '#93A0B4'} />
-        <T style={[styles.tabLabel, focused && { color: C.primary, fontWeight: '700' }]}>{TAB_LABELS[route.name]}</T>
-      </Press>,
+      />,
     );
     if (route.name === 'patients') items.push(<Fab key="fab" />);
   });
@@ -152,8 +239,37 @@ const styles = StyleSheet.create({
     paddingTop: 7,
     paddingBottom: 7,
   },
-  tab: { flex: 1, alignItems: 'center', gap: 2 },
+  tab: {
+    flex: 1,
+    minHeight: 39,
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  activeIndicator: {
+    position: 'absolute',
+    top: -7,
+    width: 28,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: C.primary,
+  },
+  iconStage: {
+    width: 32,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconHalo: {
+    position: 'absolute',
+    width: 32,
+    height: 24,
+    borderRadius: 4,
+    backgroundColor: C.blueSoft,
+  },
   tabLabel: { fontSize: 10.5, color: '#93A0B4', fontWeight: '600' },
+  tabLabelActive: { color: C.primary, fontWeight: '700' },
   fabSlot: { flex: 1, alignItems: 'center', marginTop: -34 },
   fab: {
     width: 56,

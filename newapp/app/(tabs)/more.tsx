@@ -1,13 +1,16 @@
 // More — UI PDF screen 8
 import React from 'react';
 import { T } from '../../components/T';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { BlueHeader, HeaderIconBtn, ScrollPage, Card, Chevron } from '../../components/kit';
 import { C, PAGE_GUTTER } from '../../src/theme';
 import { lab, moreSections } from '../../src/data';
+import { useAuth } from '../../src/auth';
 
 export default function More() {
+  const { logout } = useAuth();
+
   return (
     <ScrollPage>
       <BlueHeader title="More" sub="Manage your lab, settings and more" right={<HeaderIconBtn icon="bell" badge={3} />} />
@@ -48,7 +51,13 @@ export default function More() {
           </View>
         ))}
 
-        <TouchableOpacity style={styles.logout}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Logout from your account"
+          activeOpacity={0.76}
+          onPress={logout}
+          style={styles.logout}
+        >
           <View style={styles.itemIconRed}>
             <MaterialCommunityIcons name="logout" size={19} color={C.red} />
           </View>

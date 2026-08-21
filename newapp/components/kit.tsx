@@ -32,11 +32,15 @@ export function Press({
   style,
   children,
   scaleTo = 0.96,
+  accessibilityLabel,
+  accessibilityState,
 }: {
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
   children: React.ReactNode;
   scaleTo?: number;
+  accessibilityLabel?: string;
+  accessibilityState?: { selected?: boolean; disabled?: boolean };
 }) {
   const s = React.useRef(new Animated.Value(1)).current;
   const down = () => Animated.timing(s, { toValue: scaleTo, duration: 90, useNativeDriver: true }).start();
@@ -52,6 +56,8 @@ export function Press({
       }}
       onResponderTerminate={up}
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={accessibilityState}
     >
       {children}
     </Animated.View>

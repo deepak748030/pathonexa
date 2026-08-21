@@ -1,13 +1,14 @@
 // Slide-in side drawer — layout & content per UI PDF (menu screen)
 import React, { createContext, useContext, useState } from 'react';
 import { T } from './T';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Dimensions, Platform } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Animated, Dimensions, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, usePathname } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { C, PAGE_GUTTER } from '../src/theme';
 import { lab, user, drawerSections } from '../src/data';
+import { useAuth } from '../src/auth';
 
 const DrawerCtx = createContext<{ open: boolean; setOpen: (v: boolean) => void }>({ open: false, setOpen: () => {} });
 export const useDrawer = () => useContext(DrawerCtx);
@@ -24,6 +25,7 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
 
 function DrawerPanel() {
   const { open, setOpen } = useDrawer();
+  const { logout } = useAuth();
   const router = useRouter();
   const path = usePathname();
   const insets = useSafeAreaInsets();
@@ -41,6 +43,11 @@ function DrawerPanel() {
   const go = (route?: string) => {
     setOpen(false);
     if (route) router.push(route as any);
+  };
+
+  const handleLogout = () => {
+    setOpen(false);
+    logout();
   };
 
   const translateX = anim.interpolate({ inputRange: [-1, 1], outputRange: [-W - 20, 0] });
@@ -108,7 +115,13 @@ function DrawerPanel() {
             </View>
           ))}
 
-          <TouchableOpacity style={styles.logout} onPress={() => setOpen(false)}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Logout from your account"
+            activeOpacity={0.76}
+            style={styles.logout}
+            onPress={handleLogout}
+          >
             <MaterialCommunityIcons name="logout" size={19} color={C.red} />
             <View style={{ marginLeft: 4 }}>
               <T style={styles.logoutTitle}>Logout</T>
