@@ -1,9 +1,10 @@
 // Dashboard — UI PDF screen 1 & 9 (behind drawer)
 import React from 'react';
+import { T } from '../../components/T';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { BlueHeader, HeaderIconBtn, ScrollPage, Card, DashStat, SectionHead, Avatar, StatusPill, Chevron } from '../../components/kit';
+import { BlueHeader, HeaderIconBtn, ScrollPage, Card, DashStat, SectionHead, Avatar, StatusPill, Chevron, Press } from '../../components/kit';
 import { LineChart, DonutChart } from '../../components/charts';
 import { useDrawer } from '../../components/Drawer';
 import { C } from '../../src/theme';
@@ -24,7 +25,7 @@ export default function Dashboard() {
             <HeaderIconBtn icon="bell" badge={3} />
             <View style={styles.labLogo}>
               <MaterialCommunityIcons name="microscope" size={17} color={C.primary} />
-              <Text style={styles.labLogoText}>{'SRPL\nLAB'}</Text>
+              <T style={styles.labLogoText}>{'SRPL\nLAB'}</T>
             </View>
           </>
         }
@@ -42,7 +43,7 @@ export default function Dashboard() {
         <SectionHead title="Quick Actions" action="View All" />
         <View style={styles.quickRow}>
           {quickActions.map((q) => (
-            <TouchableOpacity
+            <Press
               key={q.label}
               style={styles.quickTile}
               onPress={() => {
@@ -51,37 +52,37 @@ export default function Dashboard() {
               }}
             >
               <MaterialCommunityIcons name={q.icon as any} size={22} color={C.primary} />
-              <Text style={styles.quickLabel} numberOfLines={1}>
+              <T style={styles.quickLabel} numberOfLines={1}>
                 {q.label}
-              </Text>
-            </TouchableOpacity>
+              </T>
+            </Press>
           ))}
         </View>
 
         {/* reports overview */}
         <Card style={{ marginTop: 14 }}>
           <View style={styles.rowBetween}>
-            <Text style={styles.cardTitle}>Reports Overview</Text>
+            <T style={styles.cardTitle}>Reports Overview</T>
             <View style={styles.weekChip}>
-              <Text style={styles.weekChipText}>This Week</Text>
+              <T style={styles.weekChipText}>This Week</T>
               <MaterialCommunityIcons name="chevron-down" size={14} color={C.sub} />
             </View>
           </View>
           <LineChart data={weekSeries} />
           <View style={styles.weekFoot}>
             <View style={styles.weekFootCell}>
-              <Text style={styles.footLabel}>Total Reports</Text>
-              <Text style={styles.footValue}>{weekSummary.reports}</Text>
+              <T style={styles.footLabel}>Total Reports</T>
+              <T style={styles.footValue}>{weekSummary.reports}</T>
             </View>
             <View style={styles.vDiv} />
             <View style={styles.weekFootCell}>
-              <Text style={styles.footLabel}>Total Revenue</Text>
-              <Text style={[styles.footValue, { color: C.green }]}>{weekSummary.revenue}</Text>
+              <T style={styles.footLabel}>Total Revenue</T>
+              <T style={[styles.footValue, { color: C.green }]}>{weekSummary.revenue}</T>
             </View>
             <View style={styles.vDiv} />
             <View style={styles.weekFootCell}>
-              <Text style={styles.footLabel}>Avg. Per Day</Text>
-              <Text style={[styles.footValue, { color: C.primary }]}>{weekSummary.avg}</Text>
+              <T style={styles.footLabel}>Avg. Per Day</T>
+              <T style={[styles.footValue, { color: C.primary }]}>{weekSummary.avg}</T>
             </View>
           </View>
         </Card>
@@ -93,17 +94,17 @@ export default function Dashboard() {
             <View key={r.id} style={[styles.reportRow, i > 0 && { borderTopWidth: 1, borderTopColor: C.borderSoft }]}>
               <Avatar initials={r.initials} tone={r.tone} size={40} />
               <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.reportName}>{r.name}</Text>
-                <Text style={styles.reportSub} numberOfLines={1}>
+                <T style={styles.reportName}>{r.name}</T>
+                <T style={styles.reportSub} numberOfLines={1}>
                   PID: {r.pid} &nbsp;|&nbsp; {r.test}
-                </Text>
+                </T>
               </View>
               <View style={{ alignItems: 'flex-end', marginRight: 8 }}>
-                <Text style={styles.reportAmount}>{r.amount}</Text>
+                <T style={styles.reportAmount}>{r.amount}</T>
                 <StatusPill status={r.status} />
               </View>
               <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.reportTime}>{r.time}</Text>
+                <T style={styles.reportTime}>{r.time}</T>
               </View>
               <View style={{ marginLeft: 6 }}>
                 <Chevron />

@@ -66,31 +66,11 @@ LAN IP). Full instructions in each package's README.
 pathonexa/
 ├── app/          # Expo app (screens, components, theme, API client)
 │   └── README.md
-├── newapp/       # Fresh Expo app — UI rebuilt from scratch exactly per
-│                 # "pathonexa App UI Demo-compressed.pdf" (same dependency
-│                 # versions as app/). Original app/ is untouched.
 ├── server/       # Express API (models, routes, unified store, seeding)
 │   └── README.md
 ├── package.json  # Root scripts (dev, web, typecheck)
 └── .gitignore
 ```
-
-### 🆕 newapp (UI-PDF build)
-
-```bash
-cd newapp
-npm install --legacy-peer-deps
-EXPO_NO_TELEMETRY=1 EXPO_NO_DEPENDENCY_VALIDATION=1 EXPO_OFFLINE=1 npx expo start --web --port 8081 --lan
-```
-
-Screens implemented 1:1 from the UI PDF: Dashboard (stat cards, quick
-actions, reports-overview line chart, recent reports, today's-reports
-donut), Patients (+stats/search/list/import-export row), Add New Patient
-form, Reports (date chips, status tabs, pagination), 3-step Create Report
-wizard (patient/doctor/test selection, amount + payment mode, grouped
-parameter value entry with H/L flags, preview & save) and the dark PDF
-Report Preview viewer (letterhead, QR, grouped result tables, signature /
-stamp footer, Share / Download / Print bar), More tab and the side drawer.
 
 ## 🔗 App ↔ Server Connection
 

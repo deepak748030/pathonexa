@@ -1,5 +1,6 @@
 // Add New Patient — UI PDF screen 3
 import React from 'react';
+import { T } from '../components/T';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -32,13 +33,13 @@ export default function AddPatient() {
 
       <View style={styles.body}>
         <Card style={{ marginTop: 14 }}>
-          <Text style={styles.sec}>Basic Information</Text>
+          <T style={styles.sec}>Basic Information</T>
 
           <View style={styles.photoWrap}>
             <View style={styles.photoCircle}>
               <MaterialCommunityIcons name="camera-outline" size={22} color={C.primary} />
             </View>
-            <Text style={styles.photoLabel}>Add Photo</Text>
+            <T style={styles.photoLabel}>Add Photo</T>
           </View>
 
           <View style={styles.grid}>
@@ -54,7 +55,7 @@ export default function AddPatient() {
         </Card>
 
         <Card style={{ marginTop: 12 }}>
-          <Text style={styles.sec}>Address Information</Text>
+          <T style={styles.sec}>Address Information</T>
           <View style={styles.grid}>
             <View style={{ flexDirection: 'row', flexBasis: '100%' }}>
               <Field label="Address" required placeholder="Enter complete address" multiline />
@@ -67,7 +68,7 @@ export default function AddPatient() {
         </Card>
 
         <Card style={{ marginTop: 12 }}>
-          <Text style={styles.sec}>Additional Information</Text>
+          <T style={styles.sec}>Additional Information</T>
           <View style={styles.grid}>
             <View style={{ flexDirection: 'row', flexBasis: '100%' }}>
               <Field label="Referred By Doctor" placeholder="Select doctor (optional)" right={<SelectRight />} />

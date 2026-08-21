@@ -1,5 +1,6 @@
 // More — UI PDF screen 8
 import React from 'react';
+import { T } from '../../components/T';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { BlueHeader, HeaderIconBtn, ScrollPage, Card, Chevron } from '../../components/kit';
@@ -17,19 +18,19 @@ export default function More() {
             <MaterialCommunityIcons name="flask" size={26} color={C.primary} />
           </View>
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.labName}>{lab.name}</Text>
-            <Text style={styles.labSub}>{lab.city}</Text>
-            <Text style={styles.labSub}>Lab ID: {lab.labId}</Text>
+            <T style={styles.labName}>{lab.name}</T>
+            <T style={styles.labSub}>{lab.city}</T>
+            <T style={styles.labSub}>Lab ID: {lab.labId}</T>
           </View>
           <TouchableOpacity style={styles.switchBtn}>
             <MaterialCommunityIcons name="swap-horizontal" size={15} color={C.primary} />
-            <Text style={styles.switchBtnText}>Switch Lab</Text>
+            <T style={styles.switchBtnText}>Switch Lab</T>
           </TouchableOpacity>
         </Card>
 
         {moreSections.map((sec) => (
           <View key={sec.title}>
-            <Text style={styles.secTitle}>{sec.title}</Text>
+            <T style={styles.secTitle}>{sec.title}</T>
             <Card style={{ padding: 4 }}>
               {sec.items.map((it, i) => (
                 <TouchableOpacity key={it.label} style={[styles.item, i > 0 && { borderTopWidth: 1, borderTopColor: C.borderSoft }]}>
@@ -37,8 +38,8 @@ export default function More() {
                     <MaterialCommunityIcons name={it.icon as any} size={19} color={C.primary} />
                   </View>
                   <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={styles.itemLabel}>{it.label}</Text>
-                    <Text style={styles.itemSub}>{it.sub}</Text>
+                    <T style={styles.itemLabel}>{it.label}</T>
+                    <T style={styles.itemSub}>{it.sub}</T>
                   </View>
                   <Chevron />
                 </TouchableOpacity>
@@ -52,8 +53,8 @@ export default function More() {
             <MaterialCommunityIcons name="logout" size={19} color={C.red} />
           </View>
           <View style={{ marginLeft: 12 }}>
-            <Text style={styles.logoutTitle}>Logout</Text>
-            <Text style={styles.logoutSub}>Logout from your account</Text>
+            <T style={styles.logoutTitle}>Logout</T>
+            <T style={styles.logoutSub}>Logout from your account</T>
           </View>
         </TouchableOpacity>
       </View>

@@ -1,5 +1,6 @@
 // SVG charts & report visuals for newapp (hand-built, react-native-svg)
 import React, { useState } from 'react';
+import { T } from './T';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Path, Circle, Line, Text as SvgText, Defs, LinearGradient, Stop, Rect, G } from 'react-native-svg';
 import { C } from '../src/theme';
@@ -103,16 +104,16 @@ export function DonutChart({
           </G>
         </Svg>
         <View style={styles.donutCenter}>
-          <Text style={styles.donutTotal}>{total}</Text>
-          <Text style={styles.donutTotalSub}>Total</Text>
+          <T style={styles.donutTotal}>{total}</T>
+          <T style={styles.donutTotalSub}>Total</T>
         </View>
       </View>
       <View style={styles.donutLegend}>
         {segments.map((s) => (
           <View key={s.label} style={styles.legendRow}>
             <View style={[styles.legendDot, { backgroundColor: s.color }]} />
-            <Text style={styles.legendLabel}>{s.label}</Text>
-            <Text style={styles.legendValue}>{s.value}</Text>
+            <T style={styles.legendLabel}>{s.label}</T>
+            <T style={styles.legendValue}>{s.value}</T>
           </View>
         ))}
       </View>

@@ -1,5 +1,6 @@
 // Report Preview — PDF viewer look, UI PDF screen 7 (right side)
 import React from 'react';
+import { T } from '../components/T';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -49,14 +50,14 @@ export default function ReportPreview() {
         <View style={styles.toolbar}>
           <MaterialCommunityIcons name="chevron-left" size={18} color="#E5E7EB" />
           <View style={styles.pageBox}>
-            <Text style={styles.pageBoxText}>1</Text>
+            <T style={styles.pageBoxText}>1</T>
           </View>
-          <Text style={styles.pageOf}>/ 1</Text>
+          <T style={styles.pageOf}>/ 1</T>
           <View style={{ flex: 1 }} />
           <MaterialCommunityIcons name="minus" size={16} color="#E5E7EB" />
           <MaterialCommunityIcons name="plus" size={16} color="#E5E7EB" style={{ marginLeft: 12 }} />
           <View style={styles.zoomChip}>
-            <Text style={styles.zoomText}>100%</Text>
+            <T style={styles.zoomText}>100%</T>
             <MaterialCommunityIcons name="chevron-down" size={12} color="#E5E7EB" />
           </View>
           <MaterialCommunityIcons name="fullscreen" size={16} color="#E5E7EB" style={{ marginLeft: 12 }} />
@@ -69,17 +70,17 @@ export default function ReportPreview() {
               <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                 <LogoMark />
                 <View style={{ marginLeft: 8 }}>
-                  <Text style={styles.brand}>PathoNexa</Text>
-                  <Text style={styles.brandSub}>DIAGNOSTIC LABORATORY</Text>
-                  <Text style={styles.brandTag}>{lab.tagline}</Text>
+                  <T style={styles.brand}>PathoNexa</T>
+                  <T style={styles.brandSub}>DIAGNOSTIC LABORATORY</T>
+                  <T style={styles.brandTag}>{lab.tagline}</T>
                 </View>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.addr}>{lab.name}</Text>
-                <Text style={styles.addr}>{lab.address}</Text>
-                <Text style={styles.addr}>{lab.address2}</Text>
-                <Text style={styles.addr}>{lab.phone}</Text>
-                <Text style={styles.addr}>{lab.email}</Text>
+                <T style={styles.addr}>{lab.name}</T>
+                <T style={styles.addr}>{lab.address}</T>
+                <T style={styles.addr}>{lab.address2}</T>
+                <T style={styles.addr}>{lab.phone}</T>
+                <T style={styles.addr}>{lab.email}</T>
               </View>
               <QRBox size={56} />
             </View>
@@ -89,68 +90,68 @@ export default function ReportPreview() {
               {infoRows.map((r, i) => (
                 <View key={i} style={[styles.infoRow, i > 0 && { borderTopWidth: 1, borderTopColor: '#E5E7EB' }]}>
                   <View style={styles.infoCell}>
-                    <Text style={styles.infoLbl}>{r[0]}</Text>
-                    <Text style={styles.infoVal}>{r[1]}</Text>
+                    <T style={styles.infoLbl}>{r[0]}</T>
+                    <T style={styles.infoVal}>{r[1]}</T>
                   </View>
                   <View style={[styles.infoCell, { borderLeftWidth: 1, borderLeftColor: '#E5E7EB' }]}>
-                    <Text style={styles.infoLbl}>{r[2]}</Text>
-                    <Text style={styles.infoVal}>{r[3]}</Text>
+                    <T style={styles.infoLbl}>{r[2]}</T>
+                    <T style={styles.infoVal}>{r[3]}</T>
                   </View>
                 </View>
               ))}
             </View>
 
-            <Text style={styles.reportTitle}>COMPLETE BLOOD COUNT (CBC)</Text>
+            <T style={styles.reportTitle}>COMPLETE BLOOD COUNT (CBC)</T>
             <View style={styles.titleRule} />
 
             {cbcGroups.map((g) => (
               <View key={g.title} style={{ marginTop: 10 }}>
-                <Text style={styles.pdfGroup}>{g.title}</Text>
+                <T style={styles.pdfGroup}>{g.title}</T>
                 <View style={styles.pdfTblHead}>
-                  <Text style={[styles.pdfTh, { flex: 1.4 }]}>Test Name</Text>
-                  <Text style={[styles.pdfTh, { flex: 0.8 }]}>Result</Text>
-                  <Text style={[styles.pdfTh, { flex: 0.9 }]}>Unit</Text>
-                  <Text style={[styles.pdfTh, { flex: 1.2 }]}>Reference Range</Text>
+                  <T style={[styles.pdfTh, { flex: 1.4 }]}>Test Name</T>
+                  <T style={[styles.pdfTh, { flex: 0.8 }]}>Result</T>
+                  <T style={[styles.pdfTh, { flex: 0.9 }]}>Unit</T>
+                  <T style={[styles.pdfTh, { flex: 1.2 }]}>Reference Range</T>
                 </View>
                 {g.params.map((p) => (
                   <View key={p.name} style={styles.pdfRow}>
-                    <Text style={[styles.pdfTd, { flex: 1.4 }]} numberOfLines={1}>
+                    <T style={[styles.pdfTd, { flex: 1.4 }]} numberOfLines={1}>
                       {p.name}
-                    </Text>
-                    <Text style={[styles.pdfTd, { flex: 0.8, fontWeight: '700' }]}>{p.value}</Text>
-                    <Text style={[styles.pdfTd, { flex: 0.9 }]}>{p.unit}</Text>
+                    </T>
+                    <T style={[styles.pdfTd, { flex: 0.8, fontWeight: '700' }]}>{p.value}</T>
+                    <T style={[styles.pdfTd, { flex: 0.9 }]}>{p.unit}</T>
                     <View style={{ flex: 1.2, flexDirection: 'row', justifyContent: 'space-between' }}>
-                      <Text style={styles.pdfTd}>{p.range}</Text>
-                      {p.flag && <Text style={styles.pdfFlag}>{p.flag}</Text>}
+                      <T style={styles.pdfTd}>{p.range}</T>
+                      {p.flag && <T style={styles.pdfFlag}>{p.flag}</T>}
                     </View>
                   </View>
                 ))}
               </View>
             ))}
 
-            <Text style={styles.pdfRemarksTitle}>Remarks / Comments</Text>
-            <Text style={styles.pdfRemarks}>No significant abnormality detected.</Text>
+            <T style={styles.pdfRemarksTitle}>Remarks / Comments</T>
+            <T style={styles.pdfRemarks}>No significant abnormality detected.</T>
 
             {/* signatures */}
             <View style={styles.sigRow}>
               <View style={styles.sigCell}>
-                <Text style={styles.sigLbl}>Verified By</Text>
+                <T style={styles.sigLbl}>Verified By</T>
                 <Signature />
-                <Text style={styles.sigName}>Dr. Rakesh Kumar</Text>
-                <Text style={styles.sigSub}>MD (Pathology)</Text>
+                <T style={styles.sigName}>Dr. Rakesh Kumar</T>
+                <T style={styles.sigSub}>MD (Pathology)</T>
               </View>
               <View style={{ alignItems: 'center' }}>
                 <Stamp />
               </View>
               <View style={styles.sigCell}>
-                <Text style={styles.sigLbl}>Authorized By</Text>
+                <T style={styles.sigLbl}>Authorized By</T>
                 <Signature color="#334" />
-                <Text style={styles.sigName}>Lab Incharge</Text>
-                <Text style={styles.sigSub}>PathoNexa Diagnostics</Text>
+                <T style={styles.sigName}>Lab Incharge</T>
+                <T style={styles.sigSub}>PathoNexa Diagnostics</T>
               </View>
             </View>
 
-            <Text style={styles.pdfFoot}>This is a computer generated report and does not require physical signature.</Text>
+            <T style={styles.pdfFoot}>This is a computer generated report and does not require physical signature.</T>
           </View>
         </ScrollView>
 
@@ -158,19 +159,19 @@ export default function ReportPreview() {
         <View style={[styles.actionBar, { paddingBottom: insets.bottom + 12 }]}>
           <TouchableOpacity style={styles.actionBtn}>
             <MaterialCommunityIcons name="share-variant" size={14} color="#fff" />
-            <Text style={styles.actionText}>Share</Text>
+            <T style={styles.actionText}>Share</T>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionBtn}>
             <MaterialCommunityIcons name="download-outline" size={14} color="#fff" />
-            <Text style={styles.actionText}>Download PDF</Text>
+            <T style={styles.actionText}>Download PDF</T>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionBtn}>
             <MaterialCommunityIcons name="printer" size={14} color="#fff" />
-            <Text style={styles.actionText}>Print</Text>
+            <T style={styles.actionText}>Print</T>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionBtn}>
             <MaterialCommunityIcons name="dots-horizontal" size={14} color="#fff" />
-            <Text style={styles.actionText}>More</Text>
+            <T style={styles.actionText}>More</T>
           </TouchableOpacity>
         </View>
       </View>

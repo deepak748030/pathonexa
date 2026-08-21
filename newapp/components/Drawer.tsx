@@ -1,5 +1,6 @@
 // Slide-in side drawer — layout & content per UI PDF (menu screen)
 import React, { createContext, useContext, useState } from 'react';
+import { T } from './T';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Dimensions, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, usePathname } from 'expo-router';
@@ -59,29 +60,29 @@ function DrawerPanel() {
           </View>
           <View style={{ flex: 1, marginLeft: 12 }}>
             <View style={styles.row}>
-              <Text style={styles.labName} numberOfLines={1}>
+              <T style={styles.labName} numberOfLines={1}>
                 PathoNexa Diagnostics
-              </Text>
+              </T>
               <View style={styles.activeBadge}>
-                <Text style={styles.activeBadgeText}>Active</Text>
+                <T style={styles.activeBadgeText}>Active</T>
               </View>
             </View>
-            <Text style={styles.labSub}>{lab.city}</Text>
-            <Text style={styles.labSub}>Lab ID: {lab.labId}</Text>
+            <T style={styles.labSub}>{lab.city}</T>
+            <T style={styles.labSub}>Lab ID: {lab.labId}</T>
           </View>
         </LinearGradient>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}>
           <View style={styles.userCard}>
             <View style={styles.userAvatar}>
-              <Text style={styles.userAvatarText}>{user.initials}</Text>
+              <T style={styles.userAvatarText}>{user.initials}</T>
             </View>
             <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={styles.userName}>{user.name}</Text>
-              <Text style={styles.userRole}>{user.role}</Text>
+              <T style={styles.userName}>{user.name}</T>
+              <T style={styles.userRole}>{user.role}</T>
               <View style={styles.row}>
                 <View style={styles.onlineDot} />
-                <Text style={styles.onlineText}>Online</Text>
+                <T style={styles.onlineText}>Online</T>
               </View>
             </View>
             <MaterialCommunityIcons name="chevron-right" size={18} color={C.faint} />
@@ -89,7 +90,7 @@ function DrawerPanel() {
 
           {drawerSections.map((sec) => (
             <View key={sec.title}>
-              <Text style={styles.secTitle}>{sec.title}</Text>
+              <T style={styles.secTitle}>{sec.title}</T>
               {sec.items.map((it) => {
                 const active = !!it.route && path === it.route;
                 return (
@@ -99,7 +100,7 @@ function DrawerPanel() {
                     onPress={() => go(it.route)}
                   >
                     <MaterialCommunityIcons name={it.icon as any} size={19} color={C.primary} />
-                    <Text style={[styles.itemLabel, active && { color: C.primary, fontWeight: '700' }]}>{it.label}</Text>
+                    <T style={[styles.itemLabel, active && { color: C.primary, fontWeight: '700' }]}>{it.label}</T>
                     <MaterialCommunityIcons name="chevron-right" size={16} color={active ? C.primary : C.faint} />
                   </TouchableOpacity>
                 );
@@ -110,12 +111,12 @@ function DrawerPanel() {
           <TouchableOpacity style={styles.logout} onPress={() => setOpen(false)}>
             <MaterialCommunityIcons name="logout" size={19} color={C.red} />
             <View style={{ marginLeft: 10 }}>
-              <Text style={styles.logoutTitle}>Logout</Text>
-              <Text style={styles.logoutSub}>Logout from your account</Text>
+              <T style={styles.logoutTitle}>Logout</T>
+              <T style={styles.logoutSub}>Logout from your account</T>
             </View>
           </TouchableOpacity>
 
-          <Text style={styles.version}>App Version 1.0.0</Text>
+          <T style={styles.version}>App Version 1.0.0</T>
         </ScrollView>
       </Animated.View>
     </View>

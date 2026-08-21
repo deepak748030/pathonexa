@@ -1,5 +1,6 @@
 // Bottom tab bar with centered FAB — per UI PDF
 import React from 'react';
+import { T } from '../../components/T';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Tabs } from 'expo-router';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -7,7 +8,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { C } from '../../src/theme';
-import { MAXW } from '../../components/kit';
+import { MAXW, Press } from '../../components/kit';
 
 const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
   index: { active: 'home', inactive: 'home-outline' },
@@ -25,11 +26,11 @@ const TAB_LABELS: Record<string, string> = {
 function Fab() {
   const router = useRouter();
   return (
-    <TouchableOpacity style={styles.fabSlot} onPress={() => router.push('/create-report')} accessibilityLabel="Create Report">
+    <Press style={styles.fabSlot} onPress={() => router.push('/create-report')} scaleTo={0.9}>
       <View style={styles.fab}>
         <MaterialCommunityIcons name="plus" size={28} color="#fff" />
       </View>
-    </TouchableOpacity>
+    </Press>
   );
 }
 
@@ -40,17 +41,18 @@ function TabBar({ state, navigation }: BottomTabBarProps) {
     const focused = state.index === i;
     const ic = TAB_ICONS[route.name] ?? TAB_ICONS.index;
     items.push(
-      <TouchableOpacity
+      <Press
         key={route.name}
         style={styles.tab}
+        scaleTo={0.9}
         onPress={() => {
           const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
           if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
         }}
       >
         <MaterialCommunityIcons name={(focused ? ic.active : ic.inactive) as any} size={21} color={focused ? C.primary : '#93A0B4'} />
-        <Text style={[styles.tabLabel, focused && { color: C.primary, fontWeight: '700' }]}>{TAB_LABELS[route.name]}</Text>
-      </TouchableOpacity>,
+        <T style={[styles.tabLabel, focused && { color: C.primary, fontWeight: '700' }]}>{TAB_LABELS[route.name]}</T>
+      </Press>,
     );
     if (route.name === 'patients') items.push(<Fab key="fab" />);
   });

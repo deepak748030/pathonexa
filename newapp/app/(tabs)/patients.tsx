@@ -1,5 +1,6 @@
 // Patients — UI PDF screen 2
 import React from 'react';
+import { T } from '../../components/T';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -51,22 +52,22 @@ export default function Patients() {
             <View key={p.id} style={[styles.pRow, i > 0 && { borderTopWidth: 1, borderTopColor: C.borderSoft }]}>
               <Avatar initials={p.initials} tone={p.tone} />
               <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.pName}>{p.name}</Text>
+                <T style={styles.pName}>{p.name}</T>
                 <View style={styles.row}>
-                  <Text style={styles.pPid}>PID: {p.pid}</Text>
+                  <T style={styles.pPid}>PID: {p.pid}</T>
                   <MaterialCommunityIcons name="barcode" size={13} color={C.faint} style={{ marginLeft: 6 }} />
                 </View>
-                <Text style={styles.pMeta}>
+                <T style={styles.pMeta}>
                   {p.age} &nbsp;•&nbsp; {p.gender} &nbsp;•&nbsp; {p.blood}
-                </Text>
+                </T>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <View style={styles.row}>
                   <MaterialCommunityIcons name="phone" size={11} color={C.sub} style={{ marginRight: 5 }} />
-                  <Text style={styles.pPhone}>{p.phone}</Text>
+                  <T style={styles.pPhone}>{p.phone}</T>
                 </View>
-                <Text style={styles.pLast}>Last Test: {p.lastTest}</Text>
-                <Text style={[styles.pTest, { color: toneColor[p.testTone].fg }]}>{p.test}</Text>
+                <T style={styles.pLast}>Last Test: {p.lastTest}</T>
+                <T style={[styles.pTest, { color: toneColor[p.testTone].fg }]}>{p.test}</T>
               </View>
               <View style={{ marginLeft: 8 }}>
                 <Chevron />
@@ -80,9 +81,9 @@ export default function Patients() {
             {footActions.map((a) => (
               <TouchableOpacity key={a.label} style={styles.footTile}>
                 <MaterialCommunityIcons name={a.icon as any} size={20} color={C.primary} />
-                <Text style={styles.footLabel} numberOfLines={1}>
+                <T style={styles.footLabel} numberOfLines={1}>
                   {a.label}
-                </Text>
+                </T>
               </TouchableOpacity>
             ))}
           </View>

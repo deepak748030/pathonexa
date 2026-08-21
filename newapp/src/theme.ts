@@ -51,3 +51,27 @@ export const shadow = {
 } as const;
 
 export const fmtINR = (n: number) => '₹' + n.toLocaleString('en-IN');
+
+/* Plus Jakarta Sans — loaded via @expo-google-fonts (same package version as app/) */
+export const F = {
+  regular: 'PlusJakartaSans_400Regular',
+  medium: 'PlusJakartaSans_500Medium',
+  semibold: 'PlusJakartaSans_600SemiBold',
+  bold: 'PlusJakartaSans_700Bold',
+  extrabold: 'PlusJakartaSans_800ExtraBold',
+} as const;
+
+export function fontForWeight(w?: string | number): string {
+  switch (String(w)) {
+    case '800':
+      return F.extrabold;
+    case '700':
+      return F.bold;
+    case '600':
+      return F.semibold;
+    case '500':
+      return F.medium;
+    default:
+      return F.regular;
+  }
+}

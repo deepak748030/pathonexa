@@ -1,5 +1,6 @@
 // Reports — UI PDF screen 5
 import React, { useState } from 'react';
+import { T } from '../../components/T';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -47,13 +48,13 @@ export default function Reports() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }} contentContainerStyle={{ gap: 8 }}>
           {dateChips.map((d) => (
             <TouchableOpacity key={d.t} style={[styles.chip, d.active && { borderColor: C.primary, backgroundColor: '#F3F8FF' }]}>
-              <Text style={[styles.chipTitle, d.active && { color: C.primary }]}>{d.t}</Text>
-              <Text style={[styles.chipSub, d.active && { color: C.primary }]}>{d.s}</Text>
+              <T style={[styles.chipTitle, d.active && { color: C.primary }]}>{d.t}</T>
+              <T style={[styles.chipSub, d.active && { color: C.primary }]}>{d.s}</T>
             </TouchableOpacity>
           ))}
           <TouchableOpacity style={[styles.chip, styles.chipRow]}>
             <MaterialCommunityIcons name="calendar-month-outline" size={14} color={C.sub} />
-            <Text style={styles.chipTitleGray}>Custom Range</Text>
+            <T style={styles.chipTitleGray}>Custom Range</T>
           </TouchableOpacity>
         </ScrollView>
 
@@ -66,22 +67,22 @@ export default function Reports() {
             <View key={r.id} style={[styles.rRow, i > 0 && { borderTopWidth: 1, borderTopColor: C.borderSoft }]}>
               <Avatar initials={r.initials} tone={r.tone} size={42} />
               <View style={{ flex: 1.4, marginLeft: 10 }}>
-                <Text style={styles.rName}>{r.name}</Text>
-                <Text style={styles.rMeta} numberOfLines={1}>
+                <T style={styles.rName}>{r.name}</T>
+                <T style={styles.rMeta} numberOfLines={1}>
                   PID: {r.pid} &nbsp;|&nbsp; {r.meta}
-                </Text>
-                <Text style={[styles.rTest, { color: toneColor[r.testTone].fg }]}>{r.test}</Text>
-                <Text style={styles.rDoc}>{r.doctor}</Text>
+                </T>
+                <T style={[styles.rTest, { color: toneColor[r.testTone].fg }]}>{r.test}</T>
+                <T style={styles.rDoc}>{r.doctor}</T>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.rLbl}>Report ID</Text>
-                <Text style={styles.rVal}>{r.rid}</Text>
-                <Text style={[styles.rLbl, { marginTop: 6 }]}>Report Date</Text>
-                <Text style={styles.rVal}>{r.date}</Text>
-                <Text style={styles.rVal}>{r.time}</Text>
+                <T style={styles.rLbl}>Report ID</T>
+                <T style={styles.rVal}>{r.rid}</T>
+                <T style={[styles.rLbl, { marginTop: 6 }]}>Report Date</T>
+                <T style={styles.rVal}>{r.date}</T>
+                <T style={styles.rVal}>{r.time}</T>
               </View>
               <View style={{ alignItems: 'flex-end', marginLeft: 6 }}>
-                <Text style={styles.rAmount}>{r.amount}</Text>
+                <T style={styles.rAmount}>{r.amount}</T>
                 <StatusPill status={r.status} />
               </View>
               <View style={{ marginLeft: 6 }}>
@@ -89,15 +90,15 @@ export default function Reports() {
               </View>
             </View>
           ))}
-          {rows.length === 0 && <Text style={styles.empty}>No reports in this filter.</Text>}
+          {rows.length === 0 && <T style={styles.empty}>No reports in this filter.</T>}
         </Card>
 
         <View style={styles.pager}>
-          <Text style={styles.pagerText}>Showing 1 to 10 of 48 reports</Text>
+          <T style={styles.pagerText}>Showing 1 to 10 of 48 reports</T>
           <View style={styles.row}>
             {['1', '2', '3', '4', '5'].map((p, i) => (
               <TouchableOpacity key={p} style={[styles.pageBtn, i === 0 && { backgroundColor: C.primary }]}>
-                <Text style={[styles.pageBtnText, i === 0 && { color: '#fff' }]}>{p}</Text>
+                <T style={[styles.pageBtnText, i === 0 && { color: '#fff' }]}>{p}</T>
               </TouchableOpacity>
             ))}
             <TouchableOpacity style={styles.pageBtn}>

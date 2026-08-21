@@ -7,7 +7,7 @@
     "icon": "./assets/icon.png",
     "scheme": "pathonexa-new",
     "userInterfaceStyle": "light",
-    "softwareKeyboardLayoutMode": "resize",
+    "softwareKeyboardLayoutMode": "pan",
     "splash": {
       "image": "./assets/icon.png",
       "resizeMode": "contain",

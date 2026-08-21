@@ -1,5 +1,6 @@
 // Create Report — 3-step wizard, UI PDF screens 4, 6, 7
 import React, { useMemo, useState } from 'react';
+import { T } from '../components/T';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -18,7 +19,7 @@ import {
   Chevron,
 } from '../components/kit';
 import { useDrawer } from '../components/Drawer';
-import { C } from '../src/theme';
+import { C, F } from '../src/theme';
 import { patients, refDoctor, testsCatalog, cbcGroups } from '../src/data';
 
 const payModes = [
@@ -63,7 +64,7 @@ export default function CreateReport() {
   const draftsBtn = (
     <TouchableOpacity style={styles.draftsBtn}>
       <MaterialCommunityIcons name="file-document-outline" size={15} color="#fff" />
-      <Text style={styles.draftsText}>Drafts (3)</Text>
+      <T style={styles.draftsText}>Drafts (3)</T>
     </TouchableOpacity>
   );
 
@@ -86,21 +87,21 @@ export default function CreateReport() {
           {/* 1. select patient */}
           <Card style={{ marginTop: 12 }}>
             <View style={styles.cardHead}>
-              <Text style={styles.cardHeadTitle}>1. Select Patient</Text>
+              <T style={styles.cardHeadTitle}>1. Select Patient</T>
               <SmallOutlineBtn icon="plus" label="New Patient" onPress={() => router.push('/add-patient')} />
             </View>
             <View style={styles.selPatient}>
               <Avatar initials={patient.initials} tone={patient.tone} size={44} />
               <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.selName}>{patient.name}</Text>
-                <Text style={styles.selMeta}>
+                <T style={styles.selName}>{patient.name}</T>
+                <T style={styles.selMeta}>
                   {patient.age} &nbsp;|&nbsp; {patient.gender} &nbsp;|&nbsp; {patient.blood}
-                </Text>
-                <Text style={styles.selPid}>PID: PT250726001</Text>
+                </T>
+                <T style={styles.selPid}>PID: PT250726001</T>
               </View>
               <View style={styles.row}>
                 <MaterialCommunityIcons name="phone" size={12} color={C.sub} style={{ marginRight: 6 }} />
-                <Text style={styles.selPhone}>{patient.phone}</Text>
+                <T style={styles.selPhone}>{patient.phone}</T>
               </View>
               <View style={{ marginLeft: 8 }}>
                 <Chevron />
@@ -115,19 +116,19 @@ export default function CreateReport() {
           {/* 2. ref doctor */}
           <Card style={{ marginTop: 12 }}>
             <View style={styles.cardHead}>
-              <Text style={styles.cardHeadTitle}>2. Select Ref. Doctor</Text>
+              <T style={styles.cardHeadTitle}>2. Select Ref. Doctor</T>
               <SmallOutlineBtn icon="plus" label="New Doctor" />
             </View>
             <View style={styles.selPatient}>
               <Avatar initials={refDoctor.initials} tone="green" size={44} />
               <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.selName}>{refDoctor.name}</Text>
-                <Text style={styles.selMeta}>{refDoctor.quals}</Text>
-                <Text style={styles.selComm}>{refDoctor.commission}</Text>
+                <T style={styles.selName}>{refDoctor.name}</T>
+                <T style={styles.selMeta}>{refDoctor.quals}</T>
+                <T style={styles.selComm}>{refDoctor.commission}</T>
               </View>
               <View style={styles.row}>
                 <MaterialCommunityIcons name="phone" size={12} color={C.sub} style={{ marginRight: 6 }} />
-                <Text style={styles.selPhone}>{refDoctor.phone}</Text>
+                <T style={styles.selPhone}>{refDoctor.phone}</T>
               </View>
               <View style={{ marginLeft: 8 }}>
                 <MaterialCommunityIcons name="chevron-down" size={16} color={C.faint} />
@@ -137,7 +138,7 @@ export default function CreateReport() {
 
           {/* 3. tests */}
           <Card style={{ marginTop: 12 }}>
-            <Text style={styles.cardHeadTitle}>3. Select Test / Package</Text>
+            <T style={styles.cardHeadTitle}>3. Select Test / Package</T>
             <View style={{ marginTop: 10 }}>
               <SegTabs tabs={['All Tests', 'Packages', 'Recent Tests']} active={0} />
             </View>
@@ -153,10 +154,10 @@ export default function CreateReport() {
                       {on && <MaterialCommunityIcons name="check" size={12} color="#fff" />}
                     </View>
                     <View style={{ flex: 1, marginLeft: 10 }}>
-                      <Text style={styles.testName}>{t.name}</Text>
-                      <Text style={styles.testCat}>{t.cat}</Text>
+                      <T style={styles.testName}>{t.name}</T>
+                      <T style={styles.testCat}>{t.cat}</T>
                     </View>
-                    <Text style={styles.testPrice}>₹{t.price}</Text>
+                    <T style={styles.testPrice}>₹{t.price}</T>
                     <MaterialCommunityIcons name="information-outline" size={16} color={C.primary} style={{ marginLeft: 10 }} />
                   </TouchableOpacity>
                 );
@@ -164,74 +165,74 @@ export default function CreateReport() {
             </View>
             <TouchableOpacity style={styles.addMore}>
               <MaterialCommunityIcons name="plus" size={14} color={C.primary} />
-              <Text style={styles.addMoreText}>Add More Tests</Text>
+              <T style={styles.addMoreText}>Add More Tests</T>
             </TouchableOpacity>
           </Card>
 
           {/* 4 & 5 */}
           <View style={styles.twoCol}>
             <Card style={styles.twoColCard}>
-              <Text style={styles.cardHeadTitle}>4. Sample & Report Date</Text>
-              <Text style={styles.dateLabel}>Sample Collection Date</Text>
+              <T style={styles.cardHeadTitle}>4. Sample & Report Date</T>
+              <T style={styles.dateLabel}>Sample Collection Date</T>
               <View style={styles.dateBox}>
                 <MaterialCommunityIcons name="calendar-month-outline" size={15} color={C.primary} />
-                <Text style={styles.dateText}>26 Jul 2024</Text>
-                <Text style={styles.dateText}>08:45 AM</Text>
+                <T style={styles.dateText}>26 Jul 2024</T>
+                <T style={styles.dateText}>08:45 AM</T>
               </View>
-              <Text style={[styles.dateLabel, { marginTop: 12 }]}>Expected Report Date</Text>
+              <T style={[styles.dateLabel, { marginTop: 12 }]}>Expected Report Date</T>
               <View style={styles.dateBox}>
                 <MaterialCommunityIcons name="calendar-month-outline" size={15} color={C.primary} />
-                <Text style={styles.dateText}>26 Jul 2024</Text>
-                <Text style={styles.dateText}>09:21 AM</Text>
+                <T style={styles.dateText}>26 Jul 2024</T>
+                <T style={styles.dateText}>09:21 AM</T>
               </View>
             </Card>
 
             <Card style={styles.twoColCard}>
-              <Text style={styles.cardHeadTitle}>5. Amount Details</Text>
+              <T style={styles.cardHeadTitle}>5. Amount Details</T>
               <View style={styles.amtRow}>
-                <Text style={styles.amtLabel}>Total Amount</Text>
-                <Text style={styles.amtValue}>₹{total}</Text>
+                <T style={styles.amtLabel}>Total Amount</T>
+                <T style={styles.amtValue}>₹{total}</T>
               </View>
               <View style={styles.amtRow}>
-                <Text style={styles.amtLabel}>Discount</Text>
+                <T style={styles.amtLabel}>Discount</T>
                 <View style={styles.amtInputWrap}>
-                  <Text style={styles.amtRs}>₹</Text>
+                  <T style={styles.amtRs}>₹</T>
                   <TextInput style={styles.amtInput} value={discount} onChangeText={setDiscount} keyboardType="numeric" />
-                  <Text style={styles.amtPct}>0%</Text>
+                  <T style={styles.amtPct}>0%</T>
                 </View>
               </View>
               <View style={styles.amtRow}>
-                <Text style={styles.amtLabel}>Tax (0%)</Text>
-                <Text style={styles.amtValue}>₹0</Text>
+                <T style={styles.amtLabel}>Tax (0%)</T>
+                <T style={styles.amtValue}>₹0</T>
               </View>
               <View style={[styles.amtRow, { borderTopWidth: 1, borderTopColor: C.borderSoft, paddingTop: 8, marginTop: 4 }]}>
-                <Text style={[styles.amtLabel, { color: C.primary, fontWeight: '700' }]}>Payable Amount</Text>
-                <Text style={[styles.amtValue, { color: C.primary }]}>₹{payable}</Text>
+                <T style={[styles.amtLabel, { color: C.primary, fontWeight: '700' }]}>Payable Amount</T>
+                <T style={[styles.amtValue, { color: C.primary }]}>₹{payable}</T>
               </View>
               <View style={styles.amtRow}>
-                <Text style={styles.amtLabel}>Paid Amount</Text>
+                <T style={styles.amtLabel}>Paid Amount</T>
                 <View style={styles.amtInputWrap}>
-                  <Text style={styles.amtRs}>₹</Text>
+                  <T style={styles.amtRs}>₹</T>
                   <TextInput style={styles.amtInput} value={paid} onChangeText={setPaid} keyboardType="numeric" />
                 </View>
               </View>
               <View style={styles.amtRow}>
-                <Text style={styles.amtLabel}>Pending Amount</Text>
-                <Text style={[styles.amtValue, { color: C.green }]}>₹{pending}</Text>
+                <T style={styles.amtLabel}>Pending Amount</T>
+                <T style={[styles.amtValue, { color: C.green }]}>₹{pending}</T>
               </View>
             </Card>
           </View>
 
           {/* payment mode */}
           <Card style={{ marginTop: 12 }}>
-            <Text style={styles.dateLabel}>Payment Mode</Text>
+            <T style={styles.dateLabel}>Payment Mode</T>
             <View style={styles.payRow}>
               {payModes.map((m) => {
                 const on = payMode === m.label;
                 return (
                   <TouchableOpacity key={m.label} style={[styles.payChip, on && { borderColor: C.primary, backgroundColor: '#F3F8FF' }]} onPress={() => setPayMode(m.label)}>
                     <MaterialCommunityIcons name={m.icon as any} size={14} color={on ? C.primary : C.sub} />
-                    <Text style={[styles.payChipText, on && { color: C.primary }]}>{m.label}</Text>
+                    <T style={[styles.payChipText, on && { color: C.primary }]}>{m.label}</T>
                   </TouchableOpacity>
                 );
               })}
@@ -250,41 +251,41 @@ export default function CreateReport() {
                 <View style={styles.row}>
                   <Avatar initials={patient.initials} tone={patient.tone} size={40} />
                   <View style={{ marginLeft: 8, flex: 1 }}>
-                    <Text style={styles.selName}>{patient.name}</Text>
-                    <Text style={styles.selMeta}>
+                    <T style={styles.selName}>{patient.name}</T>
+                    <T style={styles.selMeta}>
                       {patient.age} &nbsp;|&nbsp; {patient.gender} &nbsp;|&nbsp; {patient.blood}
-                    </Text>
-                    <Text style={styles.selPid}>PID: PT250726001</Text>
+                    </T>
+                    <T style={styles.selPid}>PID: PT250726001</T>
                   </View>
                 </View>
               </View>
               <View style={styles.vDiv} />
               <View style={styles.sumCell}>
-                <Text style={styles.sumLbl}>Test / Package</Text>
-                <Text style={styles.sumVal}>Complete Blood Count (CBC)</Text>
-                <Text style={styles.sumSub}>Hematology</Text>
+                <T style={styles.sumLbl}>Test / Package</T>
+                <T style={styles.sumVal}>Complete Blood Count (CBC)</T>
+                <T style={styles.sumSub}>Hematology</T>
               </View>
               <View style={styles.vDiv} />
               <View style={styles.sumCell}>
-                <Text style={styles.sumLbl}>Ref. Doctor</Text>
-                <Text style={styles.sumVal}>{refDoctor.name}</Text>
+                <T style={styles.sumLbl}>Ref. Doctor</T>
+                <T style={styles.sumVal}>{refDoctor.name}</T>
               </View>
               <View style={styles.vDiv} />
               <View style={styles.sumCell}>
-                <Text style={styles.sumLbl}>Report Date</Text>
-                <Text style={styles.sumVal}>26 Jul 2024</Text>
-                <Text style={styles.sumVal}>09:21 AM</Text>
+                <T style={styles.sumLbl}>Report Date</T>
+                <T style={styles.sumVal}>26 Jul 2024</T>
+                <T style={styles.sumVal}>09:21 AM</T>
               </View>
             </View>
           </Card>
 
           <Card style={{ marginTop: 12 }}>
-            <Text style={styles.cardHeadTitle}>Enter Test Values</Text>
+            <T style={styles.cardHeadTitle}>Enter Test Values</T>
             <View style={[styles.row, { marginTop: 10, gap: 8 }]}>
               <View style={{ flex: 1 }}>
                 <SearchBar placeholder="Search parameter" />
               </View>
-              <Text style={styles.rangeToggleLabel}>Show Normal Range</Text>
+              <T style={styles.rangeToggleLabel}>Show Normal Range</T>
               <Switch value={showRange} onValueChange={setShowRange} trackColor={{ true: C.primary, false: '#D5DBE6' }} thumbColor="#fff" />
               <SmallOutlineBtn icon="calculator" label="Auto Calculate" />
             </View>
@@ -292,19 +293,19 @@ export default function CreateReport() {
             {cbcGroups.map((g) => (
               <View key={g.title} style={{ marginTop: 12 }}>
                 <View style={styles.groupHead}>
-                  <Text style={styles.groupHeadText}>{g.title}</Text>
+                  <T style={styles.groupHeadText}>{g.title}</T>
                 </View>
                 <View style={styles.tblHead}>
-                  <Text style={[styles.tblHeadText, { flex: 1.3 }]}>Test Name</Text>
-                  <Text style={[styles.tblHeadText, { width: 86 }]}>Result</Text>
-                  <Text style={[styles.tblHeadText, { flex: 0.7 }]}>Unit</Text>
-                  <Text style={[styles.tblHeadText, { flex: 1 }]}>{showRange ? 'Reference Range' : 'Range'}</Text>
+                  <T style={[styles.tblHeadText, { flex: 1.3 }]}>Test Name</T>
+                  <T style={[styles.tblHeadText, { width: 86 }]}>Result</T>
+                  <T style={[styles.tblHeadText, { flex: 0.7 }]}>Unit</T>
+                  <T style={[styles.tblHeadText, { flex: 1 }]}>{showRange ? 'Reference Range' : 'Range'}</T>
                 </View>
                 {g.params.map((p, i) => (
                   <View key={p.name} style={[styles.tblRow, i % 2 === 1 && { backgroundColor: '#FAFBFE' }]}>
-                    <Text style={[styles.tblName, { flex: 1.3 }]} numberOfLines={1}>
+                    <T style={[styles.tblName, { flex: 1.3 }]} numberOfLines={1}>
                       {p.name}
-                    </Text>
+                    </T>
                     <View style={{ width: 86 }}>
                       <TextInput
                         style={styles.valInput}
@@ -314,12 +315,12 @@ export default function CreateReport() {
                         placeholderTextColor={C.faint}
                       />
                     </View>
-                    <Text style={[styles.tblUnit, { flex: 0.7 }]}>{p.unit}</Text>
+                    <T style={[styles.tblUnit, { flex: 0.7 }]}>{p.unit}</T>
                     <View style={[styles.row, { flex: 1, justifyContent: 'space-between' }]}>
-                      <Text style={styles.tblRange}>{showRange ? p.range : ''}</Text>
+                      <T style={styles.tblRange}>{showRange ? p.range : ''}</T>
                       {p.flag && (
                         <View style={styles.row}>
-                          <Text style={styles.flag}>{p.flag}</Text>
+                          <T style={styles.flag}>{p.flag}</T>
                           <MaterialCommunityIcons name="information-outline" size={13} color={C.primary} style={{ marginLeft: 4 }} />
                         </View>
                       )}
@@ -330,7 +331,7 @@ export default function CreateReport() {
             ))}
 
             <View style={styles.remarksBox}>
-              <Text style={styles.remarksLabel}>Technologist / Remarks (Optional)</Text>
+              <T style={styles.remarksLabel}>Technologist / Remarks (Optional)</T>
               <TextInput
                 style={styles.remarksInput}
                 multiline
@@ -340,13 +341,13 @@ export default function CreateReport() {
                 maxLength={200}
                 onChangeText={setRemarks}
               />
-              <Text style={styles.remarksCount}>{remarks.length}/200</Text>
+              <T style={styles.remarksCount}>{remarks.length}/200</T>
             </View>
 
             {allEntered && (
               <View style={styles.okBanner}>
                 <MaterialCommunityIcons name="check-circle" size={15} color={C.green} />
-                <Text style={styles.okBannerText}>All values entered. Please review and proceed to preview.</Text>
+                <T style={styles.okBannerText}>All values entered. Please review and proceed to preview.</T>
               </View>
             )}
           </Card>
@@ -362,7 +363,7 @@ export default function CreateReport() {
         <View style={styles.body}>
           <Card style={{ marginTop: 12 }}>
             <View style={styles.cardHead}>
-              <Text style={styles.cardHeadTitle}>Report Summary</Text>
+              <T style={styles.cardHeadTitle}>Report Summary</T>
               <SmallOutlineBtn icon="pencil-outline" label="Edit" onPress={() => setStep(1)} />
             </View>
             <View style={[styles.prevRow, { borderBottomWidth: 1, borderBottomColor: C.borderSoft }]}>
@@ -370,16 +371,16 @@ export default function CreateReport() {
                 <Avatar initials={patient.initials} tone={patient.tone} size={34} />
               </View>
               <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.sumLbl}>Patient</Text>
-                <Text style={styles.selName}>{patient.name}</Text>
-                <Text style={styles.selMeta}>
+                <T style={styles.sumLbl}>Patient</T>
+                <T style={styles.selName}>{patient.name}</T>
+                <T style={styles.selMeta}>
                   {patient.age} &nbsp;|&nbsp; {patient.gender} &nbsp;|&nbsp; {patient.blood}
-                </Text>
-                <Text style={styles.selPid}>PID: PT250726001</Text>
+                </T>
+                <T style={styles.selPid}>PID: PT250726001</T>
               </View>
               <View style={styles.row}>
                 <MaterialCommunityIcons name="phone" size={12} color={C.sub} style={{ marginRight: 6 }} />
-                <Text style={styles.selPhone}>{patient.phone}</Text>
+                <T style={styles.selPhone}>{patient.phone}</T>
               </View>
             </View>
             <View style={[styles.prevRow, { borderBottomWidth: 1, borderBottomColor: C.borderSoft }]}>
@@ -387,13 +388,13 @@ export default function CreateReport() {
                 <MaterialCommunityIcons name="doctor" size={17} color={C.green} />
               </View>
               <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.sumLbl}>Ref. Doctor</Text>
-                <Text style={styles.selName}>{refDoctor.name}</Text>
-                <Text style={styles.selMeta}>{refDoctor.quals}</Text>
+                <T style={styles.sumLbl}>Ref. Doctor</T>
+                <T style={styles.selName}>{refDoctor.name}</T>
+                <T style={styles.selMeta}>{refDoctor.quals}</T>
               </View>
               <View style={styles.row}>
                 <MaterialCommunityIcons name="phone" size={12} color={C.sub} style={{ marginRight: 6 }} />
-                <Text style={styles.selPhone}>{refDoctor.phone}</Text>
+                <T style={styles.selPhone}>{refDoctor.phone}</T>
               </View>
             </View>
             <View style={[styles.prevRow, { borderBottomWidth: 1, borderBottomColor: C.borderSoft }]}>
@@ -401,9 +402,9 @@ export default function CreateReport() {
                 <MaterialCommunityIcons name="clipboard-text-outline" size={17} color={C.purple} />
               </View>
               <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.sumLbl}>Test / Package</Text>
-                <Text style={styles.selName}>Complete Blood Count (CBC)</Text>
-                <Text style={styles.selMeta}>Hematology</Text>
+                <T style={styles.sumLbl}>Test / Package</T>
+                <T style={styles.selName}>Complete Blood Count (CBC)</T>
+                <T style={styles.selMeta}>Hematology</T>
               </View>
             </View>
             <View style={styles.prevRow}>
@@ -411,64 +412,64 @@ export default function CreateReport() {
                 <MaterialCommunityIcons name="calendar-month-outline" size={17} color={C.primary} />
               </View>
               <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.sumLbl}>Report Date</Text>
-                <Text style={styles.selMeta}>
-                  <Text style={{ color: C.text, fontWeight: '700' }}>26 Jul 2024</Text> &nbsp;|&nbsp;{' '}
-                  <Text style={{ color: C.text, fontWeight: '700' }}>09:21 AM</Text>
-                </Text>
+                <T style={styles.sumLbl}>Report Date</T>
+                <T style={styles.selMeta}>
+                  <T style={{ color: C.text, fontWeight: '700' }}>26 Jul 2024</T> &nbsp;|&nbsp;{' '}
+                  <T style={{ color: C.text, fontWeight: '700' }}>09:21 AM</T>
+                </T>
               </View>
             </View>
           </Card>
 
           <Card style={{ marginTop: 12 }}>
-            <Text style={styles.cardHeadTitle}>Test Summary</Text>
+            <T style={styles.cardHeadTitle}>Test Summary</T>
             <View style={styles.tsRow}>
-              <Text style={styles.tsLabel}>Total Parameters</Text>
-              <Text style={styles.tsValue}>20</Text>
+              <T style={styles.tsLabel}>Total Parameters</T>
+              <T style={styles.tsValue}>20</T>
             </View>
             <View style={styles.tsRow}>
-              <Text style={styles.tsLabel}>Normal</Text>
-              <Text style={[styles.tsValue, { color: C.green }]}>16</Text>
+              <T style={styles.tsLabel}>Normal</T>
+              <T style={[styles.tsValue, { color: C.green }]}>16</T>
             </View>
             <View style={styles.tsRow}>
-              <Text style={styles.tsLabel}>High</Text>
-              <Text style={[styles.tsValue, { color: C.red }]}>3</Text>
+              <T style={styles.tsLabel}>High</T>
+              <T style={[styles.tsValue, { color: C.red }]}>3</T>
             </View>
             <View style={styles.tsRow}>
-              <Text style={styles.tsLabel}>Low</Text>
-              <Text style={[styles.tsValue, { color: C.red }]}>1</Text>
+              <T style={styles.tsLabel}>Low</T>
+              <T style={[styles.tsValue, { color: C.red }]}>1</T>
             </View>
             <View style={styles.tsRow}>
-              <Text style={styles.tsLabel}>Remarks</Text>
-              <Text style={styles.tsValue}>No</Text>
+              <T style={styles.tsLabel}>Remarks</T>
+              <T style={styles.tsValue}>No</T>
             </View>
           </Card>
 
           <Card style={{ marginTop: 12 }}>
-            <Text style={styles.cardHeadTitle}>Values Preview</Text>
+            <T style={styles.cardHeadTitle}>Values Preview</T>
             <View style={[styles.tblHead, { marginTop: 8 }]}>
-              <Text style={[styles.tblHeadText, { flex: 1.3 }]}>Parameter</Text>
-              <Text style={[styles.tblHeadText, { flex: 0.7 }]}>Result</Text>
-              <Text style={[styles.tblHeadText, { flex: 0.7 }]}>Unit</Text>
-              <Text style={[styles.tblHeadText, { flex: 0.9 }]}>Range</Text>
-              <Text style={[styles.tblHeadText, { width: 44, textAlign: 'center' }]}>Status</Text>
+              <T style={[styles.tblHeadText, { flex: 1.3 }]}>Parameter</T>
+              <T style={[styles.tblHeadText, { flex: 0.7 }]}>Result</T>
+              <T style={[styles.tblHeadText, { flex: 0.7 }]}>Unit</T>
+              <T style={[styles.tblHeadText, { flex: 0.9 }]}>Range</T>
+              <T style={[styles.tblHeadText, { width: 44, textAlign: 'center' }]}>Status</T>
             </View>
             {cbcGroups.map((g) => (
               <View key={g.title}>
-                <Text style={styles.pvGroup}>{g.title}</Text>
+                <T style={styles.pvGroup}>{g.title}</T>
                 {g.params.map((p) => (
                   <View key={p.name} style={styles.tblRow}>
-                    <Text style={[styles.tblName, { flex: 1.3 }]} numberOfLines={1}>
+                    <T style={[styles.tblName, { flex: 1.3 }]} numberOfLines={1}>
                       {p.name}
-                    </Text>
-                    <Text style={[styles.tblUnit, { flex: 0.7 }]}>{values[p.name]}</Text>
-                    <Text style={[styles.tblUnit, { flex: 0.7 }]}>{p.unit}</Text>
-                    <Text style={[styles.tblUnit, { flex: 0.9 }]} numberOfLines={1}>
+                    </T>
+                    <T style={[styles.tblUnit, { flex: 0.7 }]}>{values[p.name]}</T>
+                    <T style={[styles.tblUnit, { flex: 0.7 }]}>{p.unit}</T>
+                    <T style={[styles.tblUnit, { flex: 0.9 }]} numberOfLines={1}>
                       {p.range}
-                    </Text>
+                    </T>
                     <View style={{ width: 44, alignItems: 'center' }}>
                       {p.flag ? (
-                        <Text style={styles.arrow}>{p.flag === 'H' ? '↑' : '↓'}</Text>
+                        <T style={styles.arrow}>{p.flag === 'H' ? '↑' : '↓'}</T>
                       ) : (
                         <View style={styles.dotOk} />
                       )}
@@ -487,8 +488,8 @@ export default function CreateReport() {
           <View style={styles.safeNote}>
             <MaterialCommunityIcons name="lock-outline" size={16} color={C.primary} />
             <View style={{ marginLeft: 10 }}>
-              <Text style={styles.safeNoteTitle}>Your data is safe and secure</Text>
-              <Text style={styles.safeNoteSub}>All report data is stored only on this device.</Text>
+              <T style={styles.safeNoteTitle}>Your data is safe and secure</T>
+              <T style={styles.safeNoteSub}>All report data is stored only on this device.</T>
             </View>
           </View>
         </View>
@@ -565,7 +566,7 @@ const styles = StyleSheet.create({
   amtValue: { fontSize: 12, fontWeight: '800', color: C.text },
   amtInputWrap: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.border, borderRadius: 8, paddingHorizontal: 8, flexBasis: '52%' },
   amtRs: { fontSize: 11, color: C.sub, marginRight: 4 },
-  amtInput: { flex: 1, fontSize: 11.5, color: C.text, paddingVertical: 7 },
+  amtInput: { flex: 1, fontSize: 11.5, color: C.text, paddingVertical: 7, fontFamily: F.regular },
   amtPct: { fontSize: 10, color: C.faint },
   payRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   payChip: {
@@ -604,11 +605,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 6,
     backgroundColor: '#fff',
+    fontFamily: F.regular,
   },
   flag: { color: C.red, fontSize: 11, fontWeight: '800' },
   remarksBox: { borderWidth: 1, borderColor: C.border, borderRadius: 10, padding: 10, marginTop: 14 },
   remarksLabel: { fontSize: 10.5, color: C.sub, fontWeight: '600' },
-  remarksInput: { minHeight: 54, fontSize: 11.5, color: C.text, marginTop: 4 },
+  remarksInput: { minHeight: 54, fontSize: 11.5, color: C.text, marginTop: 4, fontFamily: F.regular },
   remarksCount: { textAlign: 'right', fontSize: 9.5, color: C.faint },
   okBanner: {
     flexDirection: 'row',
