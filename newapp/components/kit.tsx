@@ -579,8 +579,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   searchInput: { flex: 1, fontSize: 12.5, color: C.text, paddingVertical: 12, marginLeft: 4, fontFamily: F.regular },
-  searchBoxCompact: { paddingHorizontal: 6 },
-  searchInputCompact: { fontSize: 11.5, paddingVertical: 6 },
+  searchBoxCompact: { flex: 0, width: '100%', height: 28, paddingHorizontal: 6 },
+  searchInputCompact: { height: 26, fontSize: 11, paddingVertical: 0 },
   squareBtn: {
     width: 44,
     height: 44,
