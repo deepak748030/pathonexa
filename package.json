@@ -7,6 +7,7 @@
     "dev": "cd app && EXPO_NO_TELEMETRY=1 npx expo start --web --port 8080",
     "web": "cd app && EXPO_NO_TELEMETRY=1 npx expo start --web --port 8080",
     "dev:server": "cd server && npm run dev",
+    "dev:newapp": "cd newapp && npm run web",
     "build": "cd app && npm run build && cd .. && rm -rf dist && cp -r app/dist dist",
     "typecheck": "cd app && npm run typecheck"
   }

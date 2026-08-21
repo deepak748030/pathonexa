@@ -49,8 +49,8 @@ export default function AddPatient() {
             <Field label="Age" placeholder="Auto Calculate" disabled />
             <Field label="Gender" required placeholder="Select Gender" right={<SelectRight />} />
             <Field label="Blood Group" placeholder="Select Blood Group" right={<SelectRight />} />
-            <Field label="Mobile Number" required placeholder="Enter mobile number" icon="phone" />
-            <Field label="Alternate Mobile" placeholder="Enter alternate number" icon="phone" />
+            <Field label="Mobile Number" required placeholder="Enter mobile number" icon="phone" keyboardType="phone-pad" />
+            <Field label="Alternate Mobile" placeholder="Enter alternate number" icon="phone" keyboardType="phone-pad" />
           </View>
         </Card>
 
@@ -62,8 +62,8 @@ export default function AddPatient() {
             </View>
             <Field label="City" required placeholder="Enter city" />
             <Field label="State" required placeholder="Select state" right={<SelectRight />} />
-            <Field label="PIN Code" required placeholder="Enter pincode" />
-            <Field label="Email" placeholder="Enter email" />
+            <Field label="PIN Code" required placeholder="Enter pincode" keyboardType="number-pad" />
+            <Field label="Email" placeholder="Enter email" keyboardType="email-address" />
           </View>
         </Card>
 
