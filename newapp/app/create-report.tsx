@@ -280,7 +280,7 @@ export default function CreateReport() {
             <T style={styles.cardHeadTitle}>Enter Test Values</T>
             <View style={styles.valuesToolbar}>
               <View style={styles.parameterSearch}>
-                <SearchBar placeholder="Search parameter" compact />
+                <SearchBar placeholder="Search parameter" />
               </View>
               <View style={styles.valuesActions}>
                 <View style={styles.rangeControl}>

@@ -11,6 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { T } from './T';
+import { BrandLogo } from './Brand';
 import { C, F, PAGE_GUTTER, R } from '../src/theme';
 import { MAXW } from './kit';
 
@@ -56,10 +57,7 @@ export default function AuthScaffold({ title, subtitle, children, onBack, footer
               </TouchableOpacity>
             ) : null}
 
-            <View style={styles.logo}>
-              <MaterialCommunityIcons name="flask-outline" size={29} color={C.primary} />
-            </View>
-            <T style={styles.brand}>PathoNexa</T>
+            <BrandLogo width={180} style={styles.logo} />
             <T style={styles.heroTitle}>{title}</T>
             <T style={styles.heroSubtitle}>{subtitle}</T>
             <View style={styles.securePill}>
@@ -107,23 +105,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.10)',
   },
-  logo: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: C.card,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.65)',
-  },
-  brand: {
-    marginTop: 4,
-    color: C.card,
-    fontFamily: F.bold,
-    fontSize: 17,
-    letterSpacing: 0.15,
-  },
+  logo: { backgroundColor: C.card },
   heroTitle: {
     marginTop: 8,
     color: C.card,

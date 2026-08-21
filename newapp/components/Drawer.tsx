@@ -1,6 +1,7 @@
 // Slide-in side drawer — layout & content per UI PDF (menu screen)
 import React, { createContext, useContext, useState } from 'react';
 import { T } from './T';
+import { BrandIcon } from './Brand';
 import { View, StyleSheet, TouchableOpacity, ScrollView, Animated, Dimensions, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, usePathname } from 'expo-router';
@@ -63,7 +64,7 @@ function DrawerPanel() {
           style={[styles.panelHeader, { paddingTop: insets.top + 16, paddingBottom: 16 }]}
         >
           <View style={styles.logoCircle}>
-            <MaterialCommunityIcons name="flask" size={30} color={C.primary} />
+            <BrandIcon size={52} circular />
           </View>
           <View style={{ flex: 1, marginLeft: 4 }}>
             <View style={styles.row}>

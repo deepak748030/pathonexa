@@ -1,24 +1,15 @@
 // Report Preview — PDF viewer look, UI PDF screen 7 (right side)
 import React from 'react';
 import { T } from '../components/T';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { BrandLogo } from '../components/Brand';
+import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import Svg, { Path, Circle } from 'react-native-svg';
 import { BlueHeader, HeaderIconBtn } from '../components/kit';
 import { QRBox, Signature, Stamp } from '../components/charts';
 import { C, PAGE_GUTTER } from '../src/theme';
 import { lab, cbcGroups } from '../src/data';
-
-function LogoMark() {
-  return (
-    <Svg width={34} height={34}>
-      <Path d="M17 3 C 22 10, 27 14, 27 20 a 10 10 0 0 1 -20 0 C 7 14, 12 10, 17 3 Z" fill="#1467E8" />
-      <Path d="M17 10 C 19.5 13.5, 22 16, 22 19.5 a 5 5 0 0 1 -10 0 C 12 16, 14.5 13.5, 17 10 Z" fill="#7FB2F7" />
-    </Svg>
-  );
-}
 
 const infoRows: [string, string, string, string][] = [
   ['Patient Name', 'Ramesh Kumar', 'Ref. Doctor', 'Dr. Rakesh Kumar'],
@@ -76,13 +67,8 @@ export default function ReportPreview() {
           <View style={styles.paper}>
             {/* letter head */}
             <View style={styles.letterHead}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                <LogoMark />
-                <View style={{ marginLeft: 4 }}>
-                  <T style={styles.brand}>PathoNexa</T>
-                  <T style={styles.brandSub}>DIAGNOSTIC LABORATORY</T>
-                  <T style={styles.brandTag}>{lab.tagline}</T>
-                </View>
+              <View style={styles.letterHeadBrand}>
+                <BrandLogo width={112} />
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <T style={styles.addr}>{lab.name}</T>
@@ -206,9 +192,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   letterHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 4 },
-  brand: { color: C.primary, fontSize: 17, fontWeight: '800' },
-  brandSub: { color: C.text, fontSize: 7.5, letterSpacing: 1.2, fontWeight: '700', marginTop: 1 },
-  brandTag: { color: C.faint, fontSize: 7, marginTop: 2 },
+  letterHeadBrand: { flex: 1, alignItems: 'flex-start' },
   addr: { color: C.sub, fontSize: 6.8, textAlign: 'right', lineHeight: 9 },
   infoGrid: { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 2, marginTop: 12 },
   infoRow: { flexDirection: 'row' },

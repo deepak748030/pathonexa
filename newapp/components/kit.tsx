@@ -333,19 +333,17 @@ export function SearchBar({
   right,
   value,
   onChangeText,
-  compact = false,
 }: {
   placeholder: string;
   right?: React.ReactNode;
   value?: string;
   onChangeText?: (value: string) => void;
-  compact?: boolean;
 }) {
   return (
-    <View style={[styles.searchBox, compact && styles.searchBoxCompact]}>
-      <MaterialCommunityIcons name="magnify" size={compact ? 15 : 17} color={C.faint} />
+    <View style={styles.searchBox}>
+      <MaterialCommunityIcons name="magnify" size={17} color={C.faint} />
       <TextInput
-        style={[styles.searchInput, compact && styles.searchInputCompact]}
+        style={styles.searchInput}
         placeholder={placeholder}
         placeholderTextColor={C.faint}
         selectionColor={C.primary}
@@ -421,28 +419,39 @@ export function SegTabs({ tabs, active, onChange }: { tabs: string[]; active: nu
 
 export function StepIndicator({ current }: { current: number }) {
   const steps = ['Patient & Test', 'Report Values', 'Preview & Save'];
+  const progress = `${((Math.min(Math.max(current, 1), steps.length) - 1) / (steps.length - 1)) * 100}%` as `${number}%`;
+
   return (
-    <View style={[styles.row, { paddingHorizontal: PAGE_GUTTER, paddingVertical: 10, justifyContent: 'center' }]}>
-      {steps.map((s, i) => {
-        const n = i + 1;
-        const done = n < current;
-        const active = n === current;
+    <View
+      accessibilityRole="progressbar"
+      accessibilityValue={{ min: 1, max: steps.length, now: current }}
+      style={styles.stepIndicator}
+    >
+      <View pointerEvents="none" style={styles.stepTrackFrame}>
+        <View style={styles.stepTrack}>
+          <View style={[styles.stepTrackProgress, { width: progress }]} />
+        </View>
+      </View>
+      {steps.map((label, index) => {
+        const number = index + 1;
+        const done = number < current;
+        const active = number === current;
         return (
-          <React.Fragment key={s}>
-            <View style={styles.row}>
-              <View style={[styles.stepCircle, (done || active) && { backgroundColor: C.primary }]}>
-                {done ? (
-                  <MaterialCommunityIcons name="check" size={13} color="#fff" />
-                ) : (
-                  <T style={{ color: active ? '#fff' : C.sub, fontWeight: '700', fontSize: 12 }}>{n}</T>
-                )}
-              </View>
-              <T style={[styles.stepLabel, (done || active) && { color: C.primary, fontWeight: '700' }]} numberOfLines={1}>
-                {s}
-              </T>
+          <View key={label} style={styles.stepItem}>
+            <View style={[styles.stepCircle, (done || active) && styles.stepCircleActive]}>
+              {done ? (
+                <MaterialCommunityIcons name="check" size={13} color="#fff" />
+              ) : (
+                <T style={[styles.stepNumber, active && styles.stepNumberActive]}>{number}</T>
+              )}
             </View>
-            {n < 3 && <View style={styles.stepLine} />}
-          </React.Fragment>
+            <T
+              style={[styles.stepLabel, (done || active) && styles.stepLabelActive]}
+              numberOfLines={2}
+            >
+              {label}
+            </T>
+          </View>
         );
       })}
     </View>
@@ -585,8 +594,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   searchInput: { flex: 1, fontSize: 12.5, color: C.text, paddingVertical: 12, marginLeft: 4, fontFamily: F.regular },
-  searchBoxCompact: { flex: 0, width: '100%', height: 28, paddingHorizontal: 6 },
-  searchInputCompact: { height: 26, fontSize: 11, paddingVertical: 0 },
   squareBtn: {
     width: 44,
     height: 44,
@@ -629,6 +636,29 @@ const styles = StyleSheet.create({
   },
   segItem: { flex: 1, paddingVertical: 10, alignItems: 'center' },
   segText: { fontSize: 12, color: C.sub, fontWeight: '600' },
+  stepIndicator: {
+    flexDirection: 'row',
+    paddingHorizontal: PAGE_GUTTER,
+    paddingTop: 10,
+    paddingBottom: 8,
+    position: 'relative',
+  },
+  stepTrackFrame: {
+    position: 'absolute',
+    top: 22,
+    left: PAGE_GUTTER,
+    right: PAGE_GUTTER,
+    height: 2,
+  },
+  stepTrack: {
+    flex: 1,
+    marginHorizontal: '16.6667%',
+    height: 2,
+    backgroundColor: '#E2E7F0',
+    overflow: 'hidden',
+  },
+  stepTrackProgress: { height: 2, backgroundColor: C.primary },
+  stepItem: { flex: 1, alignItems: 'center' },
   stepCircle: {
     width: 26,
     height: 26,
@@ -637,8 +667,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepLabel: { fontSize: 11.5, color: C.sub, marginLeft: 4, maxWidth: 92 },
-  stepLine: { flex: 1, height: 2, backgroundColor: '#E2E7F0', marginHorizontal: 4, minWidth: 12 },
+  stepCircleActive: { backgroundColor: C.primary },
+  stepNumber: { color: C.sub, fontWeight: '700', fontSize: 12 },
+  stepNumberActive: { color: '#fff' },
+  stepLabel: {
+    width: '100%',
+    minHeight: 30,
+    marginTop: 4,
+    paddingHorizontal: 2,
+    fontSize: 11,
+    lineHeight: 13,
+    color: C.sub,
+    textAlign: 'center',
+  },
+  stepLabelActive: { color: C.primary, fontWeight: '700' },
   listFooter: {
     minHeight: 46,
     flexDirection: 'row',

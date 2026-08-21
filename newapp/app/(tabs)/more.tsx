@@ -1,6 +1,7 @@
 // More — UI PDF screen 8
 import React from 'react';
 import { T } from '../../components/T';
+import { BrandIcon } from '../../components/Brand';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { BlueHeader, HeaderIconBtn, ScrollPage, Card, Chevron } from '../../components/kit';
@@ -18,7 +19,7 @@ export default function More() {
       <View style={styles.body}>
         <Card style={[styles.labCard, { marginTop: -6 }]}>
           <View style={styles.labIcon}>
-            <MaterialCommunityIcons name="flask" size={26} color={C.primary} />
+            <BrandIcon size={48} circular />
           </View>
           <View style={{ flex: 1, marginLeft: 4 }}>
             <T style={styles.labName}>{lab.name}</T>
