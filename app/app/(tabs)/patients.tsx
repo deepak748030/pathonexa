@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert, TextInput } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import {
   Menu, Search, SlidersHorizontal, Plus, Phone, ChevronRight, Users, UserPlus,
@@ -10,11 +10,13 @@ import ScreenHeader, { HeaderIcon, HeaderPill } from '@/components/ScreenHeader'
 import AppScreen from '@/components/AppScreen';
 import SearchBar from '@/components/SearchBar';
 import Avatar from '@/components/Avatar';
-import { Card, FadeIn, OfflineBanner, EmptyState } from '@/components/UI';
+import { Card, FadeIn, OfflineBanner, EmptyState, Badge } from '@/components/UI';
+import PrimaryButton from '@/components/PrimaryButton';
 import { colors, fonts, radius, shadow, toneMap } from '@/lib/theme';
 import { endpoints } from '@/lib/api';
 import { useServerStatus } from '@/lib/serverStatus';
-import { displayMobile, inr, testTone } from '@/lib/format';
+import { displayMobile, testTone } from '@/lib/format';
+import { toCsv, fromCsv, shareFile } from '@/lib/share';
 
 const STAT_ICONS = [
   { Icon: Users, tone: 'primary' as const },
@@ -24,11 +26,13 @@ const STAT_ICONS = [
 ];
 
 const FOOT = [
-  { label: 'Import Patients', Icon: Download, href: '/manage/backup' },
-  { label: 'Export Patients', Icon: Upload, href: '/manage/backup' },
-  { label: 'Patient Groups', Icon: Layers, href: '/manage/discounts' },
-  { label: 'Duplicates', Icon: Copy, href: '/manage/deleted' },
+  { label: 'Import Patients', Icon: Download, action: 'import' as const },
+  { label: 'Export Patients', Icon: Upload, action: 'export' as const },
+  { label: 'Patient Groups', Icon: Layers, action: 'groups' as const },
+  { label: 'Duplicates', Icon: Copy, action: 'duplicates' as const },
 ];
+
+const CSV_TEMPLATE = 'name,mobile,age,gender,blood,city,address\nRamesh Kumar,9876543210,32,Male,B+,Lucknow,12 Vikas Nagar';
 
 export default function Patients() {
   const check = useServerStatus((s) => s.check);
@@ -38,6 +42,10 @@ export default function Patients() {
   const [stats, setStats] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [refreshing, setRefreshing] = React.useState(false);
+  const [tool, setTool] = React.useState<null | 'import' | 'groups' | 'duplicates'>(null);
+  const [csv, setCsv] = React.useState('');
+  const [dupes, setDupes] = React.useState<any[]>([]);
+  const [busy, setBusy] = React.useState(false);
 
   const loadData = React.useCallback(async (initial = false) => {
     if (initial) setLoading(true);
@@ -75,6 +83,61 @@ export default function Patients() {
     await Promise.all([loadData(), check()]);
     setRefreshing(false);
   }, [loadData, check]);
+
+  /* Patients toolbar: import (CSV) · export (CSV) · groups · duplicate finder */
+  const exportPatients = async () => {
+    const rows = patients.map((p) => ({
+      pid: p.pid, name: p.name, age: p.age, gender: p.gender, blood: p.blood,
+      mobile: p.mobile, altMobile: p.altMobile, email: p.email, address: p.address,
+      city: p.city, state: p.state, pincode: p.pincode, group: p.group,
+      lastTest: p.lastTest, lastTestDate: p.lastTestDate,
+    }));
+    if (!rows.length) return Alert.alert('Nothing to export', 'Add patients first.');
+    const ok = await shareFile(`pathonexa-patients-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows), 'text/csv');
+    if (!ok) Alert.alert('Export failed', 'Could not share the CSV on this device.');
+  };
+
+  const importPatients = async () => {
+    const rows = fromCsv(csv);
+    if (!rows.length) return Alert.alert('Nothing to import', 'Paste CSV rows with a header line first.');
+    setBusy(true);
+    try {
+      const res = await endpoints.patients.importMany(rows.map((r) => ({
+        name: r.name, mobile: r.mobile, age: Number(r.age || 0), gender: r.gender || 'Male',
+        blood: r.blood, city: r.city, address: r.address, state: r.state, pincode: r.pincode,
+        email: r.email, group: r.group,
+      })));
+      setCsv('');
+      setTool(null);
+      await loadData();
+      Alert.alert('Import finished', `${res.created} added · ${res.skipped} skipped`);
+    } catch (e: any) {
+      Alert.alert('Import failed', e?.message || 'Server error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openTool = async (action: string) => {
+    if (action === 'export') return exportPatients();
+    if (action === 'duplicates') {
+      setBusy(true);
+      try {
+        const list = await endpoints.patients.duplicates();
+        setDupes(Array.isArray(list) ? list : []);
+      } catch { setDupes([]); } finally { setBusy(false); }
+    }
+    setTool((t) => (t === action ? null : (action as any)));
+  };
+
+  const groups = React.useMemo(() => {
+    const map = new Map<string, any[]>();
+    patients.forEach((p) => {
+      const key = p.group || p.city || 'Ungrouped';
+      map.set(key, [...(map.get(key) || []), p]);
+    });
+    return Array.from(map.entries()).sort((a, b) => b[1].length - a[1].length);
+  }, [patients]);
 
   const filtered = patients.filter((p) => {
     const q = search.toLowerCase().trim();
@@ -197,13 +260,81 @@ export default function Patients() {
           <FadeIn delay={120}>
             <View style={styles.foot}>
               {FOOT.map((f) => (
-                <Pressable key={f.label} style={styles.footBtn} onPress={() => router.push(f.href as any)}>
+                <Pressable key={f.label} style={styles.footBtn} onPress={() => openTool(f.action)}>
                   <f.Icon size={16} color={colors.primary} strokeWidth={2.1} />
                   <Text style={styles.footTxt}>{f.label}</Text>
                 </Pressable>
               ))}
             </View>
           </FadeIn>
+
+          {tool === 'import' && (
+            <FadeIn>
+              <Card style={{ marginTop: 12 }}>
+                <Text style={styles.toolTitle}>Import patients (CSV)</Text>
+                <Text style={styles.toolSub}>
+                  Paste rows with a header line. Columns: name, mobile, age, gender, blood, city, address.
+                </Text>
+                <TextInput
+                  style={styles.csv}
+                  value={csv}
+                  onChangeText={setCsv}
+                  multiline
+                  placeholder={CSV_TEMPLATE}
+                  placeholderTextColor={colors.placeholder}
+                />
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <View style={{ flex: 1 }}>
+                    <PrimaryButton title="Use sample" ghost onPress={() => setCsv(CSV_TEMPLATE)} />
+                  </View>
+                  <View style={{ flex: 1.3 }}>
+                    <PrimaryButton title="Import" onPress={importPatients} loading={busy} />
+                  </View>
+                </View>
+              </Card>
+            </FadeIn>
+          )}
+
+          {tool === 'groups' && (
+            <FadeIn>
+              <Card style={{ marginTop: 12 }}>
+                <Text style={styles.toolTitle}>Patient groups</Text>
+                {groups.map(([name, list]) => (
+                  <Pressable key={name} style={styles.groupRow} onPress={() => { setSearch(name === 'Ungrouped' ? '' : name); setTool(null); }}>
+                    <Layers size={14} color={colors.primary} />
+                    <Text style={styles.groupName}>{name}</Text>
+                    <Badge text={`${list.length}`} tone="primary" />
+                  </Pressable>
+                ))}
+              </Card>
+            </FadeIn>
+          )}
+
+          {tool === 'duplicates' && (
+            <FadeIn>
+              <Card style={{ marginTop: 12 }}>
+                <Text style={styles.toolTitle}>Possible duplicates</Text>
+                {busy ? <ActivityIndicator color={colors.primary} /> : dupes.length === 0 ? (
+                  <Text style={styles.toolSub}>No duplicate mobile numbers or names found. 🎉</Text>
+                ) : dupes.map((d) => (
+                  <View key={d.key} style={styles.dupBlock}>
+                    <Text style={styles.groupName}>{d.key} · {d.count} records</Text>
+                    {d.patients.map((p: any) => (
+                      <Pressable
+                        key={p._id}
+                        style={styles.groupRow}
+                        onPress={() => router.push({ pathname: '/patient/[id]', params: { id: p._id } } as any)}
+                      >
+                        <Copy size={13} color={colors.orange} />
+                        <Text style={styles.groupName}>{p.name} · {p.pid}</Text>
+                        <ChevronRight size={14} color={colors.mutedForeground} />
+                      </Pressable>
+                    ))}
+                  </View>
+                ))}
+              </Card>
+            </FadeIn>
+          )}
         </>
       )}
     </AppScreen>
@@ -212,6 +343,16 @@ export default function Patients() {
 
 const styles = StyleSheet.create({
   pillTxt: { color: '#FFFFFF', fontFamily: fonts.semibold, fontSize: 12 },
+  toolTitle: { fontFamily: fonts.bold, fontSize: 14, color: colors.foreground, marginBottom: 6 },
+  toolSub: { fontFamily: fonts.regular, fontSize: 11.5, color: colors.mutedForeground, lineHeight: 17, marginBottom: 10 },
+  csv: {
+    minHeight: 92, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: radius.sm,
+    padding: 10, fontFamily: fonts.regular, fontSize: 11, color: colors.foreground,
+    textAlignVertical: 'top', marginBottom: 10,
+  },
+  groupRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9, borderTopWidth: 1, borderTopColor: colors.border },
+  groupName: { flex: 1, fontFamily: fonts.semibold, fontSize: 12.5, color: colors.foreground },
+  dupBlock: { marginTop: 8 },
   statRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   statCard: {
     flex: 1, backgroundColor: colors.card, borderRadius: radius.md,

@@ -4,7 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { LineChart } from 'react-native-chart-kit';
 import {
   Menu, ClipboardList, IndianRupee, Hourglass, Wallet, Stethoscope, Receipt,
-  UserPlus, FlaskConical, LayoutGrid, ChevronRight,
+  UserPlus, FlaskConical, LayoutGrid, ChevronRight, CalendarRange, TrendingUp,
 } from 'lucide-react-native';
 import ScreenHeader from '@/components/ScreenHeader';
 import HeaderUser from '@/components/HeaderUser';
@@ -25,12 +25,26 @@ const STAT_META: Record<string, { Icon: any; tone: keyof typeof toneMap }> = {
   amount: { Icon: Wallet, tone: 'purple' },
   commission: { Icon: Stethoscope, tone: 'teal' },
   expense: { Icon: Receipt, tone: 'red' },
+  monthly: { Icon: CalendarRange, tone: 'primary' },
+  profit: { Icon: TrendingUp, tone: 'green' },
+};
+
+/** Where each dashboard tile drills down to. */
+const STAT_LINK: Record<string, string> = {
+  reports: '/(tabs)/reports',
+  revenue: '/manage/transactions',
+  pending: '/(tabs)/reports',
+  amount: '/manage/transactions',
+  commission: '/manage/commissions',
+  expense: '/manage/expenses',
+  monthly: '/manage/analytics',
+  profit: '/manage/analytics',
 };
 
 const quickActions = [
   { label: 'New Patient', Icon: UserPlus, href: '/add-patient' },
   { label: 'New Report', Icon: FlaskConical, href: '/create-report' },
-  { label: 'Payment', Icon: Wallet, href: '/manage/payments' },
+  { label: 'Payment', Icon: Wallet, href: '/manage/transactions' },
   { label: 'Add Doctor', Icon: Stethoscope, href: '/manage/doctors' },
   { label: 'More', Icon: LayoutGrid, href: '/(tabs)/more' },
 ];
@@ -112,7 +126,7 @@ export default function Dashboard() {
                   <Pressable
                     key={s.key || s.label}
                     style={styles.statCard}
-                    onPress={() => router.push(s.key === 'expense' ? '/manage/expenses' as any : '/(tabs)/reports' as any)}
+                    onPress={() => router.push((STAT_LINK[s.key] || '/(tabs)/reports') as any)}
                   >
                     <View style={styles.statTop}>
                       <View style={[styles.statIcon, { backgroundColor: t.bg }]}>

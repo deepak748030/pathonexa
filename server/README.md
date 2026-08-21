@@ -10,6 +10,17 @@ Production-grade REST API for the **PathoNexa Lab Management app** — built wit
 
 ---
 
+## 🧩 Modules
+
+Patients · Doctors + ledger · Test master (with full parameter definitions) ·
+Packages · Reports (create, duplicate, verify, delete, restore) · Payments
+ledger & receipts · Doctor commission wallet · Expenses · Analytics ·
+Notifications · Subscription · Settings · Backup / restore · Roles &
+permissions — i.e. every collection listed in the specification
+(Users, Patients, Doctors, Tests, TestTemplates, Packages, Reports,
+ReportValues, Payments, DoctorLedger, Expenses, Staff, Settings,
+Notifications, Subscriptions).
+
 ## ✨ Features
 
 | Feature | Description |
@@ -98,14 +109,59 @@ Base URL: `http://localhost:5000/api`
 ### Dashboard
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `GET` | `/dashboard/stats` | Six headline stat cards |
+| `GET` | `/dashboard/stats` | Eight headline tiles (revenue, pending, commission, expense, monthly revenue, profit) |
 | `GET` | `/dashboard/chart` | Last-7-days counts + totals |
 
-### Meta
+### Master data (CRUD for every collection)
+
+`tests · doctors · employees · centers · payments · discounts · templates ·
+packages · expenses · transactions · commissions · drafts · labs · roles`
+
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `GET` | `/tests` | Lab test catalogue |
-| `GET` | `/doctors` | Referring doctors list |
+| `GET` | `/:collection` | List records |
+| `GET` | `/:collection/:id` | One record |
+| `POST` | `/:collection` | Create |
+| `PATCH` \| `PUT` | `/:collection/:id` | Update (e.g. a test's `parameters[]`) |
+| `DELETE` | `/:collection/:id` | Soft delete → Deleted Records |
+| `GET` | `/deleted` | Recycle bin |
+| `POST` | `/deleted/:id/restore` | Restore a deleted record |
+
+### Doctors & commission
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/doctors/summary` | Doctors + business, earned / paid / pending commission |
+| `GET` | `/doctors/:id/ledger` | Full ledger: monthly statement, referred reports, payouts |
+| `GET` | `/commissions/summary` | Wallet totals across all doctors |
+| `GET` | `/commissions` | Payout history |
+| `POST` | `/commissions/pay` | `{ doctorId, amount, mode, note }` → payout + ledger entry |
+
+### Payments (ledger)
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/transactions` | Every collection / payout / subscription entry |
+| `GET` | `/transactions/summary` | Today, total, pending, split by mode |
+| `POST` | `/transactions/collect` | `{ reportId, amount, mode, txnId }` → updates the report balance |
+
+### Expenses & analytics
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/expenses/summary` | Today / month / total, by category, monthly report |
+| `GET` | `/expense-categories` | The 10 spec categories |
+| `GET` | `/analytics` | Daily·weekly·monthly·yearly revenue, profit, doctor-wise, test-wise, most performed |
+
+### Settings, subscription, notifications, backup
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` \| `PATCH` | `/settings` (alias `/lab`) | Logo, GST, footer, signature, stamp, theme, language, workflow flags |
+| `GET` | `/subscription` | Plan, expiry, days left, reminder flag, invoices |
+| `POST` | `/subscription/subscribe` | `{ planId: trial \| monthly \| yearly }` |
+| `GET` | `/notifications` | Report ready · payment pending · commission due · subscription expiry |
+| `GET` | `/notifications/count` | Unread badge count |
+| `POST` | `/notifications/:id/read`, `/notifications/read-all` | Mark read |
+| `GET` | `/backup/status` \| `/backup/export` | Storage info / full JSON snapshot |
+| `POST` | `/backup/run` \| `/backup/restore` | Manual backup / restore from JSON |
+| `GET` | `/roles-matrix` | Roles + permission matrix |
 
 ---
 
@@ -119,9 +175,9 @@ server/
 │   ├── lib/
 │   │   ├── store.js          # Unified data store (MongoDB ↔ in-memory)
 │   │   └── seedData.js       # Demo seed data
-│   ├── models/               # Mongoose schemas (User, Patient, Report)
+│   ├── models/               # Mongoose schemas (User, Patient, Report, Meta)
 │   └── routes/               # authRoutes, patientRoutes, reportRoutes,
-│                             # dashboardRoutes, metaRoutes
+│                             # dashboardRoutes, moduleRoutes, metaRoutes
 ├── .env.example              # Environment template
 ├── vercel.json               # Vercel deployment config
 └── package.json

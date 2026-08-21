@@ -17,19 +17,33 @@ import { colors, fonts, radius, shadow } from '@/lib/theme';
 import { tests as localTests, doctors as localDoctors, packages as localPackages } from '@/lib/labData';
 import { endpoints } from '@/lib/api';
 import { inr, displayMobile, todayLabel, timeLabel, digitsOnly } from '@/lib/format';
-import { paramsForTest, applyFlags, groupParams, paramSummary, type ParamRow } from '@/lib/testParams';
+import {
+  paramsForTest, paramsForTests, applyFlags, groupParams, paramSummary, type ParamRow,
+} from '@/lib/testParams';
+import Field from '@/components/Field';
+import { useSettings } from '@/lib/settings';
+import { useAuth } from '@/lib/auth';
+import { buildReportHtml } from '@/lib/reportHtml';
+import { printHtml } from '@/lib/share';
 
 type Step = 1 | 2 | 3;
 const STEPS = ['Patient & Test', 'Report Values', 'Preview & Save'];
 
 export default function CreateReport() {
-  const params = useLocalSearchParams<{ patientId?: string }>();
+  const params = useLocalSearchParams<{ patientId?: string; editId?: string }>();
+  const settings = useSettings((s) => s.settings);
+  const loadSettings = useSettings((s) => s.load);
+  const user = useAuth((s) => s.user);
   const [step, setStep] = React.useState<Step>(1);
   const [loading, setLoading] = React.useState(false);
   const [patients, setPatients] = React.useState<any[]>([]);
   const [tests, setTests] = React.useState<any[]>(localTests);
   const [doctors, setDoctors] = React.useState<any[]>(localDoctors);
-  const [packs] = React.useState(localPackages);
+  const [packs, setPacks] = React.useState<any[]>(localPackages);
+  const [drafts, setDrafts] = React.useState<any[]>([]);
+  const [technician, setTechnician] = React.useState('');
+  const [editId, setEditId] = React.useState<string | undefined>(undefined);
+  const [selectedPackage, setSelectedPackage] = React.useState<any>(null);
   const [selectedPatient, setSelectedPatient] = React.useState<any>(null);
   const [selectedDoctor, setSelectedDoctor] = React.useState<any>(null);
   const [selectedTests, setSelectedTests] = React.useState<any[]>([]);
@@ -48,20 +62,51 @@ export default function CreateReport() {
 
   React.useEffect(() => {
     (async () => {
+      loadSettings();
       try {
-        const [p, t, d] = await Promise.all([
+        const [p, t, d, pk, dr] = await Promise.all([
           endpoints.patients.getAll(),
           endpoints.meta.tests(),
           endpoints.meta.doctors(),
+          endpoints.meta.packages().catch(() => []),
+          endpoints.meta.list('drafts').catch(() => []),
         ]);
         setPatients(Array.isArray(p) ? p : []);
         if (t?.length) setTests(t);
         if (d?.length) setDoctors(d);
+        if (pk?.length) setPacks(pk);
+        setDrafts(Array.isArray(dr) ? dr : []);
       } catch {
         setPatients([]);
       }
+      setTechnician((prev) => prev || user?.name || '');
     })();
-  }, []);
+  }, [loadSettings, user?.name]);
+
+  /* Edit mode — open an existing report and continue at the values step. */
+  React.useEffect(() => {
+    if (!params.editId) return;
+    (async () => {
+      try {
+        const r = await endpoints.reports.getById(String(params.editId));
+        setEditId(String(r._id || r.id));
+        setSelectedPatient(r.patient);
+        setSelectedDoctor({ name: r.doctor });
+        setSelectedTests((r.tests || []).length ? r.tests : [{ name: r.test, price: r.amount, id: 'existing' }]);
+        setValues(applyFlags(r.values || paramsForTest(r.test || '')));
+        setDiscount(String(r.discount || 0));
+        setPaidAmt(String(r.paidAmount ?? ''));
+        setMode(r.paymentMode || 'Cash');
+        setTechnician(r.technician || '');
+        setRemarks(r.remarks || '');
+        if (r.sampleDate) setSampleDate(r.sampleDate);
+        if (r.reportDate) setReportDate(r.reportDate);
+        setStep(2);
+      } catch (e: any) {
+        alert(e?.message || 'Could not open the report for editing');
+      }
+    })();
+  }, [params.editId]);
 
   React.useEffect(() => {
     if (!params.patientId || !patients.length) return;
@@ -81,10 +126,46 @@ export default function CreateReport() {
       alert('Please select a patient and at least one test');
       return;
     }
-    const rows = paramsForTest(selectedTests[0].name, true);
-    setValues(rows);
+    // Parameters come from the Test Master, with the male / female / child
+    // reference range that applies to this patient.
+    const rows = paramsForTests(selectedTests, selectedPatient);
+    setValues(rows.length ? rows : paramsForTest(selectedTests[0].name));
     if (paidAmt === '') setPaidAmt(String(payable));
     setStep(2);
+  };
+
+  /** Saves the current work as a draft so it can be resumed later. */
+  const saveDraft = async () => {
+    if (!selectedPatient) return alert('Select a patient before saving a draft');
+    try {
+      await endpoints.meta.create('drafts', {
+        patient: selectedPatient.name,
+        patientId: selectedPatient._id || selectedPatient.id,
+        doctor: selectedDoctor?.name || 'Direct',
+        test: testName,
+        tests: selectedTests.map((t) => t.name),
+        amount: payable,
+        values,
+        technician,
+        remarks,
+        savedAt: new Date().toISOString(),
+      });
+      const dr = await endpoints.meta.list('drafts');
+      setDrafts(Array.isArray(dr) ? dr : []);
+      alert('Draft saved');
+    } catch (e: any) {
+      alert(e?.message || 'Could not save the draft');
+    }
+  };
+
+  /** Package selection expands into its individual tests. */
+  const choosePackage = (pkg: any) => {
+    const names: string[] = pkg.tests || [];
+    const expanded = names
+      .map((n) => tests.find((t) => t.name === n) || { name: n, price: 0, id: n })
+      .filter(Boolean);
+    setSelectedPackage(pkg);
+    setSelectedTests(expanded.length ? expanded.map((t, i) => (i === 0 ? { ...t, price: pkg.price } : { ...t, price: 0 })) : [pkg]);
   };
 
   const setVal = (name: string, value: string) => {
@@ -97,28 +178,39 @@ export default function CreateReport() {
     if (!selectedPatient) return;
     setLoading(true);
     try {
-      const reportId = 'RP' + Date.now().toString().slice(-8);
-      const created = await endpoints.reports.create({
-        reportId,
+      const needsVerification = settings.ownerVerification && summary.complete;
+      const payload = {
         patient: selectedPatient._id || selectedPatient.id,
         test: testName,
+        tests: selectedTests.map((t) => t.name),
+        package: selectedPackage?.name || '',
         doctor: selectedDoctor?.name || 'Direct',
         date: todayLabel(),
         time: timeLabel(),
         sampleDate,
         reportDate,
+        technician,
         amount: payable,
         discount: disc,
         paidAmount: paid,
         pendingAmount: pending,
         paymentMode: mode,
         paid: pending === 0,
-        status: summary.complete ? 'Completed' : 'Pending',
+        status: summary.complete && !needsVerification ? 'Completed' : 'Pending',
         values,
         remarks,
         color: selectedPatient.color || '#DBEAFE',
-      });
-      router.replace({ pathname: '/report-preview', params: { id: created?._id || created?.id } } as any);
+      };
+
+      const saved = editId
+        ? await endpoints.reports.update(editId, payload)
+        : await endpoints.reports.create(payload);
+
+      if (settings.autoPrint) {
+        // Auto-print keeps the receptionist workflow one tap shorter.
+        printHtml(buildReportHtml({ ...saved, patient: selectedPatient }, values, settings)).catch(() => {});
+      }
+      router.replace({ pathname: '/report-preview', params: { id: saved?._id || saved?.id } } as any);
     } catch (e: any) {
       alert(e?.message || 'Failed to save report. Check the server connection.');
     } finally {
@@ -132,7 +224,11 @@ export default function CreateReport() {
     return `${p.name} ${p.pid} ${p.mobile}`.toLowerCase().includes(q);
   });
 
-  const catalog = tab === 'pkg' ? packs.map((p) => ({ ...p, group: 'Package', price: p.price })) : tests;
+  const catalog = tab === 'pkg'
+    ? packs.map((p) => ({ ...p, group: `Package · ${(p.tests || []).length} tests`, price: p.price }))
+    : tab === 'recent'
+      ? tests.slice(0, 5)
+      : tests;
   const filteredTests = catalog.filter((t) => (t.name || '').toLowerCase().includes(tq.toLowerCase()));
 
   return (
@@ -145,9 +241,11 @@ export default function CreateReport() {
           left={<ChevronLeft size={24} color="#FFFFFF" />}
           onLeftPress={() => (step > 1 ? setStep((s) => (s - 1) as Step) : router.back())}
           right={
-            <HeaderPill>
+            <HeaderPill onPress={saveDraft}>
               <FileText size={13} color="#fff" />
-              <Text style={{ color: '#fff', fontFamily: fonts.semibold, fontSize: 12 }}>Drafts (3)</Text>
+              <Text style={{ color: '#fff', fontFamily: fonts.semibold, fontSize: 12 }}>
+                Drafts ({drafts.length})
+              </Text>
             </HeaderPill>
           }
         />
@@ -264,7 +362,11 @@ export default function CreateReport() {
                 <Pressable
                   key={t._id || t.id}
                   style={styles.testRow}
-                  onPress={() => setSelectedTests((cur) => on ? cur.filter((x) => (x._id || x.id) !== (t._id || t.id)) : [...cur, t])}
+                  onPress={() => {
+                    if (tab === 'pkg') { choosePackage(t); return; }
+                    setSelectedPackage(null);
+                    setSelectedTests((cur) => (on ? cur.filter((x) => (x._id || x.id) !== (t._id || t.id)) : [...cur, t]));
+                  }}
                 >
                   <View style={[styles.check, on && styles.checkOn]}>{on && <Check size={12} color="#fff" strokeWidth={3} />}</View>
                   <View style={{ flex: 1 }}>
@@ -358,7 +460,10 @@ export default function CreateReport() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <Text style={styles.mini}>Show Normal Range</Text>
               <Switch value={showRange} onValueChange={setShowRange} trackColor={{ true: colors.primary }} />
-              <Pressable style={styles.autoBtn} onPress={() => setValues(paramsForTest(testName, true))}>
+              <Pressable
+                style={styles.autoBtn}
+                onPress={() => setValues(applyFlags(paramsForTests(selectedTests, selectedPatient)))}
+              >
                 <Sparkles size={13} color={colors.primary} />
                 <Text style={styles.link}>Auto Calculate</Text>
               </Pressable>
@@ -399,6 +504,15 @@ export default function CreateReport() {
           ))}
 
           <Card style={{ marginTop: 12 }}>
+            <Field
+              label="Technician name"
+              value={technician}
+              onChangeText={setTechnician}
+              placeholder="Who performed this test?"
+            />
+          </Card>
+
+          <Card style={{ marginTop: 12 }}>
             <Text style={styles.mini}>Technologist / Remarks (Optional)</Text>
             <TextInput
               style={styles.remarks}
@@ -428,6 +542,8 @@ export default function CreateReport() {
             <SumRow k="Ref. Doctor" v={`${selectedDoctor?.name || 'Direct'}\n${selectedDoctor?.degree || ''}`} />
             <SumRow k="Test / Package" v={testName} />
             <SumRow k="Report Date" v={`${todayLabel()}  |  ${timeLabel()}`} />
+            <SumRow k="Technician" v={technician || '—'} />
+            <SumRow k="Payment" v={`${mode}  |  Paid ${inr(paid)}  |  Pending ${inr(pending)}`} />
           </Card>
           <Card style={{ marginTop: 12 }}>
             <Text style={styles.secTitle}>Test Summary</Text>
@@ -436,6 +552,7 @@ export default function CreateReport() {
               <SumStat label="Normal" value={String(summary.normal)} color={colors.green} />
               <SumStat label="High" value={String(summary.high)} color={colors.red} />
               <SumStat label="Low" value={String(summary.low)} color={colors.orange} />
+              <SumStat label="Critical" value={String(summary.critical)} color={colors.red} />
             </View>
           </Card>
           <Card style={{ marginTop: 12, padding: 0 }}>

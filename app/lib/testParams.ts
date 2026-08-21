@@ -6,23 +6,117 @@ export type ParamRow = {
   range: string;
   flag: '' | 'H' | 'L';
   group: string;
+  /** Critical (panic) limits — flagged separately from a normal H/L. */
+  criticalLow?: string;
+  criticalHigh?: string;
+  critical?: boolean;
+  /** Gender / age specific ranges from the test master. */
+  maleRange?: string;
+  femaleRange?: string;
+  childRange?: string;
+  decimals?: number;
+  order?: number;
+  bold?: boolean;
+  highlight?: boolean;
 };
 
+/** Parses "4.0 - 10.0" (also 4.0–10.0 / < 200 / > 40) into numeric bounds. */
+export function parseRange(range: string): { lo?: number; hi?: number } {
+  const text = String(range || '').trim();
+  const both = text.match(/(-?[\d.]+)\s*[-–to]+\s*(-?[\d.]+)/i);
+  if (both) return { lo: parseFloat(both[1]), hi: parseFloat(both[2]) };
+  const lt = text.match(/^[<≤]\s*(-?[\d.]+)/);
+  if (lt) return { hi: parseFloat(lt[1]) };
+  const gt = text.match(/^[>≥]\s*(-?[\d.]+)/);
+  if (gt) return { lo: parseFloat(gt[1]) };
+  return {};
+}
+
 function flagFor(value: string, range: string): '' | 'H' | 'L' {
-  if (!value) return '';
-  const n = parseFloat(value);
+  if (value === '' || value == null) return '';
+  const n = parseFloat(String(value));
   if (Number.isNaN(n)) return '';
-  const m = String(range).match(/([\d.]+)\s*[-–]\s*([\d.]+)/);
-  if (!m) return '';
-  const lo = parseFloat(m[1]);
-  const hi = parseFloat(m[2]);
-  if (n < lo) return 'L';
-  if (n > hi) return 'H';
+  const { lo, hi } = parseRange(range);
+  if (lo !== undefined && n < lo) return 'L';
+  if (hi !== undefined && n > hi) return 'H';
   return '';
 }
 
+function isCritical(row: ParamRow, value: string): boolean {
+  const n = parseFloat(String(value));
+  if (Number.isNaN(n)) return false;
+  const lo = row.criticalLow ? parseFloat(row.criticalLow) : undefined;
+  const hi = row.criticalHigh ? parseFloat(row.criticalHigh) : undefined;
+  return (lo !== undefined && n <= lo) || (hi !== undefined && n >= hi);
+}
+
+/**
+ * Auto High/Low detection — the technician only types the result value,
+ * the system derives H / L and the critical (panic) flag.
+ */
 export function applyFlags(rows: ParamRow[]): ParamRow[] {
-  return rows.map((r) => ({ ...r, flag: flagFor(r.value, r.range) }));
+  return rows.map((r) => ({
+    ...r,
+    flag: flagFor(r.value, r.range),
+    critical: isCritical(r, r.value),
+  }));
+}
+
+/**
+ * Picks the reference range that applies to this patient:
+ * child range under 14, then gender specific, else the default range.
+ */
+export function rangeFor(param: any, patient?: { gender?: string; age?: number | string }): string {
+  const age = Number(patient?.age);
+  const gender = String(patient?.gender || '').toLowerCase();
+  if (!Number.isNaN(age) && age > 0 && age < 14 && param.childRange) return param.childRange;
+  if (gender.startsWith('m') && param.maleRange) return param.maleRange;
+  if (gender.startsWith('f') && param.femaleRange) return param.femaleRange;
+  return param.range || param.normalRange || '';
+}
+
+/**
+ * Builds report rows from a Test Master document (the source of truth) so
+ * every parameter field defined by the admin reaches the report.
+ */
+export function paramsFromTest(test: any, patient?: { gender?: string; age?: number | string }): ParamRow[] {
+  const params = Array.isArray(test?.parameters) ? test.parameters : [];
+  const rows: ParamRow[] = params
+    .slice()
+    .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
+    .map((p: any) => ({
+      group: p.group || test?.name || 'Results',
+      name: p.name,
+      short: p.short,
+      value: '',
+      unit: p.unit || '',
+      range: rangeFor(p, patient),
+      flag: '' as const,
+      criticalLow: p.criticalLow,
+      criticalHigh: p.criticalHigh,
+      maleRange: p.maleRange,
+      femaleRange: p.femaleRange,
+      childRange: p.childRange,
+      decimals: p.decimals,
+      order: p.order,
+      bold: p.bold,
+      highlight: p.highlight,
+    }));
+  return rows.length ? applyFlags(rows) : paramsForTest(test?.name || '');
+}
+
+/** Merges the parameter rows of several selected tests / a package. */
+export function paramsForTests(tests: any[], patient?: { gender?: string; age?: number | string }): ParamRow[] {
+  const rows: ParamRow[] = [];
+  (tests || []).forEach((t) => {
+    const list = Array.isArray(t?.parameters) && t.parameters.length
+      ? paramsFromTest(t, patient)
+      : paramsForTest(t?.name || String(t));
+    list.forEach((r) => {
+      if (!rows.some((x) => x.name === r.name && x.group === r.group)) rows.push(r);
+    });
+  });
+  return rows;
 }
 
 const cbc: ParamRow[] = [
@@ -140,6 +234,7 @@ export function paramSummary(rows: ParamRow[]) {
     normal: filled.filter((r) => !r.flag).length,
     high: filled.filter((r) => r.flag === 'H').length,
     low: filled.filter((r) => r.flag === 'L').length,
+    critical: filled.filter((r) => r.critical).length,
     complete: filled.length === rows.length && rows.length > 0,
   };
 }

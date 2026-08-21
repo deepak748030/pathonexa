@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import { ChevronLeft, Plus, Trash2 } from 'lucide-react-native';
+import { ChevronLeft, Plus, Trash2, RotateCcw } from 'lucide-react-native';
 import ScreenHeader from '@/components/ScreenHeader';
 import AppScreen from '@/components/AppScreen';
 import Field from '@/components/Field';
@@ -165,6 +165,16 @@ export default function ManageScreen() {
     }
   };
 
+  const onRestore = async (id: string) => {
+    try {
+      await endpoints.meta.restore(id);
+      await load();
+      Alert.alert('Restored', 'The record is back in its original list.');
+    } catch (e: any) {
+      Alert.alert('Could not restore', e?.message || 'Server error');
+    }
+  };
+
   const onDelete = async (id: string) => {
     try {
       await endpoints.meta.remove(cfg.api, id);
@@ -238,11 +248,16 @@ export default function ManageScreen() {
                       <Text style={styles.rowTitle}>{cfg.titleOf(it)}</Text>
                       <Text style={styles.rowSub}>{cfg.subtitle(it)}</Text>
                     </View>
-                    {cfg.fields.length > 0 && (
+                    {slug === 'deleted' ? (
+                      <Pressable onPress={() => onRestore(it._id || it.id)} hitSlop={8} style={styles.restoreBtn}>
+                        <RotateCcw size={13} color={colors.primary} />
+                        <Text style={styles.restoreTxt}>Restore</Text>
+                      </Pressable>
+                    ) : cfg.fields.length > 0 ? (
                       <Pressable onPress={() => onDelete(it._id || it.id)} hitSlop={8}>
                         <Trash2 size={16} color={colors.danger} />
                       </Pressable>
-                    )}
+                    ) : null}
                   </View>
                 </ListRow>
               ))
@@ -259,4 +274,9 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   rowTitle: { fontFamily: fonts.semibold, fontSize: 13, color: colors.foreground },
   rowSub: { fontFamily: fonts.regular, fontSize: 11, color: colors.mutedForeground, marginTop: 2 },
+  restoreBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: colors.primaryLight, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999,
+  },
+  restoreTxt: { fontFamily: fonts.semibold, fontSize: 11, color: colors.primary },
 });

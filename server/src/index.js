@@ -13,8 +13,8 @@ connectDB();
 
 // Middleware
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 app.use(morgan('dev'));
 
 // Health check — the app pings this to show the server connection status.
@@ -32,6 +32,9 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/patients', require('./routes/patientRoutes'));
 app.use('/api/reports', require('./routes/reportRoutes'));
 app.use('/api/dashboard', require('./routes/dashboardRoutes'));
+// Module routes (ledger, commissions, analytics, subscription, backup, …)
+// are mounted before the generic master-data CRUD so their nested paths win.
+app.use('/api', require('./routes/moduleRoutes'));
 app.use('/api', require('./routes/metaRoutes'));
 
 // 404 Handler
