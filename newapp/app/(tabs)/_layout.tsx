@@ -7,7 +7,7 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { C, PAGE_GUTTER } from '../../src/theme';
+import { C } from '../../src/theme';
 import { MAXW, Press } from '../../components/kit';
 
 const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
@@ -57,7 +57,7 @@ function TabBar({ state, navigation }: BottomTabBarProps) {
     if (route.name === 'patients') items.push(<Fab key="fab" />);
   });
   return (
-    <View style={[styles.barWrap, { paddingBottom: insets.bottom + 10 }]} pointerEvents="box-none">
+    <View style={[styles.barWrap, { paddingBottom: insets.bottom }]} pointerEvents="box-none">
       <View style={styles.bar}>{items}</View>
     </View>
   );
@@ -75,16 +75,22 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
-  barWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center', paddingHorizontal: PAGE_GUTTER },
+  barWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: C.border,
+  },
   bar: {
     width: '100%',
-    maxWidth: MAXW - PAGE_GUTTER * 2,
+    maxWidth: MAXW,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: C.border,
     paddingTop: 7,
     paddingBottom: 7,
   },
