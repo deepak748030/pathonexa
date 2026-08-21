@@ -249,7 +249,7 @@ export function DashStat({ icon, tone, label, value, foot }: { icon: string; ton
 export function MiniStat({ icon, tone, value, label }: { icon: string; tone: Tone; value: string; label: string }) {
   return (
     <View style={styles.miniStat}>
-      <IconBubble icon={icon} tone={tone} size={38} iconSize={19} />
+      <IconBubble icon={icon} tone={tone} size={28} iconSize={15} />
       <T style={styles.miniStatValue} numberOfLines={1}>
         {value}
       </T>
@@ -327,17 +327,19 @@ export function SearchBar({
   right,
   value,
   onChangeText,
+  compact = false,
 }: {
   placeholder: string;
   right?: React.ReactNode;
   value?: string;
   onChangeText?: (value: string) => void;
+  compact?: boolean;
 }) {
   return (
-    <View style={styles.searchBox}>
-      <MaterialCommunityIcons name="magnify" size={17} color={C.faint} />
+    <View style={[styles.searchBox, compact && styles.searchBoxCompact]}>
+      <MaterialCommunityIcons name="magnify" size={compact ? 15 : 17} color={C.faint} />
       <TextInput
-        style={styles.searchInput}
+        style={[styles.searchInput, compact && styles.searchInputCompact]}
         placeholder={placeholder}
         placeholderTextColor={C.faint}
         selectionColor={C.primary}
@@ -547,12 +549,12 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 1,
     borderColor: C.border,
-    paddingVertical: 10,
+    paddingVertical: 5,
     paddingHorizontal: 4,
     alignItems: 'center',
   },
-  miniStatValue: { fontSize: 16, fontWeight: '800', color: C.text, marginTop: 8 },
-  miniStatLabel: { fontSize: 10, color: C.faint, marginTop: 3, textAlign: 'center' },
+  miniStatValue: { fontSize: 14, fontWeight: '800', color: C.text, marginTop: 4 },
+  miniStatLabel: { fontSize: 9, lineHeight: 11, color: C.faint, marginTop: 1, textAlign: 'center' },
   sectionTitle: { fontSize: S.h3, fontWeight: '700', color: C.text },
   linkText: { fontSize: 12, color: C.primary, fontWeight: '600' },
   fieldLabel: { fontSize: 11.5, fontWeight: '600', color: C.text, marginBottom: 6 },
@@ -577,6 +579,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   searchInput: { flex: 1, fontSize: 12.5, color: C.text, paddingVertical: 12, marginLeft: 4, fontFamily: F.regular },
+  searchBoxCompact: { paddingHorizontal: 6 },
+  searchInputCompact: { fontSize: 11.5, paddingVertical: 6 },
   squareBtn: {
     width: 44,
     height: 44,

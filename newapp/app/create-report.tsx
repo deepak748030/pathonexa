@@ -246,48 +246,49 @@ export default function CreateReport() {
       {step === 2 && (
         <View style={styles.body}>
           <Card style={{ marginTop: 8, padding: 10 }}>
-            <View style={styles.sumRow}>
-              <View style={[styles.sumCell, { flex: 1.3 }]}>
-                <View style={styles.row}>
-                  <Avatar initials={patient.initials} tone={patient.tone} size={40} />
-                  <View style={{ marginLeft: 4, flex: 1 }}>
-                    <T style={styles.selName}>{patient.name}</T>
-                    <T style={styles.selMeta}>
-                      {patient.age} &nbsp;|&nbsp; {patient.gender} &nbsp;|&nbsp; {patient.blood}
-                    </T>
-                    <T style={styles.selPid}>PID: PT250726001</T>
-                  </View>
-                </View>
+            <View style={styles.summaryPatient}>
+              <Avatar initials={patient.initials} tone={patient.tone} size={40} />
+              <View style={styles.summaryPatientDetails}>
+                <T style={styles.selName}>{patient.name}</T>
+                <T style={styles.selMeta}>
+                  {patient.age} &nbsp;|&nbsp; {patient.gender} &nbsp;|&nbsp; {patient.blood}
+                </T>
+                <T style={styles.selPid}>PID: PT250726001</T>
               </View>
-              <View style={styles.vDiv} />
-              <View style={styles.sumCell}>
-                <T style={styles.sumLbl}>Test / Package</T>
-                <T style={styles.sumVal}>Complete Blood Count (CBC)</T>
-                <T style={styles.sumSub}>Hematology</T>
-              </View>
-              <View style={styles.vDiv} />
-              <View style={styles.sumCell}>
+            </View>
+
+            <View style={styles.summaryTest}>
+              <T style={styles.sumLbl}>Test / Package</T>
+              <T style={styles.sumVal}>Complete Blood Count (CBC)</T>
+              <T style={styles.sumSub}>Hematology</T>
+            </View>
+
+            <View style={styles.summaryDetailsRow}>
+              <View style={styles.summaryDetailCell}>
                 <T style={styles.sumLbl}>Ref. Doctor</T>
                 <T style={styles.sumVal}>{refDoctor.name}</T>
               </View>
-              <View style={styles.vDiv} />
-              <View style={styles.sumCell}>
+              <View style={[styles.summaryDetailCell, styles.summaryDetailDivider]}>
                 <T style={styles.sumLbl}>Report Date</T>
                 <T style={styles.sumVal}>26 Jul 2024</T>
-                <T style={styles.sumVal}>09:21 AM</T>
+                <T style={styles.sumSub}>09:21 AM</T>
               </View>
             </View>
           </Card>
 
           <Card style={{ marginTop: 8 }}>
             <T style={styles.cardHeadTitle}>Enter Test Values</T>
-            <View style={[styles.row, { marginTop: 8, gap: 4 }]}>
-              <View style={{ flex: 1 }}>
-                <SearchBar placeholder="Search parameter" />
+            <View style={styles.valuesToolbar}>
+              <View style={styles.parameterSearch}>
+                <SearchBar placeholder="Search parameter" compact />
               </View>
-              <T style={styles.rangeToggleLabel}>Show Normal Range</T>
-              <Switch value={showRange} onValueChange={setShowRange} trackColor={{ true: C.primary, false: '#D5DBE6' }} thumbColor="#fff" />
-              <SmallOutlineBtn icon="calculator" label="Auto Calculate" />
+              <View style={styles.valuesActions}>
+                <View style={styles.rangeControl}>
+                  <T style={styles.rangeToggleLabel}>Show Normal Range</T>
+                  <Switch value={showRange} onValueChange={setShowRange} trackColor={{ true: C.primary, false: '#D5DBE6' }} thumbColor="#fff" />
+                </View>
+                <SmallOutlineBtn icon="calculator" label="Auto Calculate" />
+              </View>
             </View>
 
             {cbcGroups.map((g) => (
@@ -297,7 +298,7 @@ export default function CreateReport() {
                 </View>
                 <View style={styles.tblHead}>
                   <T style={[styles.tblHeadText, { flex: 1.3 }]}>Test Name</T>
-                  <T style={[styles.tblHeadText, { width: 86 }]}>Result</T>
+                  <T style={[styles.tblHeadText, styles.resultColumn]}>Result</T>
                   <T style={[styles.tblHeadText, { flex: 0.7 }]}>Unit</T>
                   <T style={[styles.tblHeadText, { flex: 1 }]}>{showRange ? 'Reference Range' : 'Range'}</T>
                 </View>
@@ -306,7 +307,7 @@ export default function CreateReport() {
                     <T style={[styles.tblName, { flex: 1.3 }]} numberOfLines={1}>
                       {p.name}
                     </T>
-                    <View style={{ width: 86 }}>
+                    <View style={styles.resultColumn}>
                       <TextInput
                         style={styles.valInput}
                         value={values[p.name]}
@@ -581,29 +582,45 @@ const styles = StyleSheet.create({
   },
   payChipText: { fontSize: 11, color: C.sub, fontWeight: '600' },
   btnRow: { flexDirection: 'row', marginTop: 8 },
-  sumRow: { flexDirection: 'row', alignItems: 'center' },
-  sumCell: { flex: 1, paddingHorizontal: 8 },
-  vDiv: { width: 1, alignSelf: 'stretch', backgroundColor: C.borderSoft },
+  summaryPatient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: C.borderSoft,
+  },
+  summaryPatientDetails: { flex: 1, minWidth: 0, marginLeft: 4 },
+  summaryTest: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.borderSoft },
+  summaryDetailsRow: { flexDirection: 'row' },
+  summaryDetailCell: { flex: 1, minWidth: 0, paddingTop: 8, paddingHorizontal: 4 },
+  summaryDetailDivider: { borderLeftWidth: 1, borderLeftColor: C.borderSoft },
   sumLbl: { fontSize: 9.5, color: C.faint },
   sumVal: { fontSize: 11, fontWeight: '700', color: C.text, marginTop: 2 },
   sumSub: { fontSize: 9.5, color: C.faint, marginTop: 1 },
+  valuesToolbar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4, marginTop: 8 },
+  parameterSearch: { flexBasis: 160, flexGrow: 1, minWidth: 150 },
+  valuesActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4, flexGrow: 1 },
+  rangeControl: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   rangeToggleLabel: { fontSize: 11, color: C.text, fontWeight: '600' },
-  groupHead: { backgroundColor: '#EFF4FC', borderRadius: 4, paddingHorizontal: 10, paddingVertical: 8 },
+  groupHead: { backgroundColor: '#EFF4FC', borderRadius: 4, paddingHorizontal: 10, paddingVertical: 6 },
   groupHeadText: { color: C.primary, fontSize: 11.5, fontWeight: '700' },
-  tblHead: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, paddingTop: 8, paddingBottom: 6 },
+  tblHead: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, paddingTop: 6, paddingBottom: 4 },
   tblHeadText: { fontSize: 9.5, color: C.faint, fontWeight: '700' },
-  tblRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, paddingVertical: 7 },
+  tblRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, paddingVertical: 4 },
   tblName: { fontSize: 11, color: C.text, fontWeight: '600' },
   tblUnit: { fontSize: 10, color: C.sub },
   tblRange: { fontSize: 10, color: C.sub },
+  resultColumn: { width: 64 },
   valInput: {
+    height: 28,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 4,
     fontSize: 11,
     color: C.text,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 0,
+    textAlignVertical: 'center',
     backgroundColor: '#fff',
     fontFamily: F.regular,
   },
