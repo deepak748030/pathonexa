@@ -3,18 +3,33 @@ import React from 'react';
 import { T } from '../../components/T';
 import { BrandIcon } from '../../components/Brand';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { BlueHeader, HeaderIconBtn, ScrollPage, Card, Chevron } from '../../components/kit';
 import { C, PAGE_GUTTER } from '../../src/theme';
 import { lab, moreSections } from '../../src/data';
 import { useAuth } from '../../src/auth';
+import { useNotifications } from '../../src/notifications';
 
 export default function More() {
   const { logout } = useAuth();
+  const { unreadCount } = useNotifications();
+  const router = useRouter();
 
   return (
     <ScrollPage>
-      <BlueHeader title="More" sub="Manage your lab, settings and more" right={<HeaderIconBtn icon="bell" badge={3} />} />
+      <BlueHeader
+        title="More"
+        sub="Manage your lab and support"
+        right={
+          <HeaderIconBtn
+            icon="bell"
+            badge={unreadCount || undefined}
+            onPress={() => router.push('/notifications')}
+            accessibilityLabel="Open notifications"
+          />
+        }
+      />
 
       <View style={styles.body}>
         <Card style={[styles.labCard, { marginTop: -6 }]}>

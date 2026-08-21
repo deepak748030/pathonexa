@@ -221,11 +221,9 @@ export const moreSections: { title: string; items: { icon: string; label: string
     ],
   },
   {
-    title: 'SETTINGS & SUPPORT',
+    title: 'LAB & SUPPORT',
     items: [
       { icon: 'office-building-outline', label: 'Lab Profile', sub: 'View and edit lab details' },
-      { icon: 'cog-outline', label: 'Settings', sub: 'General app settings' },
-      { icon: 'shield-account-outline', label: 'Users & Roles', sub: 'Manage app users and roles' },
       { icon: 'help-circle-outline', label: 'Help & Support', sub: 'Get help and contact support' },
       { icon: 'information-outline', label: 'About App', sub: 'App version and information' },
     ],

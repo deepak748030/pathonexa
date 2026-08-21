@@ -9,10 +9,12 @@ import { LineChart, DonutChart } from '../../components/charts';
 import { useDrawer } from '../../components/Drawer';
 import { C, PAGE_GUTTER } from '../../src/theme';
 import { greeting, dashStats, quickActions, weekSeries, weekSummary, recentReports } from '../../src/data';
+import { useNotifications } from '../../src/notifications';
 
 export default function Dashboard() {
   const { setOpen } = useDrawer();
   const router = useRouter();
+  const { unreadCount } = useNotifications();
   return (
     <ScrollPage>
       <BlueHeader
@@ -22,7 +24,12 @@ export default function Dashboard() {
         sub={greeting.sub}
         right={
           <>
-            <HeaderIconBtn icon="bell" badge={3} />
+            <HeaderIconBtn
+              icon="bell"
+              badge={unreadCount || undefined}
+              onPress={() => router.push('/notifications')}
+              accessibilityLabel="Open notifications"
+            />
             <View style={styles.labLogo}>
               <MaterialCommunityIcons name="microscope" size={17} color={C.primary} />
               <T style={styles.labLogoText}>{'SRPL\nLAB'}</T>

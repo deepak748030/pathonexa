@@ -14,6 +14,7 @@ import {
 import * as SplashScreen from 'expo-splash-screen';
 import { DrawerProvider } from '../components/Drawer';
 import { AuthProvider, useAuth } from '../src/auth';
+import { NotificationProvider } from '../src/notifications';
 import { C, F } from '../src/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -53,6 +54,7 @@ function AppNavigator() {
           <Stack.Screen name="add-patient" />
           <Stack.Screen name="create-report" />
           <Stack.Screen name="report-preview" />
+          <Stack.Screen name="notifications" />
         </Stack.Protected>
       </Stack>
     </DrawerProvider>
@@ -106,7 +108,9 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <StatusBar style="light" backgroundColor={C.headerTop} translucent />
       <AuthProvider>
-        <AppNavigator />
+        <NotificationProvider>
+          <AppNavigator />
+        </NotificationProvider>
       </AuthProvider>
       <PersistentStatusBarBackground />
     </SafeAreaProvider>
