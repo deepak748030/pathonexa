@@ -11,8 +11,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import AuthScaffold from '../components/AuthScaffold';
 import { T } from '../components/T';
-import { C, F, R } from '../src/theme';
-import { DEMO_OTP, formatIndianMobile, useAuth } from '../src/auth';
+import { C, F } from '../src/theme';
+import { formatIndianMobile, useAuth } from '../src/auth';
 
 const OTP_LENGTH = 6;
 const RESEND_SECONDS = 30;
@@ -69,7 +69,11 @@ export default function VerifyOtpScreen() {
         setLocked(true);
         setError('Too many incorrect attempts. Request a new OTP to continue.');
       } else {
-        setError(`Incorrect OTP. ${MAX_ATTEMPTS - nextAttempts} attempt${MAX_ATTEMPTS - nextAttempts === 1 ? '' : 's'} remaining.`);
+        setError(
+          `Incorrect OTP. ${MAX_ATTEMPTS - nextAttempts} attempt${
+            MAX_ATTEMPTS - nextAttempts === 1 ? '' : 's'
+          } remaining.`,
+        );
         requestAnimationFrame(() => inputRef.current?.focus());
       }
       setSubmitting(false);
@@ -100,29 +104,23 @@ export default function VerifyOtpScreen() {
 
   return (
     <AuthScaffold
-      title="Verify your number"
-      subtitle="Enter the one-time password sent to your mobile number."
+      title="Verify OTP"
+      subtitle="Enter the secure code sent to your registered mobile number."
       onBack={handleBack}
-      footer={
-        <View style={styles.footerRow}>
-          <MaterialCommunityIcons name="lock-check-outline" size={14} color={C.green} />
-          <T style={styles.footerText}>OTP verification keeps your workspace protected.</T>
-        </View>
-      }
     >
-      <View style={styles.cardHeading}>
-        <View style={styles.titleIcon}>
-          <MaterialCommunityIcons name="message-processing-outline" size={19} color={C.primary} />
+      <View style={styles.heading}>
+        <View style={styles.headingIcon}>
+          <MaterialCommunityIcons name="key-outline" size={25} color={C.card} />
         </View>
         <View style={styles.headingCopy}>
-          <T style={styles.title}>OTP verification</T>
-          <T style={styles.description}>Use the secure 6-digit code to complete login.</T>
+          <T style={styles.title}>Verify your code</T>
+          <T style={styles.description}>Complete verification to access your workspace.</T>
         </View>
       </View>
 
       <View style={styles.phoneSummary}>
         <View style={styles.phoneIcon}>
-          <MaterialCommunityIcons name="cellphone-check" size={18} color={C.primary} />
+          <MaterialCommunityIcons name="message-lock-outline" size={21} color={C.primary} />
         </View>
         <View style={styles.phoneCopy}>
           <T style={styles.sentLabel}>Code sent to</T>
@@ -131,12 +129,12 @@ export default function VerifyOtpScreen() {
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel="Change mobile number"
-          activeOpacity={0.72}
+          activeOpacity={0.76}
           onPress={handleBack}
           style={styles.changeButton}
         >
-          <MaterialCommunityIcons name="pencil-outline" size={14} color={C.primary} />
-          <T style={styles.changeText}>Change</T>
+          <MaterialCommunityIcons name="pencil-outline" size={15} color={C.primary} />
+          <T style={styles.changeText}>Edit</T>
         </TouchableOpacity>
       </View>
 
@@ -183,33 +181,18 @@ export default function VerifyOtpScreen() {
         />
       </Pressable>
 
-      <View style={styles.feedbackRow}>
-        <MaterialCommunityIcons
-          name={error ? 'alert-circle-outline' : 'information-outline'}
-          size={14}
-          color={error ? C.red : C.sub}
-        />
-        <T style={[styles.feedbackText, error && styles.errorText]}>
-          {error || 'The OTP is valid for this login attempt only.'}
-        </T>
-      </View>
-
-      <View style={styles.demoBanner}>
-        <MaterialCommunityIcons name="test-tube" size={17} color={C.primary} />
-        <View style={styles.demoCopy}>
-          <T style={styles.demoLabel}>Temporary testing OTP</T>
-          <T style={styles.demoText}>Use {DEMO_OTP} to complete verification.</T>
+      {error ? (
+        <View style={styles.errorRow}>
+          <MaterialCommunityIcons name="alert-circle-outline" size={15} color={C.red} />
+          <T style={styles.errorText}>{error}</T>
         </View>
-        <View style={styles.codePill}>
-          <T style={styles.codeText}>{DEMO_OTP}</T>
-        </View>
-      </View>
+      ) : null}
 
       <TouchableOpacity
         accessibilityRole="button"
         accessibilityLabel="Verify OTP and login"
         accessibilityState={{ disabled: submitting || locked || otp.length !== OTP_LENGTH }}
-        activeOpacity={0.82}
+        activeOpacity={0.84}
         disabled={submitting || locked || otp.length !== OTP_LENGTH}
         onPress={handleVerify}
         style={[
@@ -221,7 +204,7 @@ export default function VerifyOtpScreen() {
           <ActivityIndicator size="small" color={C.card} />
         ) : (
           <>
-            <MaterialCommunityIcons name="shield-check-outline" size={19} color={C.card} />
+            <MaterialCommunityIcons name="check-decagram-outline" size={21} color={C.card} />
             <T style={styles.primaryButtonText}>Verify & Login</T>
           </>
         )}
@@ -231,19 +214,19 @@ export default function VerifyOtpScreen() {
         <T style={styles.resendPrompt}>Didn’t receive the code?</T>
         {resendIn > 0 ? (
           <View style={styles.timerPill}>
-            <MaterialCommunityIcons name="timer-sand" size={13} color={C.sub} />
-            <T style={styles.timerText}>Resend in 00:{String(resendIn).padStart(2, '0')}</T>
+            <MaterialCommunityIcons name="clock-outline" size={14} color={C.sub} />
+            <T style={styles.timerText}>00:{String(resendIn).padStart(2, '0')}</T>
           </View>
         ) : (
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel="Resend OTP"
-            activeOpacity={0.72}
+            activeOpacity={0.76}
             disabled={submitting}
             onPress={handleResend}
             style={styles.resendButton}
           >
-            <MaterialCommunityIcons name="refresh" size={15} color={C.primary} />
+            <MaterialCommunityIcons name="refresh" size={16} color={C.primary} />
             <T style={styles.resendText}>Resend OTP</T>
           </TouchableOpacity>
         )}
@@ -253,91 +236,85 @@ export default function VerifyOtpScreen() {
 }
 
 const styles = StyleSheet.create({
-  cardHeading: {
+  heading: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginBottom: 12,
+    marginBottom: 18,
   },
-  titleIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: R.field,
+  headingIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: C.blueSoft,
+    backgroundColor: C.primary,
   },
-  headingCopy: { flex: 1, paddingLeft: 4 },
-  title: { color: C.text, fontFamily: F.bold, fontSize: 17, lineHeight: 22 },
+  headingCopy: { flex: 1, minWidth: 0, paddingLeft: 10 },
+  title: { color: C.text, fontFamily: F.bold, fontSize: 18, lineHeight: 23 },
   description: {
-    marginTop: 2,
+    marginTop: 3,
     color: C.sub,
     fontFamily: F.regular,
-    fontSize: 10.5,
-    lineHeight: 15,
+    fontSize: 11,
+    lineHeight: 16,
   },
   phoneSummary: {
-    minHeight: 54,
-    paddingHorizontal: 8,
-    borderRadius: R.field,
-    borderWidth: 1,
-    borderColor: C.border,
-    backgroundColor: C.bg,
+    minHeight: 60,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    backgroundColor: C.primaryPale,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginBottom: 14,
+    marginBottom: 18,
   },
   phoneIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: R.field,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: C.blueSoft,
+    backgroundColor: C.card,
   },
-  phoneCopy: { flex: 1, paddingLeft: 4 },
-  sentLabel: { color: C.sub, fontFamily: F.regular, fontSize: 9.5 },
-  phoneNumber: { marginTop: 1, color: C.text, fontFamily: F.bold, fontSize: 12.5 },
+  phoneCopy: { flex: 1, minWidth: 0, paddingLeft: 9 },
+  sentLabel: { color: C.sub, fontFamily: F.regular, fontSize: 10 },
+  phoneNumber: { marginTop: 2, color: C.text, fontFamily: F.bold, fontSize: 13 },
   changeButton: {
-    minHeight: 30,
-    paddingHorizontal: 7,
-    borderRadius: R.field,
-    borderWidth: 1,
-    borderColor: C.primaryBorder,
+    minHeight: 34,
+    paddingHorizontal: 9,
+    borderRadius: 11,
     backgroundColor: C.card,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 3,
   },
-  changeText: { color: C.primary, fontFamily: F.semibold, fontSize: 9.5 },
+  changeText: { color: C.primary, fontFamily: F.semibold, fontSize: 10 },
   label: {
-    marginBottom: 6,
+    marginBottom: 8,
     color: C.text,
     fontFamily: F.semibold,
-    fontSize: 11.5,
+    fontSize: 12,
   },
   otpRow: {
     width: '100%',
-    height: 49,
+    height: 53,
     flexDirection: 'row',
-    gap: 4,
+    gap: 6,
     position: 'relative',
   },
   otpCell: {
     flex: 1,
-    height: 48,
+    height: 52,
     borderWidth: 1,
     borderColor: C.borderStrong,
-    borderRadius: R.field,
+    borderRadius: 13,
     backgroundColor: C.card,
     alignItems: 'center',
     justifyContent: 'center',
   },
   otpCellActive: { borderWidth: 2, borderColor: C.primary, backgroundColor: C.primaryPale },
   otpCellFilled: { borderColor: C.primaryBorder, backgroundColor: C.primaryPale },
-  otpCellError: { borderColor: C.red, backgroundColor: '#fffafa' },
-  otpDigit: { color: C.text, fontFamily: F.bold, fontSize: 19 },
+  otpCellError: { borderColor: C.red, backgroundColor: '#FFFAFA' },
+  otpDigit: { color: C.text, fontFamily: F.bold, fontSize: 20 },
   hiddenInput: {
     position: 'absolute',
     top: 0,
@@ -349,81 +326,52 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     outlineStyle: 'none',
   } as any,
-  feedbackRow: {
-    minHeight: 23,
-    paddingTop: 5,
+  errorRow: {
+    marginTop: 7,
     flexDirection: 'row',
     alignItems: 'flex-start',
+    gap: 5,
+  },
+  errorText: { flex: 1, color: C.red, fontFamily: F.regular, fontSize: 10.5, lineHeight: 15 },
+  primaryButton: {
+    height: 52,
+    marginTop: 16,
+    borderRadius: 14,
+    backgroundColor: C.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  primaryButtonDisabled: { opacity: 0.48 },
+  primaryButtonText: { color: C.card, fontFamily: F.bold, fontSize: 14 },
+  resendRow: {
+    minHeight: 38,
+    marginTop: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+  resendPrompt: { color: C.sub, fontFamily: F.regular, fontSize: 10.5 },
+  timerPill: {
+    minHeight: 31,
+    paddingHorizontal: 10,
+    borderRadius: 11,
+    backgroundColor: C.bg,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
   },
-  feedbackText: { flex: 1, color: C.sub, fontFamily: F.regular, fontSize: 10, lineHeight: 14 },
-  errorText: { color: C.red },
-  demoBanner: {
-    minHeight: 48,
-    marginTop: 8,
-    paddingHorizontal: 8,
-    borderRadius: R.field,
-    borderWidth: 1,
-    borderColor: C.primaryBorder,
+  timerText: { color: C.sub, fontFamily: F.semibold, fontSize: 10.5 },
+  resendButton: {
+    minHeight: 32,
+    paddingHorizontal: 9,
+    borderRadius: 11,
     backgroundColor: C.primaryPale,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  demoCopy: { flex: 1, paddingLeft: 4 },
-  demoLabel: { color: C.primary, fontFamily: F.bold, fontSize: 9.5 },
-  demoText: { marginTop: 1, color: C.sub, fontFamily: F.regular, fontSize: 9.5 },
-  codePill: {
-    minHeight: 27,
-    paddingHorizontal: 8,
-    borderRadius: R.field,
-    borderWidth: 1,
-    borderColor: C.primaryBorder,
-    backgroundColor: C.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  codeText: { color: C.primaryDark, fontFamily: F.bold, fontSize: 12, letterSpacing: 1 },
-  primaryButton: {
-    height: 46,
-    marginTop: 12,
-    borderRadius: R.field,
-    backgroundColor: C.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  primaryButtonDisabled: { opacity: 0.5 },
-  primaryButtonText: { color: C.card, fontFamily: F.bold, fontSize: 13 },
-  resendRow: {
-    minHeight: 35,
-    marginTop: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  resendPrompt: { color: C.sub, fontFamily: F.regular, fontSize: 10.5 },
-  timerPill: {
-    minHeight: 27,
-    paddingHorizontal: 7,
-    borderRadius: R.field,
-    backgroundColor: C.bg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  timerText: { color: C.sub, fontFamily: F.semibold, fontSize: 10 },
-  resendButton: {
-    minHeight: 30,
-    paddingHorizontal: 7,
-    borderRadius: R.field,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
   resendText: { color: C.primary, fontFamily: F.bold, fontSize: 10.5 },
-  footerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
-  footerText: { color: C.sub, fontFamily: F.regular, fontSize: 9.5 },
 });

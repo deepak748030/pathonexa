@@ -12,7 +12,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { T } from './T';
 import { BrandLogo } from './Brand';
-import { C, F, PAGE_GUTTER, R } from '../src/theme';
+import { C, F, PAGE_GUTTER } from '../src/theme';
 import { MAXW } from './kit';
 
 type Props = {
@@ -20,10 +20,9 @@ type Props = {
   subtitle: string;
   children: React.ReactNode;
   onBack?: () => void;
-  footer?: React.ReactNode;
 };
 
-export default function AuthScaffold({ title, subtitle, children, onBack, footer }: Props) {
+export default function AuthScaffold({ title, subtitle, children, onBack }: Props) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -33,10 +32,15 @@ export default function AuthScaffold({ title, subtitle, children, onBack, footer
     >
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 8) + 8 }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom, 8) + 12 },
+        ]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
         bounces={false}
+        alwaysBounceVertical={false}
+        overScrollMode="never"
       >
         <LinearGradient
           colors={[C.headerTop, C.headerBottom]}
@@ -53,23 +57,18 @@ export default function AuthScaffold({ title, subtitle, children, onBack, footer
                 onPress={onBack}
                 style={styles.backButton}
               >
-                <MaterialCommunityIcons name="arrow-left" size={21} color={C.card} />
+                <MaterialCommunityIcons name="chevron-left" size={26} color={C.card} />
               </TouchableOpacity>
             ) : null}
 
-            <BrandLogo width={180} style={styles.logo} />
+            <BrandLogo width={168} style={styles.logo} />
             <T style={styles.heroTitle}>{title}</T>
             <T style={styles.heroSubtitle}>{subtitle}</T>
-            <View style={styles.securePill}>
-              <MaterialCommunityIcons name="shield-check-outline" size={14} color={C.card} />
-              <T style={styles.secureText}>Secure diagnostic workspace</T>
-            </View>
           </View>
         </LinearGradient>
 
         <View style={styles.body}>
-          <View style={styles.card}>{children}</View>
-          {footer ? <View style={styles.footer}>{footer}</View> : null}
+          <View style={styles.authPanel}>{children}</View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -82,8 +81,8 @@ const styles = StyleSheet.create({
   scrollContent: { flexGrow: 1, backgroundColor: C.bg },
   hero: {
     width: '100%',
-    paddingBottom: 18,
-    minHeight: 232,
+    minHeight: 230,
+    paddingBottom: 36,
   },
   heroInner: {
     width: '100%',
@@ -96,70 +95,49 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: PAGE_GUTTER,
     top: 0,
-    width: 38,
-    height: 38,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.28)',
-    borderRadius: R.field,
+    borderColor: 'rgba(255,255,255,0.3)',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: 'rgba(255,255,255,0.14)',
   },
-  logo: { backgroundColor: C.card },
+  logo: {
+    borderRadius: 16,
+    backgroundColor: C.card,
+  },
   heroTitle: {
-    marginTop: 8,
+    marginTop: 6,
     color: C.card,
     fontFamily: F.bold,
-    fontSize: 24,
+    fontSize: 23,
     lineHeight: 29,
     textAlign: 'center',
   },
   heroSubtitle: {
     marginTop: 4,
     maxWidth: 330,
-    color: 'rgba(255,255,255,0.82)',
+    color: 'rgba(255,255,255,0.86)',
     fontFamily: F.regular,
     fontSize: 12,
     lineHeight: 18,
     textAlign: 'center',
-  },
-  securePill: {
-    marginTop: 8,
-    minHeight: 26,
-    paddingHorizontal: 9,
-    borderRadius: R.field,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  secureText: {
-    color: C.card,
-    fontFamily: F.medium,
-    fontSize: 10.5,
   },
   body: {
     width: '100%',
     maxWidth: MAXW,
     flex: 1,
     alignSelf: 'center',
+    marginTop: -24,
     paddingHorizontal: PAGE_GUTTER,
-    paddingTop: 8,
   },
-  card: {
+  authPanel: {
     width: '100%',
-    paddingHorizontal: 14,
-    paddingVertical: 16,
-    borderRadius: R.card,
-    borderWidth: 1,
-    borderColor: C.border,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    borderRadius: 18,
     backgroundColor: C.card,
-  },
-  footer: {
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 12,
   },
 });

@@ -10,7 +10,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import AuthScaffold from '../components/AuthScaffold';
 import { T } from '../components/T';
-import { C, F, R } from '../src/theme';
+import { C, F } from '../src/theme';
 import { isValidIndianMobile, normalizeIndianMobile, useAuth } from '../src/auth';
 
 export default function LoginScreen() {
@@ -30,7 +30,7 @@ export default function LoginScreen() {
   const handleSubmit = async () => {
     if (submitting) return;
     if (!valid) {
-      setError('Enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.');
+      setError('Enter a valid 10-digit mobile number.');
       return;
     }
 
@@ -49,20 +49,15 @@ export default function LoginScreen() {
   return (
     <AuthScaffold
       title="Welcome back"
-      subtitle="Sign in with your registered Indian mobile number to continue."
-      footer={
-        <T style={styles.footerText}>
-          Protected by encrypted verification. Your details stay private.
-        </T>
-      }
+      subtitle="Sign in securely with your registered mobile number."
     >
-      <View style={styles.cardHeading}>
-        <View style={styles.titleIcon}>
-          <MaterialCommunityIcons name="account-lock-outline" size={19} color={C.primary} />
+      <View style={styles.heading}>
+        <View style={styles.headingIcon}>
+          <MaterialCommunityIcons name="account-arrow-right-outline" size={24} color={C.card} />
         </View>
         <View style={styles.headingCopy}>
-          <T style={styles.title}>Login to your account</T>
-          <T style={styles.description}>We will verify your number with a one-time password.</T>
+          <T style={styles.title}>Sign in to PathoNexa</T>
+          <T style={styles.description}>Enter your mobile number to receive a secure login code.</T>
         </View>
       </View>
 
@@ -75,22 +70,20 @@ export default function LoginScreen() {
         ]}
       >
         <View style={styles.prefix}>
-          <MaterialCommunityIcons name="cellphone" size={17} color={C.primary} />
+          <MaterialCommunityIcons name="phone-outline" size={19} color={C.primary} />
           <T style={styles.prefixText}>+91</T>
         </View>
         <TextInput
-          accessibilityLabel="Indian mobile number"
+          accessibilityLabel="Mobile number"
           value={phone}
           onChangeText={handlePhoneChange}
           onFocus={() => setFocused(true)}
           onBlur={() => {
             setFocused(false);
-            if (phone && !valid) {
-              setError('Enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.');
-            }
+            if (phone && !valid) setError('Enter a valid 10-digit mobile number.');
           }}
           onSubmitEditing={handleSubmit}
-          placeholder="10-digit mobile number"
+          placeholder="Enter mobile number"
           placeholderTextColor={C.faint}
           keyboardType="number-pad"
           autoComplete="tel"
@@ -109,27 +102,23 @@ export default function LoginScreen() {
             }}
             style={styles.clearButton}
           >
-            <MaterialCommunityIcons name="close-circle" size={18} color={C.faint} />
+            <MaterialCommunityIcons name="close" size={18} color={C.sub} />
           </TouchableOpacity>
         ) : null}
       </View>
 
-      <View style={styles.helperRow}>
-        <MaterialCommunityIcons
-          name={error ? 'alert-circle-outline' : 'information-outline'}
-          size={14}
-          color={error ? C.red : C.sub}
-        />
-        <T style={[styles.helper, error && styles.errorText]}>
-          {error || 'Only Indian mobile numbers are supported.'}
-        </T>
-      </View>
+      {error ? (
+        <View style={styles.errorRow}>
+          <MaterialCommunityIcons name="alert-circle-outline" size={15} color={C.red} />
+          <T style={styles.errorText}>{error}</T>
+        </View>
+      ) : null}
 
       <TouchableOpacity
         accessibilityRole="button"
         accessibilityLabel="Continue to OTP verification"
         accessibilityState={{ disabled: submitting }}
-        activeOpacity={0.82}
+        activeOpacity={0.84}
         disabled={submitting}
         onPress={handleSubmit}
         style={[styles.primaryButton, submitting && styles.primaryButtonDisabled]}
@@ -139,148 +128,117 @@ export default function LoginScreen() {
         ) : (
           <>
             <T style={styles.primaryButtonText}>Send OTP</T>
-            <MaterialCommunityIcons name="arrow-right" size={19} color={C.card} />
+            <MaterialCommunityIcons name="message-arrow-right-outline" size={20} color={C.card} />
           </>
         )}
       </TouchableOpacity>
 
-      <View style={styles.trustRow}>
-        <View style={styles.trustItem}>
-          <MaterialCommunityIcons name="shield-key-outline" size={16} color={C.green} />
-          <T style={styles.trustText}>Secure OTP</T>
-        </View>
-        <View style={styles.trustDivider} />
-        <View style={styles.trustItem}>
-          <MaterialCommunityIcons name="clock-fast" size={16} color={C.primary} />
-          <T style={styles.trustText}>Quick access</T>
-        </View>
+      <View style={styles.securityRow}>
+        <MaterialCommunityIcons name="shield-lock-outline" size={17} color={C.green} />
+        <T style={styles.securityText}>Secure and encrypted OTP verification</T>
       </View>
-
-      <T style={styles.legal}>
-        By continuing, you agree to PathoNexa’s Terms of Use and Privacy Policy.
-      </T>
     </AuthScaffold>
   );
 }
 
 const styles = StyleSheet.create({
-  cardHeading: {
+  heading: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginBottom: 16,
+    marginBottom: 22,
   },
-  titleIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: R.field,
+  headingIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: C.blueSoft,
+    backgroundColor: C.primary,
   },
-  headingCopy: { flex: 1, paddingLeft: 4 },
-  title: { color: C.text, fontFamily: F.bold, fontSize: 17, lineHeight: 22 },
+  headingCopy: { flex: 1, minWidth: 0, paddingLeft: 10 },
+  title: { color: C.text, fontFamily: F.bold, fontSize: 18, lineHeight: 23 },
   description: {
-    marginTop: 2,
+    marginTop: 3,
     color: C.sub,
     fontFamily: F.regular,
-    fontSize: 10.5,
-    lineHeight: 15,
+    fontSize: 11,
+    lineHeight: 16,
   },
   label: {
-    marginBottom: 4,
+    marginBottom: 7,
     color: C.text,
     fontFamily: F.semibold,
-    fontSize: 11.5,
+    fontSize: 12,
   },
   phoneField: {
-    height: 46,
+    height: 54,
     borderWidth: 1,
     borderColor: C.borderStrong,
-    borderRadius: R.field,
+    borderRadius: 14,
     backgroundColor: C.card,
     flexDirection: 'row',
     alignItems: 'center',
     overflow: 'hidden',
   },
-  phoneFieldFocused: { borderColor: C.primary, backgroundColor: C.primaryPale },
-  phoneFieldError: { borderColor: C.red, backgroundColor: '#fffafa' },
+  phoneFieldFocused: { borderWidth: 2, borderColor: C.primary, backgroundColor: C.primaryPale },
+  phoneFieldError: { borderColor: C.red, backgroundColor: '#FFFAFA' },
   prefix: {
     height: '100%',
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     borderRightWidth: 1,
     borderRightColor: C.border,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: C.bg,
+    gap: 6,
+    backgroundColor: C.primaryPale,
   },
-  prefixText: { color: C.text, fontFamily: F.semibold, fontSize: 13 },
+  prefixText: { color: C.text, fontFamily: F.bold, fontSize: 14 },
   input: {
     flex: 1,
     height: '100%',
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 0,
     color: C.text,
     fontFamily: F.semibold,
     fontSize: 14,
-    letterSpacing: 0.4,
+    letterSpacing: 0.3,
     outlineStyle: 'none',
   } as any,
   clearButton: {
-    width: 38,
-    height: 44,
+    width: 42,
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  helperRow: {
-    minHeight: 21,
-    paddingTop: 4,
+  errorRow: {
+    marginTop: 7,
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 4,
+    gap: 5,
   },
-  helper: { flex: 1, color: C.sub, fontFamily: F.regular, fontSize: 10, lineHeight: 14 },
-  errorText: { color: C.red },
+  errorText: { flex: 1, color: C.red, fontFamily: F.regular, fontSize: 10.5, lineHeight: 15 },
   primaryButton: {
-    height: 46,
-    marginTop: 12,
-    borderRadius: R.field,
+    height: 52,
+    marginTop: 16,
+    borderRadius: 14,
     backgroundColor: C.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 8,
   },
   primaryButtonDisabled: { opacity: 0.68 },
-  primaryButtonText: { color: C.card, fontFamily: F.bold, fontSize: 13 },
-  trustRow: {
-    minHeight: 34,
-    marginTop: 12,
-    borderRadius: R.field,
-    borderWidth: 1,
-    borderColor: C.border,
-    backgroundColor: C.bg,
+  primaryButtonText: { color: C.card, fontFamily: F.bold, fontSize: 14 },
+  securityRow: {
+    minHeight: 40,
+    marginTop: 14,
+    borderRadius: 12,
+    backgroundColor: C.greenSoft,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
   },
-  trustItem: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 4 },
-  trustDivider: { width: 1, height: 18, backgroundColor: C.border },
-  trustText: { color: C.sub, fontFamily: F.medium, fontSize: 10 },
-  legal: {
-    marginTop: 10,
-    color: C.faint,
-    fontFamily: F.regular,
-    fontSize: 9.5,
-    lineHeight: 14,
-    textAlign: 'center',
-  },
-  footerText: {
-    color: C.sub,
-    fontFamily: F.regular,
-    fontSize: 9.5,
-    lineHeight: 14,
-    textAlign: 'center',
-  },
+  securityText: { color: C.green, fontFamily: F.semibold, fontSize: 10.5 },
 });

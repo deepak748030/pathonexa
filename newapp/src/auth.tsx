@@ -36,7 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const requestVersion = React.useRef(0);
 
   const requestOtp = React.useCallback(async (phone: string) => {
-    if (!isValidIndianMobile(phone)) throw new Error('Enter a valid Indian mobile number.');
+    if (!isValidIndianMobile(phone)) throw new Error('Enter a valid mobile number.');
     requestVersion.current += 1;
     setAuthenticated(false);
     setPendingPhone(phone);
