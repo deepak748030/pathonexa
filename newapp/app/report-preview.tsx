@@ -66,6 +66,12 @@ export default function ReportPreview() {
         <ScrollView
           style={{ flex: 1, backgroundColor: C.darker }}
           contentContainerStyle={{ paddingHorizontal: PAGE_GUTTER, paddingVertical: 8, alignItems: 'center' }}
+          bounces={false}
+          alwaysBounceVertical={false}
+          overScrollMode="never"
+          contentInsetAdjustmentBehavior="never"
+          automaticallyAdjustContentInsets={false}
+          showsVerticalScrollIndicator={false}
         >
           <View style={styles.paper}>
             {/* letter head */}
@@ -183,7 +189,7 @@ export default function ReportPreview() {
 }
 
 const styles = StyleSheet.create({
-  phone: { flex: 1, maxWidth: 520, width: '100%', alignSelf: 'center', borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#E4E9F2', backgroundColor: C.bg, overflow: 'hidden' },
+  phone: { flex: 1, maxWidth: 520, width: '100%', alignSelf: 'center', backgroundColor: C.bg, overflow: 'hidden' },
   toolbar: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.dark, paddingHorizontal: PAGE_GUTTER, paddingVertical: 8 },
   pageBox: { borderWidth: 1, borderColor: '#3A4656', borderRadius: 2, paddingHorizontal: 10, paddingVertical: 2, marginLeft: 4 },
   pageBoxText: { color: '#E5E7EB', fontSize: 10.5 },

@@ -167,6 +167,9 @@ export default function Patients() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior="never"
+        automaticallyAdjustContentInsets={false}
+        style={styles.list}
         contentContainerStyle={styles.listContent}
       />
     </Page>
@@ -208,5 +211,6 @@ const styles = StyleSheet.create({
   phoneIcon: { marginRight: 4 },
   chevron: { marginLeft: 4 },
   empty: { textAlign: 'center', color: C.faint, fontSize: 12, paddingVertical: 24 },
-  listContent: { paddingBottom: 110 },
+  list: { backgroundColor: C.headerTop },
+  listContent: { paddingBottom: 110, backgroundColor: C.bg },
 });

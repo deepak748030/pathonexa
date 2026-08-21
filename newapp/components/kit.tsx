@@ -123,12 +123,17 @@ export function ScrollPage({ children }: { children: React.ReactNode }) {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
+          bounces={false}
+          alwaysBounceVertical={false}
+          overScrollMode="never"
+          contentInsetAdjustmentBehavior="never"
+          automaticallyAdjustContentInsets={false}
           onScroll={(e) => {
             scrollY.current = e.nativeEvent.contentOffset.y;
           }}
           scrollEventThrottle={16}
-          style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 110 }}
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
         >
           <FadeIn>{children}</FadeIn>
         </ScrollView>
@@ -478,18 +483,15 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: MAXW,
     alignSelf: 'center',
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: '#E4E9F2',
     backgroundColor: C.bg,
   },
+  scrollView: { flex: 1, backgroundColor: C.headerTop },
+  scrollContent: { paddingBottom: 110, backgroundColor: C.bg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: PAGE_GUTTER,
     paddingBottom: 12,
-    borderBottomLeftRadius: 6,
-    borderBottomRightRadius: 6,
   },
   headerBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { color: '#fff', fontSize: S.h2, fontWeight: '700' },

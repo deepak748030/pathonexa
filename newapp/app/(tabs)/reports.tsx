@@ -190,6 +190,9 @@ export default function Reports() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior="never"
+        automaticallyAdjustContentInsets={false}
+        style={styles.list}
         contentContainerStyle={styles.listContent}
       />
     </Page>
@@ -247,5 +250,6 @@ const styles = StyleSheet.create({
   reportAmount: { fontSize: 12.5, fontWeight: '800', color: C.text },
   chevron: { marginLeft: 4 },
   empty: { textAlign: 'center', color: C.faint, fontSize: 12, paddingVertical: 24 },
-  listContent: { paddingBottom: 110 },
+  list: { backgroundColor: C.headerTop },
+  listContent: { paddingBottom: 110, backgroundColor: C.bg },
 });

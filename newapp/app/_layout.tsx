@@ -35,6 +35,8 @@ export default function RootLayout() {
     const st = document.createElement('style');
     st.textContent =
       `html,body,#root{font-family:'${F.regular}',system-ui,-apple-system,'Segoe UI',sans-serif}` +
+      `html,body{margin:0;min-height:100%;background:${C.headerTop};overscroll-behavior-y:none}` +
+      `#root{min-height:100%;background:${C.bg}}` +
       `input,textarea,select,button{font-family:inherit}` +
       `input,textarea{caret-color:${C.primary}}`;
     document.head.appendChild(st);
