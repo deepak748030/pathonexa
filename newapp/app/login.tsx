@@ -1,35 +1,33 @@
 import React from 'react';
-import {
-  ActivityIndicator,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import AuthScaffold from '../components/AuthScaffold';
+import { StyleSheet, TextInput, View } from 'react-native';
+import { Redirect, useRouter } from 'expo-router';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { T } from '../components/T';
+import { AuthScaffold } from '../components/AuthScaffold';
+import { Press } from '../components/kit';
 import { C, F } from '../src/theme';
 import { isValidIndianMobile, normalizeIndianMobile, useAuth } from '../src/auth';
 
-export default function LoginScreen() {
-  const { requestOtp } = useAuth();
-  const [phone, setPhone] = React.useState('');
+export default function Login() {
+  const router = useRouter();
+  const { isAuthenticated, pendingPhone, requestOtp } = useAuth();
+  const [mobile, setMobile] = React.useState(() => pendingPhone ?? '');
   const [error, setError] = React.useState('');
   const [focused, setFocused] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
+  const normalizedMobile = normalizeIndianMobile(mobile);
+  const isValid = isValidIndianMobile(normalizedMobile);
 
-  const valid = isValidIndianMobile(phone);
+  if (isAuthenticated) return <Redirect href="/(tabs)" />;
 
-  const handlePhoneChange = (value: string) => {
-    setPhone(normalizeIndianMobile(value));
+  const handleMobileChange = (value: string) => {
+    setMobile(normalizeIndianMobile(value));
     if (error) setError('');
   };
 
-  const handleSubmit = async () => {
+  const handleContinue = async () => {
     if (submitting) return;
-    if (!valid) {
+    if (!isValid) {
       setError('Enter a valid 10-digit mobile number.');
       return;
     }
@@ -37,7 +35,7 @@ export default function LoginScreen() {
     setSubmitting(true);
     setError('');
     try {
-      await requestOtp(phone);
+      await requestOtp(normalizedMobile);
       router.push('/verify-otp');
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Unable to send OTP. Try again.');
@@ -48,197 +46,156 @@ export default function LoginScreen() {
 
   return (
     <AuthScaffold
-      title="Welcome back"
-      subtitle="Sign in securely with your registered mobile number."
+      title="Sign in to your lab"
+      subtitle="Enter the registered mobile number linked with your PathoNexa workspace."
     >
-      <View style={styles.heading}>
-        <View style={styles.headingIcon}>
-          <MaterialCommunityIcons name="account-arrow-right-outline" size={24} color={C.card} />
+      <View style={styles.form}>
+        <T style={styles.label}>Mobile number</T>
+        <View style={[styles.phoneField, focused && styles.phoneFieldFocused, error && styles.phoneFieldError]}>
+          <View style={styles.countryPrefix}>
+            <MaterialCommunityIcons name="phone-outline" size={19} color={C.primary} />
+            <T style={styles.countryCode}>+91</T>
+          </View>
+          <View style={styles.fieldDivider} />
+          <TextInput
+            value={mobile}
+            onChangeText={handleMobileChange}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            onSubmitEditing={handleContinue}
+            style={styles.input}
+            placeholder="10-digit mobile number"
+            placeholderTextColor={C.faint}
+            selectionColor={C.primary}
+            keyboardType="number-pad"
+            textContentType="telephoneNumber"
+            autoComplete="tel"
+            maxLength={12}
+            returnKeyType="done"
+            accessibilityLabel="Indian mobile number"
+          />
+          {isValid ? <MaterialCommunityIcons name="check-decagram" size={19} color={C.green} /> : null}
         </View>
-        <View style={styles.headingCopy}>
-          <T style={styles.title}>Sign in to PathoNexa</T>
-          <T style={styles.description}>Enter your mobile number to receive a secure login code.</T>
-        </View>
-      </View>
-
-      <T style={styles.label}>Mobile number</T>
-      <View
-        style={[
-          styles.phoneField,
-          focused && styles.phoneFieldFocused,
-          !!error && styles.phoneFieldError,
-        ]}
-      >
-        <View style={styles.prefix}>
-          <MaterialCommunityIcons name="phone-outline" size={19} color={C.primary} />
-          <T style={styles.prefixText}>+91</T>
-        </View>
-        <TextInput
-          accessibilityLabel="Mobile number"
-          value={phone}
-          onChangeText={handlePhoneChange}
-          onFocus={() => setFocused(true)}
-          onBlur={() => {
-            setFocused(false);
-            if (phone && !valid) setError('Enter a valid 10-digit mobile number.');
-          }}
-          onSubmitEditing={handleSubmit}
-          placeholder="Enter mobile number"
-          placeholderTextColor={C.faint}
-          keyboardType="number-pad"
-          autoComplete="tel"
-          textContentType="telephoneNumber"
-          returnKeyType="done"
-          style={styles.input}
-        />
-        {phone ? (
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Clear mobile number"
-            activeOpacity={0.72}
-            onPress={() => {
-              setPhone('');
-              setError('');
-            }}
-            style={styles.clearButton}
-          >
-            <MaterialCommunityIcons name="close" size={18} color={C.sub} />
-          </TouchableOpacity>
+        {error ? (
+          <View style={styles.errorRow}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={15} color={C.red} />
+            <T style={styles.errorText}>{error}</T>
+          </View>
         ) : null}
-      </View>
 
-      {error ? (
-        <View style={styles.errorRow}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={15} color={C.red} />
-          <T style={styles.errorText}>{error}</T>
+        <Press
+          style={[styles.continueButton, (!isValid || submitting) && styles.continueButtonDisabled]}
+          onPress={handleContinue}
+          accessibilityLabel="Continue to OTP verification"
+          accessibilityState={{ disabled: !isValid || submitting }}
+        >
+          <View style={styles.continueContent}>
+            <T style={styles.continueText}>{submitting ? 'Sending OTP…' : 'Continue securely'}</T>
+            <View style={styles.buttonIcon}>
+              <MaterialCommunityIcons name={submitting ? 'timer-sand' : 'arrow-right'} size={18} color="#fff" />
+            </View>
+          </View>
+        </Press>
+
+        <View style={styles.assurance}>
+          <View style={styles.assuranceIcon}>
+            <MaterialCommunityIcons name="shield-lock-outline" size={20} color={C.primary} />
+          </View>
+          <View style={styles.assuranceCopy}>
+            <T style={styles.assuranceTitle}>Protected sign-in</T>
+            <T style={styles.assuranceText}>Your account is verified with a one-time password.</T>
+          </View>
+          <MaterialCommunityIcons name="check-circle-outline" size={18} color={C.green} />
         </View>
-      ) : null}
-
-      <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityLabel="Continue to OTP verification"
-        accessibilityState={{ disabled: submitting }}
-        activeOpacity={0.84}
-        disabled={submitting}
-        onPress={handleSubmit}
-        style={[styles.primaryButton, submitting && styles.primaryButtonDisabled]}
-      >
-        {submitting ? (
-          <ActivityIndicator size="small" color={C.card} />
-        ) : (
-          <>
-            <T style={styles.primaryButtonText}>Send OTP</T>
-            <MaterialCommunityIcons name="message-arrow-right-outline" size={20} color={C.card} />
-          </>
-        )}
-      </TouchableOpacity>
-
-      <View style={styles.securityRow}>
-        <MaterialCommunityIcons name="shield-lock-outline" size={17} color={C.green} />
-        <T style={styles.securityText}>Secure and encrypted OTP verification</T>
       </View>
     </AuthScaffold>
   );
 }
 
 const styles = StyleSheet.create({
-  heading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 22,
-  },
-  headingIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: C.primary,
-  },
-  headingCopy: { flex: 1, minWidth: 0, paddingLeft: 10 },
-  title: { color: C.text, fontFamily: F.bold, fontSize: 18, lineHeight: 23 },
-  description: {
-    marginTop: 3,
-    color: C.sub,
-    fontFamily: F.regular,
-    fontSize: 11,
-    lineHeight: 16,
-  },
+  form: { marginTop: 30 },
   label: {
-    marginBottom: 7,
+    marginBottom: 8,
     color: C.text,
     fontFamily: F.semibold,
     fontSize: 12,
   },
   phoneField: {
-    height: 54,
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 11,
     borderWidth: 1,
-    borderColor: C.borderStrong,
+    borderColor: C.border,
     borderRadius: 14,
-    backgroundColor: C.card,
+    backgroundColor: '#F9FBFE',
+  },
+  phoneFieldFocused: { borderColor: C.primary, backgroundColor: '#fff' },
+  phoneFieldError: { borderColor: C.red, backgroundColor: '#FFF8F8' },
+  countryPrefix: {
+    minWidth: 66,
     flexDirection: 'row',
     alignItems: 'center',
-    overflow: 'hidden',
   },
-  phoneFieldFocused: { borderWidth: 2, borderColor: C.primary, backgroundColor: C.primaryPale },
-  phoneFieldError: { borderColor: C.red, backgroundColor: '#FFFAFA' },
-  prefix: {
-    height: '100%',
-    paddingHorizontal: 12,
-    borderRightWidth: 1,
-    borderRightColor: C.border,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: C.primaryPale,
+  countryCode: {
+    marginLeft: 6,
+    color: C.text,
+    fontFamily: F.bold,
+    fontSize: 15,
   },
-  prefixText: { color: C.text, fontFamily: F.bold, fontSize: 14 },
+  fieldDivider: { width: 1, height: 25, marginRight: 10, backgroundColor: C.border },
   input: {
     flex: 1,
-    height: '100%',
-    paddingHorizontal: 12,
-    paddingVertical: 0,
+    minWidth: 0,
+    paddingVertical: 15,
     color: C.text,
     fontFamily: F.semibold,
-    fontSize: 14,
-    letterSpacing: 0.3,
-    outlineStyle: 'none',
-  } as any,
-  clearButton: {
-    width: 42,
-    height: 52,
-    alignItems: 'center',
+    fontSize: 15,
+    letterSpacing: 0.4,
+  },
+  errorRow: { marginTop: 7, flexDirection: 'row', alignItems: 'center' },
+  errorText: { marginLeft: 5, color: C.red, fontFamily: F.medium, fontSize: 11.5 },
+  continueButton: {
+    minHeight: 56,
+    marginTop: 18,
+    paddingHorizontal: 7,
     justifyContent: 'center',
-  },
-  errorRow: {
-    marginTop: 7,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 5,
-  },
-  errorText: { flex: 1, color: C.red, fontFamily: F.regular, fontSize: 10.5, lineHeight: 15 },
-  primaryButton: {
-    height: 52,
-    marginTop: 16,
     borderRadius: 14,
     backgroundColor: C.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
   },
-  primaryButtonDisabled: { opacity: 0.68 },
-  primaryButtonText: { color: C.card, fontFamily: F.bold, fontSize: 14 },
-  securityRow: {
-    minHeight: 40,
-    marginTop: 14,
+  continueButtonDisabled: { opacity: 0.5 },
+  continueContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  continueText: { color: '#fff', fontFamily: F.bold, fontSize: 14 },
+  buttonIcon: {
+    position: 'absolute',
+    right: 0,
+    width: 40,
+    height: 40,
     borderRadius: 12,
-    backgroundColor: C.greenSoft,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
+    backgroundColor: 'rgba(255,255,255,0.14)',
   },
-  securityText: { color: C.green, fontFamily: F.semibold, fontSize: 10.5 },
+  assurance: {
+    minHeight: 66,
+    marginTop: 14,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#DDE9F9',
+    borderRadius: 14,
+    backgroundColor: '#F6FAFF',
+  },
+  assuranceIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.primaryPale,
+  },
+  assuranceCopy: { flex: 1, minWidth: 0, marginHorizontal: 9 },
+  assuranceTitle: { color: C.text, fontFamily: F.semibold, fontSize: 11.5 },
+  assuranceText: { marginTop: 2, color: C.sub, fontFamily: F.regular, fontSize: 10.5, lineHeight: 14 },
 });

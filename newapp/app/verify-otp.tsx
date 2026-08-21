@@ -7,9 +7,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router } from 'expo-router';
-import AuthScaffold from '../components/AuthScaffold';
+import { AuthScaffold } from '../components/AuthScaffold';
 import { T } from '../components/T';
 import { C, F } from '../src/theme';
 import { formatIndianMobile, useAuth } from '../src/auth';
@@ -81,7 +81,7 @@ export default function VerifyOtpScreen() {
   };
 
   const handleResend = async () => {
-    if (!pendingPhone || resendIn > 0) return;
+    if (!pendingPhone || resendIn > 0 || submitting) return;
     setSubmitting(true);
     setError('');
     setOtp('');
@@ -104,172 +104,156 @@ export default function VerifyOtpScreen() {
 
   return (
     <AuthScaffold
-      title="Verify OTP"
-      subtitle="Enter the secure code sent to your registered mobile number."
+      title="Check your messages"
+      subtitle="Enter the six-digit one-time password sent to your registered mobile number."
       onBack={handleBack}
     >
-      <View style={styles.heading}>
-        <View style={styles.headingIcon}>
-          <MaterialCommunityIcons name="key-outline" size={25} color={C.card} />
-        </View>
-        <View style={styles.headingCopy}>
-          <T style={styles.title}>Verify your code</T>
-          <T style={styles.description}>Complete verification to access your workspace.</T>
-        </View>
-      </View>
-
-      <View style={styles.phoneSummary}>
-        <View style={styles.phoneIcon}>
-          <MaterialCommunityIcons name="message-lock-outline" size={21} color={C.primary} />
-        </View>
-        <View style={styles.phoneCopy}>
-          <T style={styles.sentLabel}>Code sent to</T>
-          <T style={styles.phoneNumber}>{formatIndianMobile(pendingPhone)}</T>
-        </View>
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel="Change mobile number"
-          activeOpacity={0.76}
-          onPress={handleBack}
-          style={styles.changeButton}
-        >
-          <MaterialCommunityIcons name="pencil-outline" size={15} color={C.primary} />
-          <T style={styles.changeText}>Edit</T>
-        </TouchableOpacity>
-      </View>
-
-      <T style={styles.label}>Enter 6-digit OTP</T>
-      <Pressable
-        accessibilityRole="none"
-        onPress={() => inputRef.current?.focus()}
-        style={styles.otpRow}
-      >
-        {Array.from({ length: OTP_LENGTH }, (_, index) => {
-          const digit = otp[index] || '';
-          const active = focused && index === activeIndex;
-          return (
-            <View
-              key={index}
-              pointerEvents="none"
-              style={[
-                styles.otpCell,
-                !!digit && styles.otpCellFilled,
-                active && styles.otpCellActive,
-                !!error && styles.otpCellError,
-              ]}
-            >
-              <T style={styles.otpDigit}>{digit}</T>
-            </View>
-          );
-        })}
-        <TextInput
-          ref={inputRef}
-          accessibilityLabel="Six-digit one-time password"
-          value={otp}
-          onChangeText={handleOtpChange}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          onSubmitEditing={handleVerify}
-          keyboardType="number-pad"
-          textContentType="oneTimeCode"
-          autoComplete="sms-otp"
-          maxLength={OTP_LENGTH}
-          returnKeyType="done"
-          autoFocus
-          caretHidden
-          style={styles.hiddenInput}
-        />
-      </Pressable>
-
-      {error ? (
-        <View style={styles.errorRow}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={15} color={C.red} />
-          <T style={styles.errorText}>{error}</T>
-        </View>
-      ) : null}
-
-      <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityLabel="Verify OTP and login"
-        accessibilityState={{ disabled: submitting || locked || otp.length !== OTP_LENGTH }}
-        activeOpacity={0.84}
-        disabled={submitting || locked || otp.length !== OTP_LENGTH}
-        onPress={handleVerify}
-        style={[
-          styles.primaryButton,
-          (submitting || locked || otp.length !== OTP_LENGTH) && styles.primaryButtonDisabled,
-        ]}
-      >
-        {submitting ? (
-          <ActivityIndicator size="small" color={C.card} />
-        ) : (
-          <>
-            <MaterialCommunityIcons name="check-decagram-outline" size={21} color={C.card} />
-            <T style={styles.primaryButtonText}>Verify & Login</T>
-          </>
-        )}
-      </TouchableOpacity>
-
-      <View style={styles.resendRow}>
-        <T style={styles.resendPrompt}>Didn’t receive the code?</T>
-        {resendIn > 0 ? (
-          <View style={styles.timerPill}>
-            <MaterialCommunityIcons name="clock-outline" size={14} color={C.sub} />
-            <T style={styles.timerText}>00:{String(resendIn).padStart(2, '0')}</T>
+      <View style={styles.form}>
+        <View style={styles.phoneSummary}>
+          <View style={styles.phoneIcon}>
+            <MaterialCommunityIcons name="message-lock-outline" size={21} color={C.primary} />
           </View>
-        ) : (
+          <View style={styles.phoneCopy}>
+            <T style={styles.sentLabel}>OTP sent to</T>
+            <T style={styles.phoneNumber}>{formatIndianMobile(pendingPhone)}</T>
+          </View>
           <TouchableOpacity
             accessibilityRole="button"
-            accessibilityLabel="Resend OTP"
+            accessibilityLabel="Change mobile number"
             activeOpacity={0.76}
-            disabled={submitting}
-            onPress={handleResend}
-            style={styles.resendButton}
+            onPress={handleBack}
+            style={styles.changeButton}
           >
-            <MaterialCommunityIcons name="refresh" size={16} color={C.primary} />
-            <T style={styles.resendText}>Resend OTP</T>
+            <MaterialCommunityIcons name="pencil-outline" size={15} color={C.primary} />
+            <T style={styles.changeText}>Change</T>
           </TouchableOpacity>
-        )}
+        </View>
+
+        <View style={styles.otpHeading}>
+          <T style={styles.label}>One-time password</T>
+          <View style={styles.secureTag}>
+            <MaterialCommunityIcons name="shield-check-outline" size={13} color={C.green} />
+            <T style={styles.secureTagText}>Secure</T>
+          </View>
+        </View>
+        <Pressable
+          accessibilityRole="none"
+          onPress={() => inputRef.current?.focus()}
+          style={styles.otpRow}
+        >
+          {Array.from({ length: OTP_LENGTH }, (_, index) => {
+            const digit = otp[index] || '';
+            const active = focused && index === activeIndex;
+            return (
+              <View
+                key={index}
+                pointerEvents="none"
+                style={[
+                  styles.otpCell,
+                  index > 0 && styles.otpCellJoined,
+                  index === 0 && styles.otpCellFirst,
+                  index === OTP_LENGTH - 1 && styles.otpCellLast,
+                  !!digit && styles.otpCellFilled,
+                  active && styles.otpCellActive,
+                  !!error && styles.otpCellError,
+                ]}
+              >
+                <T style={styles.otpDigit}>{digit}</T>
+              </View>
+            );
+          })}
+          <TextInput
+            ref={inputRef}
+            accessibilityLabel="Six-digit one-time password"
+            value={otp}
+            onChangeText={handleOtpChange}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            onSubmitEditing={handleVerify}
+            keyboardType="number-pad"
+            textContentType="oneTimeCode"
+            autoComplete="sms-otp"
+            maxLength={OTP_LENGTH}
+            returnKeyType="done"
+            autoFocus
+            caretHidden
+            style={styles.hiddenInput}
+          />
+        </Pressable>
+
+        {error ? (
+          <View style={styles.errorRow}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={15} color={C.red} />
+            <T style={styles.errorText}>{error}</T>
+          </View>
+        ) : null}
+
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Verify OTP and login"
+          accessibilityState={{ disabled: submitting || locked || otp.length !== OTP_LENGTH }}
+          activeOpacity={0.84}
+          disabled={submitting || locked || otp.length !== OTP_LENGTH}
+          onPress={handleVerify}
+          style={[
+            styles.verifyButton,
+            (submitting || locked || otp.length !== OTP_LENGTH) && styles.verifyButtonDisabled,
+          ]}
+        >
+          {submitting ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <>
+              <T style={styles.verifyButtonText}>Verify and sign in</T>
+              <View style={styles.verifyIcon}>
+                <MaterialCommunityIcons name="lock-check-outline" size={19} color="#fff" />
+              </View>
+            </>
+          )}
+        </TouchableOpacity>
+
+        <View style={styles.resendRow}>
+          <T style={styles.resendPrompt}>Didn’t receive the code?</T>
+          {resendIn > 0 ? (
+            <View style={styles.timerPill}>
+              <MaterialCommunityIcons name="clock-outline" size={14} color={C.sub} />
+              <T style={styles.timerText}>00:{String(resendIn).padStart(2, '0')}</T>
+            </View>
+          ) : (
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Resend OTP"
+              activeOpacity={0.76}
+              disabled={submitting}
+              onPress={handleResend}
+              style={styles.resendButton}
+            >
+              <MaterialCommunityIcons name="refresh" size={16} color={C.primary} />
+              <T style={styles.resendText}>Resend OTP</T>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     </AuthScaffold>
   );
 }
 
 const styles = StyleSheet.create({
-  heading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 18,
-  },
-  headingIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: C.primary,
-  },
-  headingCopy: { flex: 1, minWidth: 0, paddingLeft: 10 },
-  title: { color: C.text, fontFamily: F.bold, fontSize: 18, lineHeight: 23 },
-  description: {
-    marginTop: 3,
-    color: C.sub,
-    fontFamily: F.regular,
-    fontSize: 11,
-    lineHeight: 16,
-  },
+  form: { marginTop: 24 },
   phoneSummary: {
-    minHeight: 60,
+    minHeight: 64,
     paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: '#DDE9F9',
     borderRadius: 14,
-    backgroundColor: C.primaryPale,
+    backgroundColor: '#F6FAFF',
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 18,
+    marginBottom: 24,
   },
   phoneIcon: {
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -280,40 +264,46 @@ const styles = StyleSheet.create({
   phoneNumber: { marginTop: 2, color: C.text, fontFamily: F.bold, fontSize: 13 },
   changeButton: {
     minHeight: 34,
-    paddingHorizontal: 9,
+    paddingHorizontal: 8,
     borderRadius: 11,
+    borderWidth: 1,
+    borderColor: C.primaryBorder,
     backgroundColor: C.card,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
   },
-  changeText: { color: C.primary, fontFamily: F.semibold, fontSize: 10 },
-  label: {
+  changeText: { marginLeft: 3, color: C.primary, fontFamily: F.semibold, fontSize: 10 },
+  otpHeading: {
     marginBottom: 8,
-    color: C.text,
-    fontFamily: F.semibold,
-    fontSize: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
+  label: { color: C.text, fontFamily: F.semibold, fontSize: 12 },
+  secureTag: { flexDirection: 'row', alignItems: 'center' },
+  secureTagText: { marginLeft: 3, color: C.green, fontFamily: F.semibold, fontSize: 10 },
   otpRow: {
     width: '100%',
-    height: 53,
+    height: 56,
     flexDirection: 'row',
-    gap: 6,
+    gap: 0,
     position: 'relative',
   },
   otpCell: {
     flex: 1,
-    height: 52,
+    height: 56,
     borderWidth: 1,
     borderColor: C.borderStrong,
-    borderRadius: 13,
-    backgroundColor: C.card,
+    backgroundColor: '#F9FBFE',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  otpCellJoined: { borderLeftWidth: 0 },
+  otpCellFirst: { borderTopLeftRadius: 14, borderBottomLeftRadius: 14 },
+  otpCellLast: { borderTopRightRadius: 14, borderBottomRightRadius: 14 },
   otpCellActive: { borderWidth: 2, borderColor: C.primary, backgroundColor: C.primaryPale },
   otpCellFilled: { borderColor: C.primaryBorder, backgroundColor: C.primaryPale },
-  otpCellError: { borderColor: C.red, backgroundColor: '#FFFAFA' },
+  otpCellError: { borderColor: C.red, backgroundColor: '#FFF8F8' },
   otpDigit: { color: C.text, fontFamily: F.bold, fontSize: 20 },
   hiddenInput: {
     position: 'absolute',
@@ -326,52 +316,56 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     outlineStyle: 'none',
   } as any,
-  errorRow: {
-    marginTop: 7,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 5,
-  },
-  errorText: { flex: 1, color: C.red, fontFamily: F.regular, fontSize: 10.5, lineHeight: 15 },
-  primaryButton: {
-    height: 52,
-    marginTop: 16,
+  errorRow: { marginTop: 7, flexDirection: 'row', alignItems: 'flex-start' },
+  errorText: { flex: 1, marginLeft: 5, color: C.red, fontFamily: F.regular, fontSize: 10.5, lineHeight: 15 },
+  verifyButton: {
+    minHeight: 56,
+    marginTop: 18,
+    paddingHorizontal: 7,
     borderRadius: 14,
     backgroundColor: C.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
   },
-  primaryButtonDisabled: { opacity: 0.48 },
-  primaryButtonText: { color: C.card, fontFamily: F.bold, fontSize: 14 },
+  verifyButtonDisabled: { opacity: 0.48 },
+  verifyButtonText: { color: '#fff', fontFamily: F.bold, fontSize: 14 },
+  verifyIcon: {
+    position: 'absolute',
+    right: 7,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.14)',
+  },
   resendRow: {
     minHeight: 38,
     marginTop: 13,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 7,
   },
   resendPrompt: { color: C.sub, fontFamily: F.regular, fontSize: 10.5 },
   timerPill: {
     minHeight: 31,
+    marginLeft: 7,
     paddingHorizontal: 10,
     borderRadius: 11,
     backgroundColor: C.bg,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
   },
-  timerText: { color: C.sub, fontFamily: F.semibold, fontSize: 10.5 },
+  timerText: { marginLeft: 4, color: C.sub, fontFamily: F.semibold, fontSize: 10.5 },
   resendButton: {
     minHeight: 32,
+    marginLeft: 7,
     paddingHorizontal: 9,
     borderRadius: 11,
     backgroundColor: C.primaryPale,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
   },
-  resendText: { color: C.primary, fontFamily: F.bold, fontSize: 10.5 },
+  resendText: { marginLeft: 4, color: C.primary, fontFamily: F.bold, fontSize: 10.5 },
 });

@@ -189,9 +189,24 @@ export function BlueHeader(props: {
   );
 }
 
-export function HeaderIconBtn({ icon, badge, onPress }: { icon: string; badge?: number; onPress?: () => void }) {
+export function HeaderIconBtn({
+  icon,
+  badge,
+  onPress,
+  accessibilityLabel,
+}: {
+  icon: string;
+  badge?: number;
+  onPress?: () => void;
+  accessibilityLabel?: string;
+}) {
   return (
-    <Press onPress={onPress} style={styles.headerBtn} scaleTo={0.86}>
+    <Press
+      onPress={onPress}
+      style={styles.headerBtn}
+      scaleTo={0.86}
+      accessibilityLabel={accessibilityLabel ?? icon.replace(/-/g, ' ')}
+    >
       <MaterialCommunityIcons name={icon as any} size={23} color="#fff" />
       {badge ? (
         <View style={styles.badge}>
@@ -333,33 +348,69 @@ export function SearchBar({
   right,
   value,
   onChangeText,
+  inputRef,
+  compact = false,
 }: {
   placeholder: string;
   right?: React.ReactNode;
   value?: string;
   onChangeText?: (value: string) => void;
+  inputRef?: React.Ref<TextInput>;
+  compact?: boolean;
 }) {
+  const showClear = value !== undefined && value.length > 0 && Boolean(onChangeText);
+
   return (
-    <View style={styles.searchBox}>
-      <MaterialCommunityIcons name="magnify" size={17} color={C.faint} />
+    <View style={[styles.searchBox, compact && styles.searchBoxCompact]}>
+      <MaterialCommunityIcons name="magnify" size={compact ? 16 : 17} color={C.faint} />
       <TextInput
-        style={styles.searchInput}
+        ref={inputRef}
+        style={[styles.searchInput, compact && styles.searchInputCompact]}
         placeholder={placeholder}
         placeholderTextColor={C.faint}
         selectionColor={C.primary}
         value={value}
         onChangeText={onChangeText}
+        returnKeyType="search"
         {...fieldFocusProps()}
       />
+      {showClear ? (
+        <Press
+          onPress={() => onChangeText?.('')}
+          style={styles.searchClear}
+          accessibilityLabel="Clear search"
+          scaleTo={0.9}
+        >
+          <MaterialCommunityIcons name="close-circle" size={16} color={C.faint} />
+        </Press>
+      ) : null}
       {right}
     </View>
   );
 }
 
-export function SquareBtn({ icon, onPress }: { icon: string; onPress?: () => void }) {
+export function SquareBtn({
+  icon,
+  onPress,
+  compact = false,
+  active = false,
+  accessibilityLabel,
+}: {
+  icon: string;
+  onPress?: () => void;
+  compact?: boolean;
+  active?: boolean;
+  accessibilityLabel?: string;
+}) {
   return (
-    <Press style={styles.squareBtn} onPress={onPress} scaleTo={0.9}>
-      <MaterialCommunityIcons name={icon as any} size={18} color={C.sub} />
+    <Press
+      style={[styles.squareBtn, compact && styles.squareBtnCompact, active && styles.squareBtnActive]}
+      onPress={onPress}
+      scaleTo={0.9}
+      accessibilityLabel={accessibilityLabel ?? icon.replace(/-/g, ' ')}
+      accessibilityState={{ selected: active }}
+    >
+      <MaterialCommunityIcons name={icon as any} size={compact ? 17 : 18} color={active ? C.primary : C.sub} />
     </Press>
   );
 }
@@ -594,6 +645,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   searchInput: { flex: 1, fontSize: 12.5, color: C.text, paddingVertical: 12, marginLeft: 4, fontFamily: F.regular },
+  searchBoxCompact: { height: 36, paddingHorizontal: 7 },
+  searchInputCompact: { height: 34, paddingVertical: 0, fontSize: 11.5 },
+  searchClear: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   squareBtn: {
     width: 44,
     height: 44,
@@ -605,6 +659,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: 4,
   },
+  squareBtnCompact: { width: 36, height: 36 },
+  squareBtnActive: { borderColor: C.primary, backgroundColor: C.primaryPale },
   primaryBtn: {
     backgroundColor: C.primary,
     borderRadius: 4,

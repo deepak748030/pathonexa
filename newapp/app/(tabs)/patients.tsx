@@ -1,7 +1,7 @@
 // Patients — UI PDF screen 2
 import React from 'react';
 import { T } from '../../components/T';
-import { FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { FlatList, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {
@@ -25,6 +25,8 @@ import { useInfiniteData } from '../../src/useInfiniteData';
 
 const TOTAL_PATIENTS = 1248;
 const PAGE_SIZE = 12;
+const PATIENT_FILTERS = ['All', 'Male', 'Female'] as const;
+type PatientFilter = (typeof PATIENT_FILTERS)[number];
 
 const footActions = [
   { icon: 'import', label: 'Import Patients' },
@@ -46,15 +48,21 @@ function createPatient(index: number): Patient {
 export default function Patients() {
   const { setOpen } = useDrawer();
   const router = useRouter();
+  const searchRef = React.useRef<TextInput>(null);
   const [query, setQuery] = React.useState('');
+  const [filterOpen, setFilterOpen] = React.useState(false);
+  const [patientFilter, setPatientFilter] = React.useState<PatientFilter>('All');
   const normalizedQuery = query.trim().toLowerCase();
   const matchingIndexes = React.useMemo(() => {
-    if (!normalizedQuery) return null;
+    if (!normalizedQuery && patientFilter === 'All') return null;
     return Array.from({ length: TOTAL_PATIENTS }, (_, index) => index).filter((index) => {
       const patient = createPatient(index);
-      return [patient.name, patient.pid, patient.phone, patient.test].some((value) => value.toLowerCase().includes(normalizedQuery));
+      const matchesQuery =
+        !normalizedQuery ||
+        [patient.name, patient.pid, patient.phone, patient.test].some((value) => value.toLowerCase().includes(normalizedQuery));
+      return matchesQuery && (patientFilter === 'All' || patient.gender === patientFilter);
     });
-  }, [normalizedQuery]);
+  }, [normalizedQuery, patientFilter]);
   const makePatient = React.useCallback(
     (index: number) => createPatient(matchingIndexes ? matchingIndexes[index] : index),
     [matchingIndexes],
@@ -63,7 +71,7 @@ export default function Patients() {
     total: matchingIndexes?.length ?? TOTAL_PATIENTS,
     pageSize: PAGE_SIZE,
     createItem: makePatient,
-    resetKey: normalizedQuery,
+    resetKey: `${normalizedQuery}:${patientFilter}`,
   });
 
   const header = (
@@ -75,8 +83,17 @@ export default function Patients() {
         sub="Manage all patient records"
         right={
           <>
-            <HeaderIconBtn icon="magnify" />
-            <HeaderIconBtn icon="filter-variant" />
+            <HeaderIconBtn
+              icon="magnify"
+              onPress={() => searchRef.current?.focus()}
+              accessibilityLabel="Focus patient search"
+            />
+            <HeaderIconBtn
+              icon="filter-variant"
+              badge={patientFilter === 'All' ? undefined : 1}
+              onPress={() => setFilterOpen((open) => !open)}
+              accessibilityLabel="Show patient filters"
+            />
             <HeaderWhiteBtn icon="plus" label="Add Patient" onPress={() => router.push('/add-patient')} />
           </>
         }
@@ -90,9 +107,46 @@ export default function Patients() {
         </View>
 
         <View style={[styles.row, styles.searchRow]}>
-          <SearchBar placeholder="Search by Name, Mobile, Patient ID..." value={query} onChangeText={setQuery} />
-          <SquareBtn icon="barcode-scan" />
+          <SearchBar
+            compact
+            inputRef={searchRef}
+            placeholder="Name, mobile or patient ID"
+            value={query}
+            onChangeText={setQuery}
+          />
+          <SquareBtn
+            compact
+            icon="filter-variant"
+            active={filterOpen || patientFilter !== 'All'}
+            onPress={() => setFilterOpen((open) => !open)}
+            accessibilityLabel="Filter patients"
+          />
         </View>
+
+        {filterOpen ? (
+          <View style={styles.filterBar}>
+            <T style={styles.filterLabel}>Gender</T>
+            <View style={styles.filterOptions}>
+              {PATIENT_FILTERS.map((filter) => {
+                const selected = patientFilter === filter;
+                return (
+                  <TouchableOpacity
+                    key={filter}
+                    style={[styles.filterChip, selected && styles.filterChipActive]}
+                    onPress={() => {
+                      setPatientFilter(filter);
+                      setFilterOpen(false);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                  >
+                    <T style={[styles.filterChipText, selected && styles.filterChipTextActive]}>{filter}</T>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        ) : null}
 
         <Card style={styles.toolsCard}>
           <View style={styles.row}>
@@ -109,7 +163,9 @@ export default function Patients() {
 
         <SectionHead title="Patient Directory" />
         <T style={styles.loadedText}>
-          {normalizedQuery ? `${loadedCount} of ${total} matching records loaded` : `${loadedCount} of ${total} loaded`}
+          {normalizedQuery || patientFilter !== 'All'
+            ? `${loadedCount} of ${total} matching records loaded`
+            : `${loadedCount} of ${total} loaded`}
         </T>
       </View>
     </>
@@ -180,8 +236,33 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: PAGE_GUTTER },
   row: { flexDirection: 'row', alignItems: 'center' },
   statRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 0, marginTop: 8 },
-  searchRow: { marginTop: 8 },
-  toolsCard: { marginTop: 8, paddingVertical: 10 },
+  searchRow: { marginTop: 6 },
+  filterBar: {
+    minHeight: 34,
+    marginTop: 4,
+    paddingLeft: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 4,
+    backgroundColor: C.card,
+  },
+  filterLabel: { width: 54, fontSize: 10.5, fontWeight: '700', color: C.sub },
+  filterOptions: { flex: 1, flexDirection: 'row', alignItems: 'stretch' },
+  filterChip: {
+    flex: 1,
+    minHeight: 32,
+    paddingHorizontal: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderLeftWidth: 1,
+    borderLeftColor: C.borderSoft,
+  },
+  filterChipActive: { backgroundColor: C.primaryPale },
+  filterChipText: { fontSize: 10.5, fontWeight: '600', color: C.sub },
+  filterChipTextActive: { color: C.primary, fontWeight: '700' },
+  toolsCard: { marginTop: 6, paddingVertical: 10 },
   footTile: { flex: 1, alignItems: 'center', gap: 2 },
   footLabel: { fontSize: 10, color: C.text, fontWeight: '600' },
   loadedText: { fontSize: 10.5, color: C.faint, marginBottom: 4 },
