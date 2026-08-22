@@ -28,11 +28,15 @@ function resolveApiUrl() {
   if (explicit) return normalizeApiUrl(explicit);
 
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    const { hostname, origin } = window.location;
+    const { hostname, origin, protocol } = window.location;
     if (hostname.match(/^\d+-.*\.e2b\.app$/)) {
       return normalizeApiUrl(origin.replace(/^https:\/\/\d+-/, 'https://5000-'));
     }
     if (['localhost', '127.0.0.1'].includes(hostname)) return 'http://localhost:5000/api';
+    // A raw LAN IP (e.g. phone browser → http://192.168.x.x:8081) means the dev
+    // web build is being opened from another device; the API runs on port 5000
+    // of that same host, not the Metro/web port.
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) return `${protocol}//${hostname}:5000/api`;
     // Production web deployments may reverse-proxy `/api` on the same origin.
     return normalizeApiUrl(origin);
   }
@@ -50,6 +54,13 @@ function resolveApiUrl() {
 }
 
 export const API_URL = resolveApiUrl();
+
+// Surface the resolved backend URL during development so connection problems
+// (e.g. a phone resolving `localhost` or the wrong port) are easy to spot.
+if (__DEV__) {
+  // eslint-disable-next-line no-console
+  console.log(`[api] PathoNexa server URL: ${API_URL || '(not configured)'}`);
+}
 
 export class ApiError extends Error {
   status: number;
