@@ -72,33 +72,17 @@ export const moreModuleConfigs: Record<string, CrudModuleConfig> = {
   },
   payments: {
     key: 'payments',
-    title: 'Payment Methods',
-    subtitle: 'Accepted collection modes',
-    singular: 'Payment method',
+    title: 'UPI Payment Apps',
+    subtitle: 'Accepted UPI apps for online payment',
+    singular: 'Payment app',
     icon: 'credit-card-outline',
     fields: [
-      { key: 'name', label: 'Method name', placeholder: 'e.g. UPI', required: true },
-      { key: 'details', label: 'Details', placeholder: 'e.g. UPI ID or bank reference instructions', kind: 'multiline' },
+      { key: 'name', label: 'App name', placeholder: 'e.g. PhonePe', required: true },
+      { key: 'details', label: 'Details', placeholder: 'e.g. UPI ID or collection reference', kind: 'multiline' },
       { key: 'status', label: 'Status', placeholder: 'Select status', kind: 'select', options: ['Active', 'Inactive'] },
     ],
     defaultValues: { status: 'Active' },
     secondaryKeys: ['details', 'status'],
-  },
-  templates: {
-    key: 'templates',
-    title: 'Report Templates',
-    subtitle: 'Reusable report presentation details',
-    singular: 'Report template',
-    icon: 'file-document-outline',
-    fields: [
-      { key: 'name', label: 'Template name', placeholder: 'e.g. Standard Lab Report', required: true },
-      { key: 'header', label: 'Header text', placeholder: 'Optional header shown on reports', kind: 'multiline' },
-      { key: 'footer', label: 'Footer text', placeholder: 'Optional footer shown on reports', kind: 'multiline' },
-      { key: 'note', label: 'Clinical note', placeholder: 'Optional note or disclaimer', kind: 'multiline' },
-      { key: 'status', label: 'Status', placeholder: 'Select status', kind: 'select', options: ['Active', 'Inactive'] },
-    ],
-    defaultValues: { status: 'Active' },
-    secondaryKeys: ['status', 'footer'],
   },
 };
 

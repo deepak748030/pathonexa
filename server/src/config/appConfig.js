@@ -34,9 +34,14 @@ const config = {
   /* Auth ------------------------------------------------------------------ */
   // Internal OTP used by the current production-style challenge flow.
   internalOtp: String(process.env.INTERNAL_OTP || '123456'),
+
+  /* Payments (Razorpay) ---------------------------------------------------- */
+  // Publishable key sent to the app so the checkout can open. The secret key
+  // is never exposed and is read only on the server by lib/razorpay.js.
+  razorpayKeyId: String(process.env.RAZORPAY_KEY_ID || ''),
 };
 
-/** Safe subset exposed to the app via GET /api/config (never the OTP). */
+/** Safe subset exposed to the app via GET /api/config (never the OTP/secret). */
 function publicConfig() {
   return {
     defaultCommissionPercent: config.defaultCommissionPercent,
@@ -46,6 +51,11 @@ function publicConfig() {
     plans: {
       monthly: { price: config.monthlyPlanPrice, days: config.monthlyPlanDays },
       yearly: { price: config.yearlyPlanPrice, days: config.yearlyPlanDays },
+    },
+    // Whether an online-payment gateway is configured for this deployment.
+    razorpay: {
+      enabled: !!config.razorpayKeyId,
+      keyId: config.razorpayKeyId,
     },
   };
 }

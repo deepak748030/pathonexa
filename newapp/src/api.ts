@@ -352,6 +352,12 @@ export const api = {
     get: () => apiRequest<LabSettings>('/lab'),
     update: (data: Partial<LabSettings>) => apiRequest<LabSettings>('/lab', { method: 'PATCH', body: data }),
   },
+  payments: {
+    order: (data: { amount: number; receipt?: string; notes?: Record<string, unknown> }) =>
+      apiRequest<RazorpayOrder>('/payments/order', { method: 'POST', body: data }),
+    verify: (data: { orderId: string; paymentId: string; signature: string; reportId?: string; mode?: string }) =>
+      apiRequest<RazorpayVerifyResult>('/payments/verify', { method: 'POST', body: data }),
+  },
   notifications: {
     list: (params: { page?: number; limit?: number; unread?: boolean } = {}) =>
       apiRequest<Paged<ApiNotification>>(`/notifications${queryString(params)}`),
@@ -362,6 +368,22 @@ export const api = {
   settings: () => apiRequest<LabSettings>('/settings'),
   updateSettings: (data: Partial<LabSettings>) => apiRequest<LabSettings>('/settings', { method: 'PATCH', body: data }),
   subscription: () => apiRequest<Record<string, any>>('/subscription'),
+};
+
+export type RazorpayOrder = {
+  orderId: string;
+  amount: number; // paise
+  currency: string;
+  receipt?: string;
+  keyId: string;
+};
+
+export type RazorpayVerifyResult = {
+  ok: boolean;
+  orderId: string;
+  paymentId: string;
+  amount: number; // rupees
+  mode: string;
 };
 
 export type DeletedRecord = Record<string, any> & {
