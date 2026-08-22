@@ -331,6 +331,98 @@ test('More management modules support tenant-safe CRUD, restore, lab profile, an
   }
 });
 
+test('management and deleted-record pagination, search, filters, and legacy lists remain tenant-safe', async () => {
+  const accountA = await signIn('9776543218');
+  const accountB = await signIn('9886543217');
+  const doctorNames = [
+    'Pagination Alpha',
+    'Pagination Beta',
+    'Pagination Gamma',
+    'Pagination Delta',
+    'Pagination Epsilon',
+  ];
+
+  const created = [];
+  for (const [index, name] of doctorNames.entries()) { // eslint-disable-line no-restricted-syntax
+    const response = await api('/doctors', {
+      token: accountA.token,
+      method: 'POST',
+      body: { name, mobile: `87653000${String(index + 10)}`, commission: index + 41 },
+    }); // eslint-disable-line no-await-in-loop
+    assert.equal(response.status, 201);
+    created.push(response.data);
+  }
+
+  const legacyDoctors = await api('/doctors', { token: accountA.token });
+  assert.equal(legacyDoctors.status, 200);
+  assert.ok(Array.isArray(legacyDoctors.data));
+  assert.equal(legacyDoctors.data.length, doctorNames.length);
+
+  const firstPage = await api('/doctors?page=1&limit=2', { token: accountA.token });
+  const secondPage = await api('/doctors?page=2&limit=2', { token: accountA.token });
+  assert.equal(firstPage.status, 200);
+  assert.equal(firstPage.data.items.length, 2);
+  assert.deepEqual(firstPage.data.pagination, {
+    page: 1, limit: 2, total: 5, pages: 3, hasMore: true,
+  });
+  assert.equal(secondPage.data.pagination.page, 2);
+  assert.equal(secondPage.data.pagination.hasMore, true);
+  assert.equal(new Set([
+    ...firstPage.data.items.map((item) => item._id),
+    ...secondPage.data.items.map((item) => item._id),
+  ]).size, 4, 'pages must not repeat records');
+
+  const searched = await api('/doctors?page=1&limit=10&search=GAMMA', { token: accountA.token });
+  assert.equal(searched.data.pagination.total, 1);
+  assert.equal(searched.data.items[0].name, 'Pagination Gamma');
+  const numericSearch = await api('/doctors?page=1&limit=10&q=45', { token: accountA.token });
+  assert.equal(numericSearch.data.pagination.total, 1);
+  assert.equal(numericSearch.data.items[0].commission, 45);
+
+  const otherTenantDoctors = await api('/doctors?page=1&limit=10&search=Pagination', { token: accountB.token });
+  assert.equal(otherTenantDoctors.status, 200);
+  assert.equal(otherTenantDoctors.data.pagination.total, 0);
+  assert.deepEqual(otherTenantDoctors.data.items, []);
+
+  const patient = await api('/patients', {
+    token: accountA.token,
+    method: 'POST',
+    body: { name: 'Deleted Category Patient', age: 30, gender: 'Female', mobile: '8765300099' },
+  });
+  assert.equal(patient.status, 201);
+  assert.equal((await api(`/patients/${patient.data._id}`, { token: accountA.token, method: 'DELETE' })).status, 200);
+  for (const doctor of created) { // eslint-disable-line no-restricted-syntax
+    assert.equal((await api(`/doctors/${doctor._id}`, {
+      token: accountA.token, method: 'DELETE',
+    })).status, 200); // eslint-disable-line no-await-in-loop
+  }
+
+  const legacyDeleted = await api('/deleted', { token: accountA.token });
+  assert.ok(Array.isArray(legacyDeleted.data));
+  assert.equal(legacyDeleted.data.length, 6);
+
+  const deletedPage = await api('/deleted?page=1&limit=2', { token: accountA.token });
+  assert.deepEqual(deletedPage.data.pagination, {
+    page: 1, limit: 2, total: 6, pages: 3, hasMore: true,
+  });
+  assert.equal(deletedPage.data.items.length, 2);
+  const deletedPatients = await api('/deleted?page=1&limit=10&kind=patients', { token: accountA.token });
+  const deletedReports = await api('/deleted?page=1&limit=10&kind=reports', { token: accountA.token });
+  const deletedOther = await api('/deleted?page=1&limit=10&kind=other', { token: accountA.token });
+  assert.equal(deletedPatients.data.pagination.total, 1);
+  assert.equal(deletedPatients.data.items[0].name, 'Deleted Category Patient');
+  assert.equal(deletedReports.data.pagination.total, 0);
+  assert.equal(deletedOther.data.pagination.total, 5);
+  assert.ok(deletedOther.data.items.every((item) => !['patients', 'reports'].includes(item.kind)));
+
+  const searchedDeleted = await api('/deleted?page=1&limit=10&kind=other&search=epsilon', { token: accountA.token });
+  assert.equal(searchedDeleted.data.pagination.total, 1);
+  assert.equal(searchedDeleted.data.items[0].name, 'Pagination Epsilon');
+  const otherTenantDeleted = await api('/deleted?page=1&limit=10&search=Pagination', { token: accountB.token });
+  assert.equal(otherTenantDeleted.data.pagination.total, 0);
+  assert.deepEqual(otherTenantDeleted.data.items, []);
+});
+
 test('patient, report, and payment validation keeps balances and ledgers consistent', async () => {
   const { token } = await signIn('9654321098');
   const patient = await api('/patients', {

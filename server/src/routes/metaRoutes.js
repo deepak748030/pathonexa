@@ -83,7 +83,7 @@ keys.forEach((key) => {
 /* Deleted records bin ------------------------------------------------ */
 router.get('/deleted', async (req, res, next) => {
   try {
-    res.json(await store.meta.deleted());
+    res.json(await store.meta.deleted(req.query));
   } catch (err) { next(err); }
 });
 

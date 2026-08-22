@@ -1011,8 +1011,15 @@ function masterDataPayload(data) {
 
 function collectionApi(key, required = []) {
   return {
-    async list() {
-      return all(key);
+    async list(query = {}) {
+      let list = await all(key);
+      const search = String(query.q || query.search || '').trim().toLocaleLowerCase('en-IN').slice(0, 100);
+      if (search) {
+        list = list.filter((record) => Object.values(record).some((value) => (
+          typeof value === 'string' || typeof value === 'number'
+        ) && String(value).toLocaleLowerCase('en-IN').includes(search)));
+      }
+      return paged(list, query);
     },
     async get(id) {
       const list = await all(key);
@@ -1287,11 +1294,24 @@ const meta = {
   labs: collectionApi('labs', ['name']),
   roles: collectionApi('roles', ['name']),
 
-  async deleted() {
+  async deleted(query = {}) {
     ensureSeeded();
-    if (useMemory()) return [...mem.deleted];
-    const docs = await Meta.find({ kind: 'deleted' }).sort({ createdAt: -1 }).lean();
-    return docs.map((d) => ({ ...d.data, _id: String(d._id) }));
+    let list;
+    if (useMemory()) list = [...mem.deleted];
+    else {
+      const docs = await Meta.find({ kind: 'deleted' }).sort({ createdAt: -1 }).lean();
+      list = docs.map((d) => ({ ...d.data, _id: String(d._id) }));
+    }
+    const category = String(query.kind || '').trim();
+    if (category === 'patients' || category === 'reports') list = list.filter((record) => record.kind === category);
+    if (category === 'other') list = list.filter((record) => !['patients', 'reports'].includes(record.kind));
+    const search = String(query.q || query.search || '').trim().toLocaleLowerCase('en-IN').slice(0, 100);
+    if (search) {
+      list = list.filter((record) => Object.values(record).some((value) => (
+        typeof value === 'string' || typeof value === 'number'
+      ) && String(value).toLocaleLowerCase('en-IN').includes(search)));
+    }
+    return paged(list, query);
   },
 
   /** Restore a soft-deleted record back into its collection. */

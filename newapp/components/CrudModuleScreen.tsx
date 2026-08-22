@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   Alert,
+  FlatList,
   Modal,
   ScrollView,
   StyleSheet,
@@ -14,13 +15,14 @@ import { T } from './T';
 import {
   BlueHeader,
   Card,
-  HeaderWhiteBtn,
+  InfiniteListFooter,
   Press,
   SearchBar,
   Skeleton,
 } from './kit';
 import { api } from '../src/api';
 import { C, F, PAGE_GUTTER } from '../src/theme';
+import { useInfiniteData } from '../src/useInfiniteData';
 
 export type CrudField = {
   key: string;
@@ -46,6 +48,8 @@ export type CrudModuleConfig = {
 };
 
 type CrudRecord = Record<string, any> & { _id?: string; id?: string };
+
+const PAGE_SIZE = 15;
 
 function recordId(item: CrudRecord) {
   return String(item._id || item.id || '');
@@ -112,41 +116,36 @@ function FormField({ field, value, onChange }: { field: CrudField; value: string
   );
 }
 
-export function CrudModuleBody({ config }: { config: CrudModuleConfig }) {
-  const [records, setRecords] = React.useState<CrudRecord[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [refreshing, setRefreshing] = React.useState(false);
+export function CrudModuleBody({ config, header }: { config: CrudModuleConfig; header?: React.ReactNode }) {
   const [saving, setSaving] = React.useState(false);
   const [query, setQuery] = React.useState('');
-  const [error, setError] = React.useState('');
+  const [serverQuery, setServerQuery] = React.useState('');
   const [editing, setEditing] = React.useState<CrudRecord | null>(null);
   const [formOpen, setFormOpen] = React.useState(false);
   const [values, setValues] = React.useState<Record<string, string>>(() => initialValues(config));
-  const requestRef = React.useRef(0);
-
-  const load = React.useCallback(async (refresh = false) => {
-    const request = ++requestRef.current;
-    refresh ? setRefreshing(true) : setLoading(true);
-    try {
-      const next = await api.meta.list<CrudRecord>(config.key);
-      if (request !== requestRef.current) return;
-      setRecords(next);
-      setError('');
-    } catch (loadError) {
-      if (request !== requestRef.current) return;
-      setError(loadError instanceof Error ? loadError.message : `Unable to load ${config.title.toLowerCase()}.`);
-    } finally {
-      if (request === requestRef.current) {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    }
-  }, [config.key, config.title]);
 
   React.useEffect(() => {
-    load().catch(() => {});
-    return () => { requestRef.current += 1; };
-  }, [load]);
+    const timer = setTimeout(() => setServerQuery(query.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const fetchPage = React.useCallback((page: number) => api.meta.listPage<CrudRecord>(config.key, {
+    page,
+    limit: PAGE_SIZE,
+    search: serverQuery || undefined,
+  }), [config.key, serverQuery]);
+  const {
+    items: records,
+    loadMore,
+    refresh,
+    isLoading,
+    isLoadingMore,
+    isRefreshing,
+    hasMore,
+    loadedCount,
+    total,
+    error,
+  } = useInfiniteData<CrudRecord>({ fetchPage, resetKey: `${config.key}:${serverQuery}` });
 
   const openCreate = () => {
     setEditing(null);
@@ -208,7 +207,7 @@ export function CrudModuleBody({ config }: { config: CrudModuleConfig }) {
       if (editing) await api.meta.update(config.key, recordId(editing), payload);
       else await api.meta.create(config.key, payload);
       setFormOpen(false);
-      await load(true);
+      await refresh();
     } catch (saveError) {
       Alert.alert('Unable to save', saveError instanceof Error ? saveError.message : 'Please try again.');
     } finally {
@@ -226,7 +225,7 @@ export function CrudModuleBody({ config }: { config: CrudModuleConfig }) {
           text: 'Delete', style: 'destructive', onPress: async () => {
             try {
               await api.meta.remove(config.key, recordId(item));
-              setRecords((current) => current.filter((record) => recordId(record) !== recordId(item)));
+              await refresh();
             } catch (removeError) {
               Alert.alert('Unable to delete', removeError instanceof Error ? removeError.message : 'Please try again.');
             }
@@ -236,53 +235,47 @@ export function CrudModuleBody({ config }: { config: CrudModuleConfig }) {
     );
   };
 
-  const normalizedQuery = query.trim().toLocaleLowerCase('en-IN');
-  const filtered = normalizedQuery
-    ? records.filter((item) => Object.values(item).some((value) => (
-      typeof value === 'string' || typeof value === 'number'
-    ) && String(value).toLocaleLowerCase('en-IN').includes(normalizedQuery)))
-    : records;
   const primaryKey = config.primaryKey || 'name';
   const secondaryKeys = config.secondaryKeys || config.fields.map((field) => field.key).filter((key) => key !== primaryKey).slice(0, 2);
 
-  return (
+  const listHeader = (
     <>
+      {header ? <View style={styles.customHeader}>{header}</View> : null}
       <View style={styles.tools}>
         <SearchBar compact placeholder={`Search ${config.title.toLowerCase()}`} value={query} onChangeText={setQuery} />
         <Press
-          disabled={loading || refreshing}
-          onPress={() => load(true)}
+          disabled={isLoading || isRefreshing}
+          onPress={refresh}
           style={styles.refreshButton}
           accessibilityLabel={`Refresh ${config.title}`}
         >
-          <MaterialCommunityIcons name={refreshing ? 'clock-outline' : 'refresh'} size={18} color={C.primary} />
+          <MaterialCommunityIcons name={isRefreshing ? 'clock-outline' : 'refresh'} size={18} color={C.primary} />
         </Press>
         <Press onPress={openCreate} style={styles.addButton} accessibilityLabel={`Add ${config.singular}`}>
           <MaterialCommunityIcons name="plus" size={18} color="#fff" />
           <T style={styles.addText}>Add</T>
         </Press>
       </View>
-
       {!!error && (
-        <TouchableOpacity activeOpacity={0.75} onPress={() => load()} style={styles.errorBox}>
+        <TouchableOpacity activeOpacity={0.75} onPress={refresh} style={styles.errorBox}>
           <MaterialCommunityIcons name="alert-circle-outline" size={17} color={C.red} />
           <T style={styles.errorText}>{error} Tap to retry.</T>
         </TouchableOpacity>
       )}
+    </>
+  );
 
-      <Card style={styles.listCard}>
-        {loading ? Array.from({ length: 5 }).map((_, index) => (
-          <View key={index} style={[styles.row, index > 0 && styles.rowBorder]}>
-            <Skeleton width={36} height={36} radius={4} />
-            <View style={styles.rowCopy}>
-              <Skeleton width="56%" height={12} />
-              <Skeleton width="38%" height={9} style={styles.skeletonSub} />
-            </View>
-          </View>
-        )) : filtered.length ? filtered.map((item, index) => {
+  return (
+    <>
+      <FlatList
+        style={styles.list}
+        data={records}
+        keyExtractor={(item, index) => recordId(item) || `${displayValue(item, primaryKey)}-${index}`}
+        ListHeaderComponent={listHeader}
+        renderItem={({ item, index }) => {
           const secondary = secondaryKeys.map((key) => displayValue(item, key)).filter(Boolean).join(' · ');
           return (
-            <View key={recordId(item) || `${displayValue(item, primaryKey)}-${index}`} style={[styles.row, index > 0 && styles.rowBorder]}>
+            <View style={[styles.row, styles.dataRow, index === 0 && styles.firstDataRow]}>
               <View style={styles.rowIcon}>
                 <MaterialCommunityIcons name={config.icon as any} size={19} color={C.primary} />
               </View>
@@ -298,15 +291,46 @@ export function CrudModuleBody({ config }: { config: CrudModuleConfig }) {
               </TouchableOpacity>
             </View>
           );
-        }) : (
-          <View style={styles.empty}>
-            <MaterialCommunityIcons name={config.icon as any} size={30} color={C.faint} />
-            <T style={styles.emptyTitle}>{query ? 'No matching records' : `No ${config.title.toLowerCase()} yet`}</T>
-            <T style={styles.emptySub}>{query ? 'Try a different search.' : `Tap Add to create your first ${config.singular.toLowerCase()}.`}</T>
+        }}
+        ListEmptyComponent={isLoading ? (
+          <Card style={styles.listCard}>
+            {Array.from({ length: 5 }).map((_, index) => (
+              <View key={index} style={[styles.row, index > 0 && styles.rowBorder]}>
+                <Skeleton width={36} height={36} radius={4} />
+                <View style={styles.rowCopy}>
+                  <Skeleton width="56%" height={12} />
+                  <Skeleton width="38%" height={9} style={styles.skeletonSub} />
+                </View>
+              </View>
+            ))}
+          </Card>
+        ) : (
+          <Card style={styles.listCard}>
+            <View style={styles.empty}>
+              <MaterialCommunityIcons name={config.icon as any} size={30} color={C.faint} />
+              <T style={styles.emptyTitle}>{serverQuery ? 'No matching records' : `No ${config.title.toLowerCase()} yet`}</T>
+              <T style={styles.emptySub}>{serverQuery ? 'Try a different search.' : `Tap Add to create your first ${config.singular.toLowerCase()}.`}</T>
+            </View>
+          </Card>
+        )}
+        ListFooterComponent={isLoading ? null : (
+          <View>
+            <InfiniteListFooter loading={isLoadingMore} hasMore={hasMore} count={records.length} />
+            <T style={styles.count}>{loadedCount} of {total} records loaded</T>
           </View>
         )}
-      </Card>
-      {!loading && <T style={styles.count}>{filtered.length} of {records.length} records</T>}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.35}
+        refreshing={isRefreshing}
+        onRefresh={refresh}
+        initialNumToRender={PAGE_SIZE}
+        maxToRenderPerBatch={PAGE_SIZE}
+        windowSize={7}
+        contentContainerStyle={styles.pageContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      />
 
       <Modal visible={formOpen} transparent animationType="fade" onRequestClose={() => !saving && setFormOpen(false)}>
         <View style={styles.modalOverlay}>
@@ -358,22 +382,16 @@ export default function CrudModuleScreen({ config }: { config: CrudModuleConfig 
         sub={config.subtitle}
         onBack={() => router.back()}
       />
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.pageContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <CrudModuleBody config={config} />
-      </ScrollView>
+      <CrudModuleBody config={config} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
-  scroll: { flex: 1 },
-  pageContent: { paddingHorizontal: PAGE_GUTTER, paddingTop: 4, paddingBottom: 28 },
+  list: { flex: 1 },
+  pageContent: { flexGrow: 1, paddingHorizontal: PAGE_GUTTER, paddingTop: 4, paddingBottom: 28 },
+  customHeader: { marginBottom: 4 },
   tools: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   refreshButton: { width: 36, height: 36, marginLeft: 4, borderRadius: 4, borderWidth: 1, borderColor: C.border, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   addButton: {
@@ -392,6 +410,8 @@ const styles = StyleSheet.create({
   errorText: { flex: 1, marginLeft: 4, color: C.red, fontSize: 10.5 },
   listCard: { padding: 0, overflow: 'hidden' },
   row: { minHeight: 56, paddingHorizontal: 6, paddingVertical: 7, flexDirection: 'row', alignItems: 'center' },
+  dataRow: { backgroundColor: '#fff', borderLeftWidth: 1, borderRightWidth: 1, borderBottomWidth: 1, borderColor: C.border },
+  firstDataRow: { borderTopWidth: 1, borderTopLeftRadius: 4, borderTopRightRadius: 4 },
   rowBorder: { borderTopWidth: 1, borderTopColor: C.borderSoft },
   rowIcon: { width: 36, height: 36, borderRadius: 4, backgroundColor: C.blueSoft, alignItems: 'center', justifyContent: 'center' },
   rowCopy: { flex: 1, minWidth: 0, marginLeft: 4 },

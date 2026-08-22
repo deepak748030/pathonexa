@@ -306,6 +306,8 @@ export const api = {
   },
   meta: {
     list: <T = Record<string, any>>(key: string) => apiRequest<T[]>(`/${encodeURIComponent(key)}`),
+    listPage: <T = Record<string, any>>(key: string, params: { page: number; limit: number; search?: string }) =>
+      apiRequest<Paged<T>>(`/${encodeURIComponent(key)}${queryString(params)}`),
     get: <T = Record<string, any>>(key: string, id: string) =>
       apiRequest<T>(`/${encodeURIComponent(key)}/${encodeURIComponent(id)}`),
     create: <T = Record<string, any>>(key: string, data: Record<string, unknown>) =>
@@ -320,7 +322,8 @@ export const api = {
     ledger: (id: string) => apiRequest<Record<string, any>>(`/doctors/${encodeURIComponent(id)}/ledger`),
   },
   deleted: {
-    list: () => apiRequest<DeletedRecord[]>('/deleted'),
+    list: (params: { page: number; limit: number; search?: string; kind?: string }) =>
+      apiRequest<Paged<DeletedRecord>>(`/deleted${queryString(params)}`),
     restore: (id: string) => apiRequest<Record<string, any>>(`/deleted/${encodeURIComponent(id)}/restore`, { method: 'POST' }),
   },
   backup: {
