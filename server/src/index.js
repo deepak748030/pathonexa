@@ -14,6 +14,10 @@ function corsOrigin(origin, callback) {
   if (!origin) return callback(null, true); // native apps and server-to-server clients
   const configured = String(process.env.CORS_ORIGINS || '')
     .split(',').map((item) => item.trim()).filter(Boolean);
+  // A `*` entry (or any entry) means "allow every origin". Since credentials
+  // are disabled, the browser accepts a reflected origin (a literal `*` only
+  // works for non-authenticated requests, so we reflect the request origin).
+  if (configured.includes('*')) return callback(null, true);
   if (configured.includes(origin)) return callback(null, true);
   if (process.env.NODE_ENV !== 'production') {
     try {
