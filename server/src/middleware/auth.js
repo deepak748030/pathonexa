@@ -1,15 +1,8 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const db = require('../config/db');
+const { authSecret } = require('../lib/authSecret');
 const { runWithTenant } = require('../lib/tenantContext');
-
-function jwtSecret() {
-  const secret = process.env.JWT_SECRET;
-  if (!secret || (process.env.NODE_ENV === 'production' && secret.length < 32)) {
-    throw Object.assign(new Error('Server authentication is not configured'), { status: 503 });
-  }
-  return secret;
-}
 
 function bearerToken(header = '') {
   const match = /^Bearer\s+([^\s]+)$/i.exec(String(header));
@@ -24,7 +17,7 @@ async function requireAuth(req, res, next) {
 
     let decoded;
     try {
-      decoded = jwt.verify(token, jwtSecret(), {
+      decoded = jwt.verify(token, authSecret(), {
         algorithms: ['HS256'],
         issuer: 'pathonexa-api',
         audience: 'pathonexa-app',
@@ -54,4 +47,4 @@ async function requireAuth(req, res, next) {
   }
 }
 
-module.exports = { requireAuth, jwtSecret };
+module.exports = { requireAuth, jwtSecret: authSecret };

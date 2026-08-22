@@ -17,6 +17,7 @@ const Meta = require('../models/Meta');
 const TenantCounter = require('../models/TenantCounter');
 const defaults = require('./seedData');
 const cfg = require('../config/appConfig');
+const { authSecret } = require('./authSecret');
 const { currentTenant, requireTenantId } = require('./tenantContext');
 
 const COLLECTIONS = [
@@ -205,13 +206,6 @@ async function allReports() {
 
 const OTP = cfg.internalOtp;
 const OTP_RESEND_COOLDOWN_MS = 30_000;
-function authSecret() {
-  const secret = process.env.JWT_SECRET;
-  if (!secret || (process.env.NODE_ENV === 'production' && secret.length < 32)) {
-    throw Object.assign(new Error('Server authentication is not configured'), { status: 503 });
-  }
-  return secret;
-}
 const signToken = (user) => jwt.sign(
   { mobile: user.mobile, role: user.role }, authSecret(),
   { subject: String(user._id), expiresIn: '30d', algorithm: 'HS256', issuer: 'pathonexa-api', audience: 'pathonexa-app' },
