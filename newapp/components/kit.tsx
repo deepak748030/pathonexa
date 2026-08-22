@@ -688,8 +688,10 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
+    justifyContent: 'flex-start',
+    paddingTop: 36,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   emptyStateIcon: {
     width: 64,

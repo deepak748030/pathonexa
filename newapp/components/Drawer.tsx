@@ -30,7 +30,7 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
 function DrawerPanel() {
   const { open, setOpen } = useDrawer();
   const { logout, user } = useAuth();
-  const { toast } = useFeedback();
+  const { toast, confirm } = useFeedback();
   const router = useRouter();
   const path = usePathname();
   const insets = useSafeAreaInsets();
@@ -70,7 +70,15 @@ function DrawerPanel() {
 
   const handleLogout = () => {
     setOpen(false);
-    logout();
+    confirm({
+      kind: 'warning',
+      title: 'Logout?',
+      message: 'You will need to verify your mobile number again to sign back in.',
+      confirmText: 'Logout',
+      cancelText: 'Cancel',
+      destructive: true,
+      onConfirm: () => logout(),
+    });
   };
 
   const translateX = anim.interpolate({ inputRange: [-1, 1], outputRange: [-W - 20, 0] });

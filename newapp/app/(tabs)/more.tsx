@@ -16,7 +16,17 @@ import { useFeedback } from '../../src/feedback';
 export default function More() {
   const { logout } = useAuth();
   const { unreadCount } = useNotifications();
-  const { toast } = useFeedback();
+  const { toast, confirm } = useFeedback();
+
+  const handleLogout = () => confirm({
+    kind: 'warning',
+    title: 'Logout?',
+    message: 'You will need to verify your mobile number again to sign back in.',
+    confirmText: 'Logout',
+    cancelText: 'Cancel',
+    destructive: true,
+    onConfirm: () => logout(),
+  });
   const router = useRouter();
   const [lab, setLab] = React.useState<LabSettings | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -109,7 +119,7 @@ export default function More() {
           accessibilityRole="button"
           accessibilityLabel="Logout from your account"
           activeOpacity={0.76}
-          onPress={logout}
+          onPress={handleLogout}
           style={styles.logout}
         >
           <View style={styles.itemIconRed}>

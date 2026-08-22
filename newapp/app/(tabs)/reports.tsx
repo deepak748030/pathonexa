@@ -2,7 +2,7 @@
 import React from 'react';
 import { T } from '../../components/T';
 import { FlatList, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {
   Avatar,
@@ -151,6 +151,20 @@ export default function Reports() {
     fetchPage,
     resetKey: `${range.from}:${range.to}:${tab}:${serverQuery}`,
   });
+
+  // Refresh on focus so a newly created report shows up without a manual pull.
+  // Skip the very first focus — the initial load already happens on mount.
+  const firstFocusRef = React.useRef(true);
+  useFocusEffect(
+    React.useCallback(() => {
+      if (firstFocusRef.current) {
+        firstFocusRef.current = false;
+        return;
+      }
+      refresh();
+      api.reports.stats().then(setStats).catch(() => setStats([]));
+    }, [refresh]),
+  );
 
   const applyCustomRange = React.useCallback(() => {
     const start = parseDate(customStartText);
