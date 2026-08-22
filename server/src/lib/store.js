@@ -31,6 +31,7 @@ function newTenantState() {
   const state = {
     patients: [], reports: [], deleted: [], notificationState: {}, settings: null,
     subscription: null, seeded: false, lastBackupAt: null, sequences: {},
+    pendingPatientMobiles: new Set(), pendingReportIds: new Set(),
   };
   COLLECTIONS.forEach((kind) => { state[kind] = []; });
   return state;
@@ -162,13 +163,24 @@ async function ensureMongoSeeded() {
   if (useMemory()) return;
   const ownerId = requireTenantId();
   if (!mongoOnboarding.has(ownerId)) {
-    mongoOnboarding.set(ownerId, (async () => {
-      const marker = await Meta.findOne({ kind: 'onboarding' });
+    mongoOnboarding.set(ownerId, mongoTransaction(async (session) => {
+      // Serialize first-use seeding across all API instances. The marker and
+      // defaults commit together, so a crash cannot leave a half-seeded tenant.
+      const account = await User.findOneAndUpdate(
+        { _id: ownerId },
+        { $set: { updatedAt: new Date() } },
+        { new: true, session },
+      ).lean();
+      if (!account) throw Object.assign(new Error('Account onboarding is unavailable'), { status: 503 });
+      const marker = await Meta.findOne({ kind: 'onboarding' }).session(session).lean();
       if (marker) return;
       const docs = (defaults.tests || []).map(({ id, ...data }) => ({ kind: 'tests', data }));
-      if (docs.length) await Meta.insertMany(docs);
-      await Meta.create({ kind: 'onboarding', data: { version: 1, completedAt: new Date() } });
-    })().catch((error) => { mongoOnboarding.delete(ownerId); throw error; }));
+      if (docs.length) await Meta.insertMany(docs, { session });
+      await Meta.create([{
+        kind: 'onboarding', data: { version: 1, completedAt: new Date() },
+      }], { session });
+    }, 'Account onboarding requires a transaction-capable MongoDB deployment')
+      .catch((error) => { mongoOnboarding.delete(ownerId); throw error; }));
   }
   await mongoOnboarding.get(ownerId);
 }
@@ -364,6 +376,52 @@ const PATIENT_FIELDS = [
   'lastTestDate', 'group', 'photo', 'color',
 ];
 
+function badRequest(message) {
+  throw Object.assign(new Error(message), { status: 400 });
+}
+
+function transactionUnsupported(error) {
+  return error?.code === 20
+    || /Transaction numbers are only allowed|does not support transactions|replica set member or mongos/i
+      .test(error?.message || '');
+}
+
+async function mongoTransaction(work, unavailableMessage) {
+  try {
+    return await mongoose.connection.transaction(work);
+  } catch (error) {
+    if (transactionUnsupported(error)) {
+      throw Object.assign(new Error(unavailableMessage), { status: 503 });
+    }
+    throw error;
+  }
+}
+
+function patientPatch(data, requireAll = false) {
+  const source = data && typeof data === 'object' && !Array.isArray(data) ? data : {};
+  const out = {};
+  PATIENT_FIELDS.forEach((field) => {
+    if (source[field] !== undefined) out[field] = source[field];
+  });
+
+  ['name', 'mobile'].forEach((field) => {
+    if (out[field] !== undefined) out[field] = String(out[field]).trim();
+  });
+  if (out.age !== undefined) {
+    if (out.age === '' || out.age === null || !Number.isFinite(Number(out.age))) badRequest('Age must be between 0 and 150');
+    out.age = Number(out.age);
+  }
+
+  if (requireAll && (!out.name || !out.mobile || out.age === undefined || !out.gender)) {
+    badRequest('Name, mobile, age and gender are required');
+  }
+  if (out.name !== undefined && !out.name) badRequest('Patient name is required');
+  if (out.mobile !== undefined && !/^[6-9]\d{9}$/.test(out.mobile)) badRequest('Enter a valid 10-digit Indian mobile number');
+  if (out.age !== undefined && (out.age < 0 || out.age > 150)) badRequest('Age must be between 0 and 150');
+  if (out.gender !== undefined && !['Male', 'Female', 'Other'].includes(out.gender)) badRequest('Gender must be Male, Female or Other');
+  return out;
+}
+
 const patients = {
   async list(query = {}) {
     ensureSeeded();
@@ -403,10 +461,7 @@ const patients = {
 
   async update(id, patch) {
     ensureSeeded();
-    const allowed = {};
-    PATIENT_FIELDS.forEach((k) => {
-      if (patch[k] !== undefined) allowed[k] = patch[k];
-    });
+    const allowed = patientPatch(patch);
     if (useMemory()) {
       const p = mem.patients.find((x) => x._id === id || x.pid === id);
       if (!p) {
@@ -414,16 +469,30 @@ const patients = {
         err.status = 404;
         throw err;
       }
+      if (allowed.mobile && mem.patients.some((item) => item !== p && item.mobile === allowed.mobile)) {
+        badRequest('A patient with this mobile number already exists');
+      }
       Object.assign(p, allowed, { updatedAt: new Date() });
       return p;
     }
-    const p = await Patient.findOneAndUpdate(byIdOrPid(id), { $set: allowed }, { new: true }).lean();
-    if (!p) {
-      const err = new Error('Patient not found');
-      err.status = 404;
-      throw err;
+    try {
+      const p = await Patient.findOneAndUpdate(
+        byIdOrPid(id),
+        { $set: allowed },
+        { new: true, runValidators: true },
+      ).lean();
+      if (!p) {
+        const err = new Error('Patient not found');
+        err.status = 404;
+        throw err;
+      }
+      return p;
+    } catch (error) {
+      if (error?.code === 11000 && error?.keyPattern?.mobile) {
+        badRequest('A patient with this mobile number already exists');
+      }
+      throw error;
     }
-    return p;
   },
 
   async remove(id) {
@@ -435,18 +504,33 @@ const patients = {
         err.status = 404;
         throw err;
       }
+      const patient = mem.patients[i];
+      if (mem.reports.some((report) => reportPatientKeys(report.patient)
+        .some((key) => [patient._id, patient.pid].includes(key)))) {
+        throw Object.assign(new Error('Delete this patient’s reports first'), { status: 409 });
+      }
       const [removed] = mem.patients.splice(i, 1);
       mem.deleted.unshift({ ...removed, kind: 'patients', deletedAt: new Date() });
       return removed;
     }
-    const p = await Patient.findOneAndDelete(byIdOrPid(id)).lean();
-    if (!p) {
-      const err = new Error('Patient not found');
-      err.status = 404;
-      throw err;
-    }
-    await Meta.create({ kind: 'deleted', data: { ...p, kind: 'patients', deletedAt: new Date() } });
-    return p;
+    return mongoTransaction(async (session) => {
+      const p = await Patient.findOne(byIdOrPid(id)).session(session).lean();
+      if (!p) {
+        const err = new Error('Patient not found');
+        err.status = 404;
+        throw err;
+      }
+      const existingReport = await Report.exists({ patient: p._id }).session(session);
+      if (existingReport) {
+        throw Object.assign(new Error('Delete this patient’s reports first'), { status: 409 });
+      }
+      const deleted = await Patient.deleteOne({ _id: p._id }).session(session);
+      if (deleted.deletedCount !== 1) throw Object.assign(new Error('Patient not found'), { status: 404 });
+      await Meta.create([{
+        kind: 'deleted', data: { ...p, kind: 'patients', deletedAt: new Date() },
+      }], { session });
+      return p;
+    }, 'Atomic patient deletion requires a transaction-capable MongoDB deployment');
   },
 
   async stats() {
@@ -496,44 +580,33 @@ const patients = {
   },
 
   async create(data) {
-    const { name, mobile, age, gender } = data || {};
-    if (!name || !mobile || !age || !gender) {
-      const err = new Error('Name, mobile, age and gender are required');
-      err.status = 400;
-      throw err;
-    }
-    if (!/^[6-9]\d{9}$/.test(String(mobile))) {
-      const err = new Error('Enter a valid 10-digit Indian mobile number');
-      err.status = 400;
-      throw err;
-    }
+    const clean = patientPatch(data, true);
     ensureSeeded();
     if (useMemory()) {
-      const exists = mem.patients.find((p) => p.mobile === mobile);
-      if (exists) {
-        const err = new Error('A patient with this mobile number already exists');
-        err.status = 400;
-        throw err;
+      const exists = mem.patients.find((p) => p.mobile === clean.mobile);
+      if (exists || mem.pendingPatientMobiles.has(clean.mobile)) {
+        badRequest('A patient with this mobile number already exists');
       }
-      const doc = {
-        ...data,
-        _id: makeId(),
-        pid: genPid(new Date(), await nextSequence('patient')),
-        color: data.color || '#DBEAFE',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      mem.patients.unshift(doc);
-      return doc;
+      mem.pendingPatientMobiles.add(clean.mobile);
+      try {
+        const doc = {
+          ...clean,
+          _id: makeId(),
+          pid: genPid(new Date(), await nextSequence('patient')),
+          color: clean.color || '#DBEAFE',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        mem.patients.unshift(doc);
+        return doc;
+      } finally {
+        mem.pendingPatientMobiles.delete(clean.mobile);
+      }
     }
-    const exists = await Patient.findOne({ mobile });
-    if (exists) {
-      const err = new Error('A patient with this mobile number already exists');
-      err.status = 400;
-      throw err;
-    }
+    const exists = await Patient.findOne({ mobile: clean.mobile });
+    if (exists) badRequest('A patient with this mobile number already exists');
     try {
-      const doc = await Patient.create({ ...data, pid: genPid(new Date(), await nextSequence('patient')) });
+      const doc = await Patient.create({ ...clean, pid: genPid(new Date(), await nextSequence('patient')) });
       return doc.toObject();
     } catch (error) {
       if (error?.code === 11000 && error?.keyPattern?.mobile) {
@@ -549,23 +622,56 @@ const patients = {
 /* ------------------------------------------------------------------ */
 
 const REPORT_FIELDS = [
-  'status', 'paid', 'amount', 'values', 'discount', 'paidAmount', 'pendingAmount',
+  'status', 'paid', 'amount', 'values', 'parameters', 'discount', 'paidAmount', 'pendingAmount',
   'paymentMode', 'remarks', 'sampleDate', 'reportDate', 'technician', 'verified',
-  'verifiedBy', 'doctor', 'test', 'tests', 'date', 'time', 'commission',
+  'verifiedBy', 'doctor', 'doctorId', 'test', 'tests', 'date', 'time', 'commission', 'commissionRate',
   'commissionPaid', 'transactionId', 'package',
 ];
+const MONEY_FIELDS = ['amount', 'discount', 'paidAmount', 'pendingAmount'];
 
-async function commissionRateFor(doctorName) {
-  if (!doctorName || doctorName === 'Direct') return 0;
+function money(value, label) {
+  if (value === '' || value === null || value === undefined || !Number.isFinite(Number(value)) || Number(value) < 0) {
+    badRequest(`${label} must be a non-negative amount`);
+  }
+  return Number(value);
+}
+
+function normalizeReportFinancials(payload, current = null) {
+  const out = payload;
+  MONEY_FIELDS.forEach((field) => {
+    if (out[field] !== undefined) out[field] = money(out[field], field);
+  });
+  if (out.amount === undefined && !current) badRequest('Report amount is required');
+
+  const amount = out.amount ?? num(current?.amount);
+  const paidAmount = out.paidAmount ?? (current ? num(current.paidAmount) : (out.paid ? amount : 0));
+  if (paidAmount > amount) badRequest('Paid amount cannot exceed the report amount');
+  const pendingAmount = Math.max(0, amount - paidAmount);
+  if (out.pendingAmount !== undefined && Math.abs(out.pendingAmount - pendingAmount) > 0.001) {
+    badRequest('Pending amount does not match the report balance');
+  }
+  if (out.paid !== undefined && Boolean(out.paid) !== (pendingAmount === 0)) {
+    badRequest('Payment status does not match the report balance');
+  }
+  out.amount = amount;
+  out.paidAmount = paidAmount;
+  out.pendingAmount = pendingAmount;
+  out.paid = pendingAmount === 0;
+  return out;
+}
+
+async function doctorForReport(doctorName) {
+  const name = String(doctorName || 'Direct').trim() || 'Direct';
+  if (name === 'Direct') return { name: 'Direct', id: null, rate: 0 };
   const list = await all('doctors');
-  const doc = list.find((d) => d.name === doctorName);
-  if (!doc) return 0;
+  const doctor = list.find((item) => item.name === name);
+  if (!doctor) badRequest('Doctor not found');
   // Fall back to the .env default (DEFAULT_COMMISSION_PERCENT) when the
   // doctor's profile has no commission set. An explicit 0 stays 0.
-  if (doc.commission === undefined || doc.commission === null || doc.commission === '') {
-    return cfg.defaultCommissionPercent;
-  }
-  return num(doc.commission);
+  const rate = doctor.commission === undefined || doctor.commission === null || doctor.commission === ''
+    ? cfg.defaultCommissionPercent
+    : num(doctor.commission);
+  return { name: doctor.name, id: String(doctor._id || doctor.id), rate };
 }
 
 /** Reject discounts above the configured cap (MAX_DISCOUNT_PERCENT in .env). */
@@ -635,76 +741,133 @@ const reports = {
   },
 
   async create(data) {
-    const payload = { ...(data || {}) };
+    const source = data && typeof data === 'object' && !Array.isArray(data) ? data : {};
+    const payload = {};
+    ['reportId', 'patient', ...REPORT_FIELDS].forEach((field) => {
+      if (source[field] !== undefined) payload[field] = source[field];
+    });
     if (!payload.reportId) payload.reportId = await reports.nextReportId();
-    const { reportId, patient, test, amount } = payload;
-    if (!reportId || !patient || !test || amount === undefined) {
-      const err = new Error('reportId, patient, test and amount are required');
-      err.status = 400;
-      throw err;
+    payload.reportId = String(payload.reportId || '').trim();
+    payload.test = String(payload.test || '').trim();
+    const { reportId, patient, test } = payload;
+    if (!reportId || !patient || !test || payload.amount === undefined) {
+      badRequest('reportId, patient, test and amount are required');
     }
+    if (payload.status !== undefined && !['Pending', 'Completed', 'Cancelled'].includes(payload.status)) {
+      badRequest('Report status is invalid');
+    }
+    normalizeReportFinancials(payload);
     ensureSeeded();
 
-    const rate = await commissionRateFor(payload.doctor);
+    const referringDoctor = await doctorForReport(payload.doctor);
     assertDiscountAllowed(payload.amount, payload.discount);
-    payload.commissionRate = rate;
-    payload.commission = Math.round((num(payload.amount) * rate) / 100);
-    payload.commissionPaid = payload.commissionPaid || false;
+    payload.doctor = referringDoctor.name;
+    payload.doctorId = referringDoctor.id;
+    payload.commissionRate = referringDoctor.rate;
+    payload.commission = Math.round((num(payload.amount) * referringDoctor.rate) / 100);
+    // Verification, financial identifiers, and commission settlement state are
+    // server-owned and cannot be forged in a report creation payload.
+    payload.verified = false;
+    payload.verifiedBy = '';
+    delete payload.transactionId;
+    payload.commissionPaid = false;
     payload.date = payload.date || dateLabel();
     payload.time = payload.time || timeLabel();
 
-    // Resolve the reference through the tenant-scoped patient API before any
-    // report is created. A valid ObjectId belonging to another account is
-    // indistinguishable from a missing patient and can never be attached.
-    const ownPatient = await patients.getById(String(patient));
-    const ownPatientId = String(ownPatient._id);
+    const initialLedgerEntry = (doc, ownPatient, options = {}) => (
+      num(payload.paidAmount) > 0
+        ? transactions.create({
+          reportId: doc.reportId,
+          report: String(doc._id),
+          patient: ownPatient.name,
+          patientId: String(ownPatient._id),
+          amount: num(payload.paidAmount),
+          mode: payload.paymentMode || 'Cash',
+          type: 'Collection',
+          note: 'Report billing',
+        }, options)
+        : null
+    );
 
-    let doc;
     if (useMemory()) {
-      doc = { ...payload, _id: makeId(), patient: ownPatient, createdAt: new Date(), updatedAt: new Date() };
-      ownPatient.lastTest = payload.test;
-      ownPatient.lastTestDate = payload.date;
-      mem.reports.unshift(doc);
-    } else {
-      const created = await Report.create({ ...payload, patient: ownPatientId });
-      await Patient.findOneAndUpdate(byIdOrPid(ownPatientId), {
-        $set: { lastTest: payload.test, lastTestDate: payload.date },
-      });
-      doc = await Report.findById(created._id).populate('patient').lean();
+      if (mem.reports.some((item) => item.reportId === reportId) || mem.pendingReportIds.has(reportId)) {
+        badRequest('A report with this report ID already exists');
+      }
+      mem.pendingReportIds.add(reportId);
+      try {
+        // Resolve the patient through this tenant's partition. The ledger write
+        // is completed before exposing either the report or patient mutation.
+        const ownPatient = await patients.getById(String(patient));
+        const doc = {
+          ...payload, _id: makeId(), patient: ownPatient,
+          createdAt: new Date(), updatedAt: new Date(),
+        };
+        await initialLedgerEntry(doc, ownPatient);
+        ownPatient.lastTest = payload.test;
+        ownPatient.lastTestDate = payload.date;
+        ownPatient.updatedAt = new Date();
+        mem.reports.unshift(doc);
+        return doc;
+      } finally {
+        mem.pendingReportIds.delete(reportId);
+      }
     }
 
-    // Every billed rupee lands in the payment ledger.
-    if (num(payload.paidAmount) > 0) {
-      await transactions.create({
-        reportId: doc.reportId,
-        report: String(doc._id),
-        patient: doc.patient?.name,
-        patientId: String(doc.patient?._id || ''),
-        amount: num(payload.paidAmount),
-        mode: payload.paymentMode || 'Cash',
-        type: 'Collection',
-        note: 'Report billing',
-        txnId: payload.transactionId,
-      });
+    // Complete first-use onboarding before opening the domain transaction;
+    // nested MongoDB transactions are not safe or supported.
+    await ensureMongoSeeded();
+    // Report, patient summary, and initial collection must commit together.
+    // A valid patient ID belonging to another account remains indistinguishable
+    // from a missing record because every query is tenant-scoped.
+    try {
+      return await mongoTransaction(async (session) => {
+        const ownPatient = await Patient.findOne(byIdOrPid(String(patient))).session(session).lean();
+        if (!ownPatient) throw Object.assign(new Error('Patient not found'), { status: 404 });
+        const created = (await Report.create([{ ...payload, patient: ownPatient._id }], { session }))[0];
+        const updatedPatient = await Patient.findOneAndUpdate(
+          { _id: ownPatient._id },
+          { $set: { lastTest: payload.test, lastTestDate: payload.date } },
+          { session, runValidators: true },
+        );
+        if (!updatedPatient) throw Object.assign(new Error('Patient not found'), { status: 404 });
+        await initialLedgerEntry(created, ownPatient, { session });
+        return {
+          ...created.toObject(),
+          patient: { ...ownPatient, lastTest: payload.test, lastTestDate: payload.date },
+        };
+      }, 'Atomic report creation requires a transaction-capable MongoDB deployment');
+    } catch (error) {
+      if (error?.code === 11000 && error?.keyPattern?.reportId) {
+        badRequest('A report with this report ID already exists');
+      }
+      throw error;
     }
-    return doc;
   },
 
   async update(id, patch) {
     ensureSeeded();
+    const source = patch && typeof patch === 'object' && !Array.isArray(patch) ? patch : {};
+    if (['paid', 'amount', 'discount', 'paidAmount', 'pendingAmount', 'paymentMode', 'transactionId']
+      .some((field) => source[field] !== undefined)) {
+      badRequest('Report billing fields are immutable; use the payment collection endpoint for collections');
+    }
+    if (['doctor', 'doctorId', 'commission', 'commissionRate', 'commissionPaid']
+      .some((field) => source[field] !== undefined)) {
+      badRequest('Report doctor and commission fields are immutable');
+    }
+    if (['verified', 'verifiedBy'].some((field) => source[field] !== undefined)) {
+      badRequest('Report verification fields are server-managed; use the verification endpoint');
+    }
     const allowed = {};
     REPORT_FIELDS.forEach((k) => {
-      if (patch[k] !== undefined) allowed[k] = patch[k];
+      if (source[k] !== undefined) allowed[k] = source[k];
     });
-    if (allowed.amount !== undefined || allowed.doctor !== undefined) {
-      const current = await reports.getById(id);
-      const rate = await commissionRateFor(allowed.doctor ?? current.doctor);
-      allowed.commissionRate = rate;
-      allowed.commission = Math.round((num(allowed.amount ?? current.amount) * rate) / 100);
+    if (allowed.status !== undefined && !['Pending', 'Completed', 'Cancelled'].includes(allowed.status)) {
+      badRequest('Report status is invalid');
     }
-    if (allowed.discount !== undefined || allowed.amount !== undefined) {
-      const current = await reports.getById(id);
-      assertDiscountAllowed(allowed.amount ?? current.amount, allowed.discount ?? current.discount);
+    if (allowed.test !== undefined) {
+      allowed.test = String(allowed.test).trim();
+      if (!allowed.test) badRequest('Report test is required');
     }
     if (useMemory()) {
       const r = mem.reports.find((x) => x._id === id || x.reportId === id);
@@ -716,8 +879,11 @@ const reports = {
       Object.assign(r, allowed, { updatedAt: new Date() });
       return r;
     }
-    const r = await Report.findOneAndUpdate(byIdOrPid(id), { $set: allowed }, { new: true })
-      .populate('patient').lean();
+    const r = await Report.findOneAndUpdate(
+      byIdOrPid(id),
+      { $set: allowed },
+      { new: true, runValidators: true },
+    ).populate('patient').lean();
     if (!r) {
       const err = new Error('Report not found');
       err.status = 404;
@@ -727,19 +893,41 @@ const reports = {
   },
 
   /** Owner verification step from the workflow (optional but tracked). */
-  async verify(id, by) {
-    return reports.update(id, { verified: true, verifiedBy: by || 'Lab Owner', status: 'Completed' });
+  async verify(id) {
+    const verifiedBy = String(currentTenant()?.name || 'Lab Owner').trim() || 'Lab Owner';
+    if (useMemory()) {
+      const report = mem.reports.find((item) => item._id === id || item.reportId === id);
+      if (!report) throw Object.assign(new Error('Report not found'), { status: 404 });
+      Object.assign(report, {
+        verified: true,
+        verifiedBy,
+        status: 'Completed',
+        updatedAt: new Date(),
+      });
+      return report;
+    }
+    const report = await Report.findOneAndUpdate(
+      byIdOrPid(id),
+      { $set: { verified: true, verifiedBy, status: 'Completed' } },
+      { new: true, runValidators: true },
+    ).populate('patient').lean();
+    if (!report) throw Object.assign(new Error('Report not found'), { status: 404 });
+    return report;
   },
 
   /** "Duplicate" action from the report history screen. */
   async duplicate(id) {
     const src = await reports.getById(id);
     const patientId = String(src.patient?._id || src.patient);
+    let currentDoctorName = src.doctor;
+    if (src.doctorId) {
+      currentDoctorName = (await meta.doctors.get(String(src.doctorId))).name;
+    }
     const copy = {
       reportId: await reports.nextReportId(),
       patient: patientId,
       test: src.test,
-      doctor: src.doctor,
+      doctor: currentDoctorName,
       amount: num(src.amount),
       discount: num(src.discount),
       paidAmount: 0,
@@ -770,14 +958,26 @@ const reports = {
       mem.deleted.unshift({ ...removed, kind: 'reports', deletedAt: new Date() });
       return removed;
     }
-    const r = await Report.findOneAndDelete(byIdOrPid(id)).lean();
-    if (!r) {
-      const err = new Error('Report not found');
-      err.status = 404;
-      throw err;
-    }
-    await Meta.create({ kind: 'deleted', data: { ...r, kind: 'reports', deletedAt: new Date() } });
-    return r;
+    return mongoTransaction(async (session) => {
+      const r = await Report.findOneAndDelete(byIdOrPid(id)).session(session).lean();
+      if (!r) {
+        const err = new Error('Report not found');
+        err.status = 404;
+        throw err;
+      }
+      const patient = await Patient.findOne({ _id: r.patient }).session(session).lean();
+      if (!patient) badRequest('The report patient is unavailable');
+      await Meta.create([{
+        kind: 'deleted',
+        data: {
+          ...r,
+          patient: { _id: String(patient._id), pid: patient.pid },
+          kind: 'reports',
+          deletedAt: new Date(),
+        },
+      }], { session });
+      return r;
+    }, 'Atomic report deletion requires a transaction-capable MongoDB deployment');
   },
 
   async stats() {
@@ -815,7 +1015,7 @@ function collectionApi(key, required = []) {
       }
       return found;
     },
-    async create(data) {
+    async create(data, options = {}) {
       ensureSeeded();
       for (const f of required) {
         if (data == null || data[f] == null || data[f] === '') {
@@ -830,11 +1030,16 @@ function collectionApi(key, required = []) {
         mem[key].unshift(doc);
         return doc;
       }
-      await ensureMongoSeeded();
-      const created = await Meta.create({ kind: key, data: { ...data, id: undefined } });
+      // Domain workflows may already be inside a transaction; they perform
+      // onboarding before opening it to avoid nesting MongoDB transactions.
+      if (!options.session) await ensureMongoSeeded();
+      const document = { kind: key, data: { ...data, id: undefined } };
+      const created = options.session
+        ? (await Meta.create([document], { session: options.session }))[0]
+        : await Meta.create(document);
       return { ...created.data, _id: String(created._id), id: String(created._id) };
     },
-    async update(id, patch) {
+    async update(id, patch, options = {}) {
       ensureSeeded();
       if (useMemory()) {
         const item = mem[key].find((x) => String(x._id) === String(id) || String(x.id) === String(id));
@@ -846,7 +1051,9 @@ function collectionApi(key, required = []) {
         Object.assign(item, patch, { updatedAt: new Date() });
         return item;
       }
-      const doc = await Meta.findById(id);
+      const query = Meta.findOne({ _id: id, kind: key });
+      if (options.session) query.session(options.session);
+      const doc = await query;
       if (!doc) {
         const err = new Error('Not found');
         err.status = 404;
@@ -854,7 +1061,7 @@ function collectionApi(key, required = []) {
       }
       doc.data = { ...doc.data, ...patch };
       doc.markModified('data');
-      await doc.save();
+      await doc.save(options.session ? { session: options.session } : undefined);
       return { ...doc.data, _id: String(doc._id), id: String(doc._id) };
     },
     async remove(id) {
@@ -866,46 +1073,170 @@ function collectionApi(key, required = []) {
           err.status = 404;
           throw err;
         }
-        const [removed] = mem[key].splice(i, 1);
+        const removed = mem[key][i];
+        if (key === 'doctors') {
+          const hasReports = mem.reports.some((report) => (report.doctorId && report.doctorId === removed._id)
+            || (!report.doctorId && report.doctor === removed.name));
+          const hasPayouts = (mem.commissions || []).some((payout) => (payout.doctorId && payout.doctorId === removed._id)
+            || (!payout.doctorId && payout.doctor === removed.name));
+          if (hasReports || hasPayouts) {
+            throw Object.assign(new Error('This doctor has report or commission history and cannot be deleted'), { status: 409 });
+          }
+        }
+        mem[key].splice(i, 1);
         mem.deleted.unshift({ ...removed, kind: key, deletedAt: new Date() });
         return removed;
       }
-      const doc = await Meta.findByIdAndDelete(id);
-      if (!doc) {
-        const err = new Error('Not found');
-        err.status = 404;
-        throw err;
-      }
-      await Meta.create({ kind: 'deleted', data: { ...doc.data, kind: key, deletedAt: new Date() } });
-      return { ...doc.data, _id: String(doc._id) };
+      return mongoTransaction(async (session) => {
+        const doc = await Meta.findOne({ _id: id, kind: key }).session(session);
+        if (!doc) {
+          const err = new Error('Not found');
+          err.status = 404;
+          throw err;
+        }
+        if (key === 'doctors') {
+          const doctorId = String(doc._id);
+          const doctorName = String(doc.data?.name || '');
+          const reportReference = await Report.exists({
+            $or: [{ doctorId: doc._id }, { doctorId: null, doctor: doctorName }],
+          }).session(session);
+          const payoutReference = await Meta.exists({
+            kind: 'commissions',
+            $or: [
+              { 'data.doctorId': doctorId },
+              { 'data.doctorId': { $in: [null, ''] }, 'data.doctor': doctorName },
+            ],
+          }).session(session);
+          if (reportReference || payoutReference) {
+            throw Object.assign(new Error('This doctor has report or commission history and cannot be deleted'), { status: 409 });
+          }
+        }
+        const deleted = await Meta.deleteOne({ _id: doc._id, kind: key }).session(session);
+        if (deleted.deletedCount !== 1) throw Object.assign(new Error('Not found'), { status: 404 });
+        await Meta.create([{
+          kind: 'deleted', data: { ...doc.data, kind: key, deletedAt: new Date() },
+        }], { session });
+        return { ...doc.data, _id: String(doc._id) };
+      }, 'Atomic record deletion requires a transaction-capable MongoDB deployment');
     },
   };
+}
+
+function withNumericValidation(api, field, label, { positive = false, max = null } = {}) {
+  const normalize = (data = {}, requireValue = false) => {
+    const out = data && typeof data === 'object' && !Array.isArray(data) ? { ...data } : {};
+    if (out[field] === undefined && !requireValue) return out;
+    const value = money(out[field], label);
+    if (positive && value <= 0) badRequest(`${label} must be positive`);
+    if (max !== null && value > max) badRequest(`${label} cannot exceed ${max}`);
+    out[field] = value;
+    return out;
+  };
+  const baseCreate = api.create;
+  const baseUpdate = api.update;
+  api.create = (data = {}, options = {}) => baseCreate(normalize(data, true), options);
+  api.update = (id, patch = {}) => baseUpdate(id, normalize(patch));
+  return api;
 }
 
 // Doctors get the .env default commission (DEFAULT_COMMISSION_PERCENT) when
 // they are created without an explicit commission percentage.
 const doctorsApi = collectionApi('doctors', ['name']);
 const baseDoctorCreate = doctorsApi.create;
-doctorsApi.create = (data = {}) => {
-  const d = { ...data };
-  if (d.commission === undefined || d.commission === null || d.commission === '') {
-    d.commission = cfg.defaultCommissionPercent;
+const baseDoctorUpdate = doctorsApi.update;
+
+function normalizeDoctor(data = {}, requireName = false) {
+  const doctor = { ...data };
+  if (doctor.name !== undefined || requireName) {
+    doctor.name = String(doctor.name || '').trim();
+    if (!doctor.name) badRequest('Doctor name is required');
   }
-  return baseDoctorCreate(d);
+  if (doctor.commission === undefined && requireName) doctor.commission = cfg.defaultCommissionPercent;
+  if (doctor.commission !== undefined) {
+    doctor.commission = money(doctor.commission, 'Commission percentage');
+    if (doctor.commission > 100) badRequest('Commission percentage cannot exceed 100');
+  }
+  return doctor;
+}
+
+function sameDoctorName(left, right) {
+  return String(left || '').trim().toLocaleLowerCase('en-IN')
+    === String(right || '').trim().toLocaleLowerCase('en-IN');
+}
+
+function doctorNameRegex(name) {
+  return new RegExp(`^${String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+}
+
+async function lockDoctorNames(session) {
+  const account = await User.findOneAndUpdate(
+    { _id: requireTenantId() },
+    { $set: { updatedAt: new Date() } },
+    { new: true, session },
+  );
+  if (!account) throw Object.assign(new Error('Account not found'), { status: 401 });
+}
+
+doctorsApi.create = async (data = {}, options = {}) => {
+  const doctor = normalizeDoctor(data, true);
+  if (useMemory()) {
+    ensureSeeded();
+    if (mem.doctors.some((item) => sameDoctorName(item.name, doctor.name))) {
+      badRequest('A doctor with this name already exists');
+    }
+    return baseDoctorCreate(doctor, options);
+  }
+  await ensureMongoSeeded();
+  const create = async (session) => {
+    await lockDoctorNames(session);
+    const duplicate = await Meta.exists({ kind: 'doctors', 'data.name': doctorNameRegex(doctor.name) }).session(session);
+    if (duplicate) badRequest('A doctor with this name already exists');
+    return baseDoctorCreate(doctor, { session });
+  };
+  return options.session
+    ? create(options.session)
+    : mongoTransaction(create, 'Atomic doctor creation requires a transaction-capable MongoDB deployment');
+};
+
+doctorsApi.update = async (id, patch = {}, options = {}) => {
+  const doctor = normalizeDoctor(patch);
+  if (!doctor.name) return baseDoctorUpdate(id, doctor, options);
+  if (useMemory()) {
+    ensureSeeded();
+    if (mem.doctors.some((item) => String(item._id) !== String(id)
+      && String(item.id) !== String(id) && sameDoctorName(item.name, doctor.name))) {
+      badRequest('A doctor with this name already exists');
+    }
+    return baseDoctorUpdate(id, doctor, options);
+  }
+  await ensureMongoSeeded();
+  const update = async (session) => {
+    await lockDoctorNames(session);
+    const duplicate = await Meta.exists({
+      _id: { $ne: id },
+      kind: 'doctors',
+      'data.name': doctorNameRegex(doctor.name),
+    }).session(session);
+    if (duplicate) badRequest('A doctor with this name already exists');
+    return baseDoctorUpdate(id, doctor, { session });
+  };
+  return options.session
+    ? update(options.session)
+    : mongoTransaction(update, 'Atomic doctor update requires a transaction-capable MongoDB deployment');
 };
 
 const meta = {
-  tests: collectionApi('tests', ['name', 'price']),
+  tests: withNumericValidation(collectionApi('tests', ['name', 'price']), 'price', 'Test price'),
   doctors: doctorsApi,
   employees: collectionApi('employees', ['name', 'role']),
   centers: collectionApi('centers', ['name']),
   payments: collectionApi('payments', ['name']),
   discounts: collectionApi('discounts', ['name']),
   templates: collectionApi('templates', ['name']),
-  packages: collectionApi('packages', ['name', 'price']),
-  expenses: collectionApi('expenses', ['name', 'amount']),
-  transactions: collectionApi('transactions', ['amount']),
-  commissions: collectionApi('commissions', ['doctor', 'amount']),
+  packages: withNumericValidation(collectionApi('packages', ['name', 'price']), 'price', 'Package price'),
+  expenses: withNumericValidation(collectionApi('expenses', ['name', 'amount']), 'amount', 'Expense amount', { positive: true }),
+  transactions: withNumericValidation(collectionApi('transactions', ['amount']), 'amount', 'Payment amount', { positive: true }),
+  commissions: withNumericValidation(collectionApi('commissions', ['doctor', 'amount']), 'amount', 'Commission amount', { positive: true }),
   drafts: collectionApi('drafts', []),
   labs: collectionApi('labs', ['name']),
   roles: collectionApi('roles', ['name']),
@@ -927,25 +1258,64 @@ const meta = {
         err.status = 404;
         throw err;
       }
-      const [rec] = mem.deleted.splice(i, 1);
+      const rec = mem.deleted[i];
       const { kind, deletedAt, ...rest } = rec;
-      if (kind === 'patients') mem.patients.unshift({ ...rest, updatedAt: new Date() });
-      else if (kind === 'reports') mem.reports.unshift({ ...rest, updatedAt: new Date() });
-      else if (mem[kind]) mem[kind].unshift({ ...rest, updatedAt: new Date() });
+      let restored;
+      if (kind === 'patients') {
+        const patient = { ...patientPatch(rest, true), pid: String(rest.pid || '').trim() };
+        if (!patient.pid) badRequest('Deleted patient is invalid');
+        if (mem.patients.some((item) => item.pid === patient.pid || item.mobile === patient.mobile)) {
+          badRequest('A matching patient already exists');
+        }
+        restored = { ...patient, _id: rest._id, createdAt: rest.createdAt, updatedAt: new Date() };
+      } else if (kind === 'reports') {
+        if (mem.reports.some((item) => item.reportId === rest.reportId)) badRequest('A matching report already exists');
+        const keys = new Set(reportPatientKeys(rest.patient));
+        const ownPatient = mem.patients.find((item) => (
+          [item._id, item.id, item.pid].filter(Boolean).some((key) => keys.has(String(key)))
+        ));
+        if (!ownPatient) badRequest('The report patient must be restored first');
+        restored = { ...rest, patient: ownPatient, updatedAt: new Date() };
+      } else if (COLLECTIONS.includes(kind)) {
+        restored = { ...rest, updatedAt: new Date() };
+      } else {
+        badRequest('Deleted record type is invalid');
+      }
+      mem.deleted.splice(i, 1);
+      if (kind === 'patients') mem.patients.unshift(restored);
+      else if (kind === 'reports') mem.reports.unshift(restored);
+      else mem[kind].unshift(restored);
+      return restored;
+    }
+    return mongoTransaction(async (session) => {
+      const doc = await Meta.findById(id).session(session);
+      if (!doc) {
+        const err = new Error('Deleted record not found');
+        err.status = 404;
+        throw err;
+      }
+      const { kind, deletedAt, _id, ownerId, ...rest } = doc.data || {}; // eslint-disable-line no-unused-vars
+      if (kind === 'patients') {
+        await Patient.create([rest], { session });
+      } else if (kind === 'reports') {
+        const patientKeys = reportPatientKeys(rest.patient);
+        const patientFilters = patientKeys.flatMap((key) => [
+          { pid: key },
+          ...(mongoose.isValidObjectId(key) ? [{ _id: key }] : []),
+        ]);
+        const ownPatient = patientFilters.length
+          ? await Patient.findOne({ $or: patientFilters }).session(session).lean()
+          : null;
+        if (!ownPatient) badRequest('The report patient must be restored first');
+        await Report.create([{ ...rest, patient: ownPatient._id }], { session });
+      } else if (COLLECTIONS.includes(kind)) {
+        await Meta.create([{ kind, data: rest }], { session });
+      } else {
+        badRequest('Deleted record type is invalid');
+      }
+      await doc.deleteOne({ session });
       return rest;
-    }
-    const doc = await Meta.findById(id);
-    if (!doc) {
-      const err = new Error('Deleted record not found');
-      err.status = 404;
-      throw err;
-    }
-    const { kind, deletedAt, _id, ...rest } = doc.data || {};
-    if (kind === 'patients') await Patient.create(rest);
-    else if (kind === 'reports') await Report.create(rest);
-    else await Meta.create({ kind, data: rest });
-    await doc.deleteOne();
-    return rest;
+    }, 'Atomic deleted-record restoration requires a transaction-capable MongoDB deployment');
   },
 
   async lab() {
@@ -965,12 +1335,8 @@ const settings = {
     ensureSeeded();
     if (useMemory()) return { ...(mem.settings || defaultSettings()) };
     await ensureMongoSeeded();
-    const doc = await Meta.findOne({ kind: 'settings' });
-    if (!doc) {
-      const created = await Meta.create({ kind: 'settings', data: defaultSettings() });
-      return { ...created.data };
-    }
-    return { ...defaultSettings(), ...doc.data };
+    const doc = await Meta.findOne({ kind: 'settings' }).sort({ updatedAt: -1 });
+    return { ...defaultSettings(), ...(doc?.data || {}) };
   },
   async update(patch) {
     ensureSeeded();
@@ -978,11 +1344,22 @@ const settings = {
       mem.settings = { ...(mem.settings || defaultSettings()), ...(patch || {}) };
       return { ...mem.settings };
     }
-    const doc = (await Meta.findOne({ kind: 'settings' })) || (await Meta.create({ kind: 'settings', data: defaultSettings() }));
-    doc.data = { ...doc.data, ...(patch || {}) };
-    doc.markModified('data');
-    await doc.save();
-    return { ...doc.data };
+    await ensureMongoSeeded();
+    return mongoTransaction(async (session) => {
+      const account = await User.findOneAndUpdate(
+        { _id: requireTenantId() },
+        { $set: { updatedAt: new Date() } },
+        { new: true, session },
+      ).lean();
+      if (!account) throw Object.assign(new Error('Settings account is unavailable'), { status: 503 });
+      const doc = (await Meta.findOne({ kind: 'settings' })
+        .sort({ updatedAt: -1 }).session(session))
+        || new Meta({ kind: 'settings', data: defaultSettings() });
+      doc.data = { ...defaultSettings(), ...(doc.data || {}), ...(patch || {}) };
+      doc.markModified('data');
+      await doc.save({ session });
+      return { ...doc.data };
+    }, 'Atomic settings updates require a transaction-capable MongoDB deployment');
   },
 };
 
@@ -1000,15 +1377,11 @@ const transactions = {
     return out;
   },
 
-  async create(data) {
-    const amount = num(data.amount);
-    if (!amount) {
-      const err = new Error('A payment amount is required');
-      err.status = 400;
-      throw err;
-    }
+  async create(data, options = {}) {
+    const amount = money(data?.amount, 'Payment amount');
+    if (amount <= 0) badRequest('A positive payment amount is required');
     return meta.transactions.create({
-      txnId: data.txnId || `TXN${Date.now().toString().slice(-8)}`,
+      txnId: `TXN${Date.now().toString(36).toUpperCase()}${crypto.randomBytes(4).toString('hex').toUpperCase()}`,
       reportId: data.reportId || '',
       report: data.report || '',
       patient: data.patient || '',
@@ -1019,38 +1392,65 @@ const transactions = {
       note: data.note || '',
       date: data.date || dateLabel(),
       time: timeLabel(),
-    });
+    }, options);
   },
 
-  /** Collect a pending amount against a report and update its balance. */
-  async collect({ reportId, amount, mode, txnId, note }) {
-    const report = await reports.getById(reportId);
-    const pay = Math.min(num(amount) || num(report.pendingAmount), num(report.pendingAmount) || num(report.amount));
-    if (pay <= 0) {
-      const err = new Error('This report has no pending amount');
-      err.status = 400;
-      throw err;
+  /** Collect a pending amount and its ledger entry as one atomic mutation. */
+  async collect({ reportId, amount, mode, note }) {
+    if (!reportId) badRequest('Report is required');
+    const requested = amount === undefined || amount === null || amount === ''
+      ? null
+      : money(amount, 'Payment amount');
+    if (requested !== null && requested <= 0) badRequest('A positive payment amount is required');
+
+    const applyPayment = async (report, options = {}) => {
+      // Derive the authoritative balance from amount - paidAmount rather than
+      // trusting a stale legacy pendingAmount field.
+      const pending = Math.max(0, num(report.amount) - num(report.paidAmount));
+      if (pending <= 0) badRequest('This report has no pending amount');
+      const pay = Math.min(requested ?? pending, pending);
+      const paidAmount = num(report.paidAmount) + pay;
+      const pendingAmount = Math.max(0, num(report.amount) - paidAmount);
+      report.paidAmount = paidAmount;
+      report.pendingAmount = pendingAmount;
+      report.paid = pendingAmount === 0;
+      report.paymentMode = mode || report.paymentMode;
+      report.updatedAt = new Date();
+      const txn = await transactions.create({
+        reportId: report.reportId,
+        report: String(report._id),
+        patient: report.patient?.name,
+        patientId: String(report.patient?._id || ''),
+        amount: pay,
+        mode: mode || report.paymentMode || 'Cash',
+        type: 'Collection',
+        note: note || 'Pending amount collected',
+      }, options);
+      return { pay, paidAmount, pendingAmount, txn };
+    };
+
+    if (useMemory()) {
+      const report = await reports.getById(reportId);
+      // No await occurs between reading and applying the balance, so concurrent
+      // in-memory requests cannot both collect the same pending rupees.
+      const before = pick(report, ['paidAmount', 'pendingAmount', 'paid', 'paymentMode', 'updatedAt']);
+      try {
+        const result = await applyPayment(report);
+        return { report, transaction: result.txn };
+      } catch (error) {
+        Object.assign(report, before);
+        throw error;
+      }
     }
-    const paidAmount = num(report.paidAmount) + pay;
-    const pendingAmount = Math.max(0, num(report.amount) - paidAmount);
-    const updated = await reports.update(String(report._id), {
-      paidAmount,
-      pendingAmount,
-      paid: pendingAmount === 0,
-      paymentMode: mode || report.paymentMode,
-    });
-    const txn = await transactions.create({
-      reportId: report.reportId,
-      report: String(report._id),
-      patient: report.patient?.name,
-      patientId: String(report.patient?._id || ''),
-      amount: pay,
-      mode: mode || report.paymentMode || 'Cash',
-      type: 'Collection',
-      note: note || 'Pending amount collected',
-      txnId,
-    });
-    return { report: updated, transaction: txn };
+
+    await ensureMongoSeeded();
+    return mongoTransaction(async (session) => {
+      const report = await Report.findOne(byIdOrPid(reportId)).session(session).populate('patient');
+      if (!report) throw Object.assign(new Error('Report not found'), { status: 404 });
+      const result = await applyPayment(report, { session });
+      await report.save({ session, validateModifiedOnly: true });
+      return { report: report.toObject(), transaction: result.txn };
+    }, 'Atomic payment collection requires a transaction-capable MongoDB deployment');
   },
 
   async summary() {
@@ -1088,15 +1488,26 @@ function monthLabel(key) {
   return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
 }
 
+function belongsToDoctor(record, doctor) {
+  const recordDoctorId = String(record?.doctorId || '');
+  const doctorId = String(doctor?._id || doctor?.id || '');
+  return recordDoctorId
+    ? Boolean(doctorId) && recordDoctorId === doctorId
+    : String(record?.doctor || '') === String(doctor?.name || '');
+}
+
 const doctors = {
   async list() {
     const list = await all('doctors');
     const reportList = await allReports();
     const payouts = await all('commissions');
     return list.map((d) => {
-      const rs = reportList.filter((r) => r.doctor === d.name);
-      const earned = rs.reduce((s, r) => s + Math.round((num(r.amount) * num(d.commission)) / 100), 0);
-      const paid = payouts.filter((p) => p.doctor === d.name).reduce((s, p) => s + num(p.amount), 0);
+      const rs = reportList.filter((report) => belongsToDoctor(report, d));
+      const earned = rs.reduce(
+        (sum, report) => sum + num(report.commission ?? Math.round((num(report.amount) * num(d.commission)) / 100)),
+        0,
+      );
+      const paid = payouts.filter((payout) => belongsToDoctor(payout, d)).reduce((s, p) => s + num(p.amount), 0);
       return {
         ...d,
         totalReports: rs.length,
@@ -1111,8 +1522,8 @@ const doctors = {
   async ledger(id) {
     const doctor = await meta.doctors.get(id);
     const reportList = await allReports();
-    const payouts = (await all('commissions')).filter((p) => p.doctor === doctor.name);
-    const rs = reportList.filter((r) => r.doctor === doctor.name);
+    const payouts = (await all('commissions')).filter((payout) => belongsToDoctor(payout, doctor));
+    const rs = reportList.filter((report) => belongsToDoctor(report, doctor));
     const rate = num(doctor.commission);
 
     const monthly = new Map();
@@ -1121,11 +1532,14 @@ const doctors = {
       const cur = monthly.get(key) || { key, label: monthLabel(key), reports: 0, business: 0, commission: 0 };
       cur.reports += 1;
       cur.business += num(r.amount);
-      cur.commission += Math.round((num(r.amount) * rate) / 100);
+      cur.commission += num(r.commission ?? Math.round((num(r.amount) * rate) / 100));
       monthly.set(key, cur);
     });
 
-    const totalCommission = rs.reduce((s, r) => s + Math.round((num(r.amount) * rate) / 100), 0);
+    const totalCommission = rs.reduce(
+      (sum, report) => sum + num(report.commission ?? Math.round((num(report.amount) * rate) / 100)),
+      0,
+    );
     const paidCommission = payouts.reduce((s, p) => s + num(p.amount), 0);
 
     return {
@@ -1143,7 +1557,7 @@ const doctors = {
         test: r.test,
         date: r.date,
         amount: num(r.amount),
-        commission: Math.round((num(r.amount) * rate) / 100),
+        commission: num(r.commission ?? Math.round((num(r.amount) * rate) / 100)),
       })),
       payouts,
     };
@@ -1167,31 +1581,92 @@ const commissions = {
   },
 
   async pay({ doctor, doctorId, amount, mode, note }) {
-    let name = doctor;
-    if (!name && doctorId) name = (await meta.doctors.get(doctorId)).name;
-    if (!name) {
-      const err = new Error('Doctor is required');
-      err.status = 400;
-      throw err;
+    const suppliedName = String(doctor || '').trim();
+    const payoutAmount = money(amount, 'Commission amount');
+    if (payoutAmount <= 0) badRequest('A positive commission amount is required');
+
+    const finishPayout = async (ownDoctor, pendingCommission, options = {}) => {
+      if (suppliedName && suppliedName !== ownDoctor.name) badRequest('Doctor details do not match');
+      if (payoutAmount > pendingCommission) badRequest('Commission amount exceeds the pending balance');
+      const payoutData = {
+        doctor: ownDoctor.name,
+        doctorId: String(ownDoctor._id || ownDoctor.id || ''),
+        amount: payoutAmount,
+        mode: mode || 'Cash',
+        note: note || 'Commission payout',
+        date: dateLabel(),
+        time: timeLabel(),
+      };
+      const payout = await meta.commissions.create(payoutData, options);
+      try {
+        await transactions.create({
+          amount: payoutAmount,
+          mode: mode || 'Cash',
+          type: 'Commission Payout',
+          note: `Commission paid to ${ownDoctor.name}`,
+          patient: ownDoctor.name,
+        }, options);
+        return payout;
+      } catch (error) {
+        if (useMemory()) {
+          const index = mem.commissions.findIndex((item) => item._id === payout._id);
+          if (index >= 0) mem.commissions.splice(index, 1);
+        }
+        throw error;
+      }
+    };
+
+    if (useMemory()) {
+      ensureSeeded();
+      // Keep this calculation synchronous until create() inserts the payout;
+      // concurrent in-memory requests therefore observe the first deduction.
+      const ownDoctor = mem.doctors.find((item) => (
+        doctorId
+          ? String(item._id) === String(doctorId) || String(item.id) === String(doctorId)
+          : item.name === suppliedName
+      ));
+      if (!ownDoctor) throw Object.assign(new Error('Doctor not found'), { status: 404 });
+      const earned = mem.reports.filter((report) => belongsToDoctor(report, ownDoctor))
+        .reduce((sum, report) => sum + num(report.commission), 0);
+      const paid = mem.commissions.filter((item) => belongsToDoctor(item, ownDoctor))
+        .reduce((sum, item) => sum + num(item.amount), 0);
+      return finishPayout(ownDoctor, Math.max(0, earned - paid));
     }
-    const payout = await meta.commissions.create({
-      doctor: name,
-      doctorId: doctorId || '',
-      amount: num(amount),
-      mode: mode || 'Cash',
-      note: note || 'Commission payout',
-      date: dateLabel(),
-      time: timeLabel(),
-    });
-    // Payouts leave the lab account — they belong in the ledger too.
-    await transactions.create({
-      amount: num(amount),
-      mode: mode || 'Cash',
-      type: 'Commission Payout',
-      note: `Commission paid to ${name}`,
-      patient: name,
-    });
-    return payout;
+
+    await ensureMongoSeeded();
+    return mongoTransaction(async (session) => {
+      const doctorFilter = doctorId
+        ? { _id: doctorId, kind: 'doctors' }
+        : { kind: 'doctors', 'data.name': suppliedName };
+      const doctorDoc = await Meta.findOneAndUpdate(
+        doctorFilter,
+        { $set: { updatedAt: new Date() } },
+        { new: true, session },
+      ).lean();
+      if (!doctorDoc) throw Object.assign(new Error('Doctor not found'), { status: 404 });
+      const ownDoctor = { ...doctorDoc.data, _id: String(doctorDoc._id), id: String(doctorDoc._id) };
+      if (suppliedName && suppliedName !== ownDoctor.name) badRequest('Doctor details do not match');
+
+      // Updating the doctor above provides a shared write-conflict point. If
+      // two payouts race, MongoDB retries one transaction against the newly
+      // committed payout before this balance is accepted.
+      const reportDocs = await Report.find({
+        $or: [
+          { doctorId: doctorDoc._id },
+          { doctorId: null, doctor: ownDoctor.name },
+        ],
+      }).session(session).lean();
+      const payoutDocs = await Meta.find({
+        kind: 'commissions',
+        $or: [
+          { 'data.doctorId': String(doctorDoc._id) },
+          { 'data.doctorId': { $in: [null, ''] }, 'data.doctor': ownDoctor.name },
+        ],
+      }).session(session).lean();
+      const earned = reportDocs.reduce((sum, report) => sum + num(report.commission), 0);
+      const paid = payoutDocs.reduce((sum, item) => sum + num(item.data?.amount), 0);
+      return finishPayout(ownDoctor, Math.max(0, earned - paid), { session });
+    }, 'Atomic commission payout requires a transaction-capable MongoDB deployment');
   },
 };
 
@@ -1435,9 +1910,8 @@ const subscription = {
       sub = mem.subscription;
     } else {
       await ensureMongoSeeded();
-      const doc = (await Meta.findOne({ kind: 'subscription' }))
-        || (await Meta.create({ kind: 'subscription', data: defaultSubscription() }));
-      sub = doc.data;
+      const doc = await Meta.findOne({ kind: 'subscription' }).sort({ updatedAt: -1 });
+      sub = doc?.data || defaultSubscription();
     }
     const expiresAt = sub.expiresAt ? new Date(sub.expiresAt) : null;
     const daysLeft = expiresAt ? Math.ceil((expiresAt - Date.now()) / (24 * 3600 * 1000)) : 0;
@@ -1457,39 +1931,75 @@ const subscription = {
       err.status = 400;
       throw err;
     }
-    const current = await subscription.get();
-    const base = current.daysLeft > 0 && current.expiresAt ? new Date(current.expiresAt) : new Date();
-    const expiresAt = new Date(base.getTime() + plan.days * 24 * 3600 * 1000);
-    const next = {
-      plan: plan.name,
-      planId: plan.id,
-      status: 'Active',
-      startedAt: new Date(),
-      expiresAt,
-      amount: plan.price,
-      autoRenew: plan.id !== 'trial',
-      history: [
-        ...(current.history || []),
-        { plan: plan.name, amount: plan.price, date: dateLabel(), invoice: `INV${Date.now().toString().slice(-8)}` },
-      ],
-    };
-    if (useMemory()) {
-      mem.subscription = next;
-    } else {
-      const doc = (await Meta.findOne({ kind: 'subscription' }))
-        || (await Meta.create({ kind: 'subscription', data: next }));
-      doc.data = next;
-      doc.markModified('data');
-      await doc.save();
-    }
-    if (plan.price > 0) {
-      await transactions.create({
+    const nextSubscription = (current) => {
+      const currentExpiry = current.expiresAt ? new Date(current.expiresAt) : null;
+      const base = currentExpiry && currentExpiry > new Date() ? currentExpiry : new Date();
+      return {
+        plan: plan.name,
+        planId: plan.id,
+        status: 'Active',
+        startedAt: new Date(),
+        expiresAt: new Date(base.getTime() + plan.days * 24 * 3600 * 1000),
         amount: plan.price,
-        mode: 'UPI',
-        type: 'Subscription',
-        note: `${plan.name} activated`,
-      });
+        autoRenew: plan.id !== 'trial',
+        history: [
+          ...(current.history || []),
+          {
+            plan: plan.name,
+            amount: plan.price,
+            date: dateLabel(),
+            invoice: `INV${Date.now().toString(36).toUpperCase()}${crypto.randomBytes(4).toString('hex').toUpperCase()}`,
+          },
+        ],
+      };
+    };
+    const ledgerEntry = (options = {}) => (
+      plan.price > 0
+        ? transactions.create({
+          amount: plan.price,
+          mode: 'UPI',
+          type: 'Subscription',
+          note: `${plan.name} activated`,
+        }, options)
+        : null
+    );
+
+    if (useMemory()) {
+      ensureSeeded();
+      const previous = mem.subscription || defaultSubscription();
+      const next = nextSubscription(previous);
+      // Publish the new expiry before yielding so simultaneous purchases extend
+      // one another rather than charging twice for one period.
+      mem.subscription = next;
+      try {
+        await ledgerEntry();
+      } catch (error) {
+        mem.subscription = previous;
+        throw error;
+      }
+      return subscription.get();
     }
+
+    await ensureMongoSeeded();
+    await mongoTransaction(async (session) => {
+      // The account row always exists and provides a shared write-conflict
+      // point even before this account has a subscription document. MongoDB
+      // retries a racing purchase against the newly extended expiry.
+      const ownerId = requireTenantId();
+      const account = await User.findOneAndUpdate(
+        { _id: ownerId },
+        { $set: { updatedAt: new Date() } },
+        { new: true, session },
+      ).lean();
+      if (!account) throw Object.assign(new Error('Subscription account is unavailable'), { status: 503 });
+      const doc = (await Meta.findOne({ kind: 'subscription' })
+        .sort({ updatedAt: -1 }).session(session))
+        || new Meta({ kind: 'subscription', data: defaultSubscription() });
+      doc.data = nextSubscription(doc.data || {});
+      doc.markModified('data');
+      await doc.save({ session });
+      await ledgerEntry({ session });
+    }, 'Atomic subscription activation requires a transaction-capable MongoDB deployment');
     return subscription.get();
   },
 };
@@ -1501,20 +2011,36 @@ const subscription = {
 async function notificationState() {
   ensureSeeded();
   if (useMemory()) return mem.notificationState;
-  const doc = (await Meta.findOne({ kind: 'notification-state' }))
-    || (await Meta.create({ kind: 'notification-state', data: { read: {} } }));
-  return { doc, read: doc.data?.read || {} };
+  const doc = await Meta.findOne({ kind: 'notification-state' }).sort({ updatedAt: -1 });
+  return { doc, read: doc?.data?.read || {} };
 }
 
-async function persistNotificationState(state) {
+async function mutateNotificationState(mutate) {
   if (useMemory()) {
-    mem.notificationState = state;
-    return;
+    const read = mem.notificationState;
+    mutate(read);
+    return read;
   }
-  const holder = await notificationState();
-  holder.doc.data = { ...(holder.doc.data || {}), read: state };
-  holder.doc.markModified('data');
-  await holder.doc.save();
+  await ensureMongoSeeded();
+  return mongoTransaction(async (session) => {
+    // Serialize read-state changes on the tenant account so simultaneous marks
+    // cannot overwrite one another, including before the singleton exists.
+    const account = await User.findOneAndUpdate(
+      { _id: requireTenantId() },
+      { $set: { updatedAt: new Date() } },
+      { new: true, session },
+    ).lean();
+    if (!account) throw Object.assign(new Error('Notification account is unavailable'), { status: 503 });
+    const doc = (await Meta.findOne({ kind: 'notification-state' })
+      .sort({ updatedAt: -1 }).session(session))
+      || new Meta({ kind: 'notification-state', data: { read: {} } });
+    const read = { ...(doc.data?.read || {}) };
+    mutate(read);
+    doc.data = { ...(doc.data || {}), read };
+    doc.markModified('data');
+    await doc.save({ session });
+    return read;
+  }, 'Atomic notification updates require a transaction-capable MongoDB deployment');
 }
 
 const notifications = {
@@ -1561,19 +2087,15 @@ const notifications = {
   async markRead(id) {
     const list = await notifications.list();
     if (!list.some((item) => item.id === id)) throw Object.assign(new Error('Notification not found'), { status: 404 });
-    const holder = await notificationState();
-    const read = useMemory() ? holder : holder.read;
-    read[id] = true;
-    await persistNotificationState(read);
+    await mutateNotificationState((read) => { read[id] = true; });
     return { id, read: true };
   },
 
   async markAllRead() {
     const list = await notifications.list();
-    const holder = await notificationState();
-    const read = useMemory() ? holder : holder.read;
-    list.forEach((item) => { read[item.id] = true; });
-    await persistNotificationState(read);
+    await mutateNotificationState((read) => {
+      list.forEach((item) => { read[item.id] = true; });
+    });
     return { read: list.length };
   },
 
@@ -1587,8 +2109,52 @@ const notifications = {
 /* Backup & restore                                                    */
 /* ------------------------------------------------------------------ */
 
+const BACKUP_VERSION = 3;
+const MAX_BACKUP_RECORDS = 100000;
+
 function backupOwnerProof() {
   return crypto.createHmac('sha256', authSecret()).update(`backup:${requireTenantId()}`).digest('hex');
+}
+
+function canonicalJson(value) {
+  if (value instanceof Date) return JSON.stringify(value.toISOString());
+  if (value && typeof value.toJSON === 'function') return canonicalJson(value.toJSON());
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map((item) => canonicalJson(item) ?? 'null').join(',')}]`;
+  const entries = Object.keys(value).sort()
+    .filter((key) => value[key] !== undefined)
+    .map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`);
+  return `{${entries.join(',')}}`;
+}
+
+function backupSignature(payload) {
+  const unsigned = { ...payload, meta: { ...(payload.meta || {}) } };
+  delete unsigned.meta.signature;
+  return crypto.createHmac('sha256', authSecret())
+    .update(`pathonexa-backup:${BACKUP_VERSION}:${requireTenantId()}\0`)
+    .update(canonicalJson(unsigned))
+    .digest('hex');
+}
+
+function safeHexEqual(supplied, expected) {
+  const left = String(supplied || '');
+  if (!/^[a-f\d]{64}$/i.test(left)) return false;
+  const a = Buffer.from(left, 'hex');
+  const b = Buffer.from(expected, 'hex');
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+function plainObject(value) {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function backupRecords(value, label) {
+  if (!Array.isArray(value)) return null;
+  if (value.length > MAX_BACKUP_RECORDS) throw Object.assign(new Error('Backup is too large'), { status: 413 });
+  value.forEach((item) => {
+    if (!plainObject(item)) badRequest(`Backup contains an invalid ${label} record`);
+  });
+  return value;
 }
 
 function pick(source, fields) {
@@ -1620,7 +2186,7 @@ const backup = {
     const notificationRead = useMemory() ? holder : holder.read;
     const data = {
       meta: {
-        app: 'PathoNexa', version: 2, owner: backupOwnerProof(),
+        app: 'PathoNexa', version: BACKUP_VERSION, owner: backupOwnerProof(),
         exportedAt: new Date().toISOString(), storage: useMemory() ? 'memory' : 'mongodb',
       },
       patients: await patients.list(), reports: await reports.list(),
@@ -1629,111 +2195,365 @@ const backup = {
     };
     for (const kind of COLLECTIONS) data[kind] = await all(kind); // eslint-disable-line no-restricted-syntax
     data.deleted = await meta.deleted();
+    data.meta.signature = backupSignature(data);
     return data;
   },
 
   async restore(payload) {
-    if (!payload || typeof payload !== 'object' || payload.meta?.app !== 'PathoNexa' || payload.meta?.version !== 2) {
+    if (!plainObject(payload) || !plainObject(payload.meta)
+      || payload.meta.app !== 'PathoNexa' || payload.meta.version !== BACKUP_VERSION) {
       throw Object.assign(new Error('A valid PathoNexa backup is required'), { status: 400 });
     }
-    const suppliedOwner = Buffer.from(String(payload.meta.owner || ''));
-    const expectedOwner = Buffer.from(backupOwnerProof());
-    if (suppliedOwner.length !== expectedOwner.length || !crypto.timingSafeEqual(suppliedOwner, expectedOwner)) {
+    if (!safeHexEqual(payload.meta.owner, backupOwnerProof())) {
       throw Object.assign(new Error('This backup belongs to a different account'), { status: 403 });
     }
+    if (!safeHexEqual(payload.meta.signature, backupSignature(payload))) {
+      throw Object.assign(new Error('Backup integrity check failed'), { status: 400 });
+    }
 
-    const hasPatients = Array.isArray(payload.patients);
-    const hasReports = Array.isArray(payload.reports);
-    const incomingPatients = hasPatients ? payload.patients.slice(0, 100000) : await patients.list();
-    if (hasPatients && incomingPatients.length !== payload.patients.length) throw Object.assign(new Error('Backup is too large'), { status: 413 });
-
+    // Validate and normalize the complete signed snapshot before changing any
+    // current record. This prevents malformed later sections from leaving a
+    // partially restored account.
+    const patientRecords = backupRecords(payload.patients, 'patient');
+    const reportRecords = backupRecords(payload.reports, 'report');
+    const hasPatients = patientRecords !== null;
+    const hasReports = reportRecords !== null;
+    const incomingPatients = hasPatients ? patientRecords : await patients.list();
     const preparedPatients = incomingPatients.map((item) => ({
-      ...pick(item, ['pid', ...PATIENT_FIELDS]),
-      name: String(item?.name || '').trim(), mobile: String(item?.mobile || '').trim(),
-      age: num(item?.age), gender: item?.gender,
+      ...patientPatch(item, true),
       pid: String(item?.pid || '').trim(),
       _sourceKeys: [item?._id, item?.id, item?.pid].filter(Boolean).map(String),
     }));
     preparedPatients.forEach((item) => {
-      if (!item.pid || !item.name || !/^[6-9]\d{9}$/.test(item.mobile) || !['Male', 'Female', 'Other'].includes(item.gender)) {
-        throw Object.assign(new Error('Backup contains an invalid patient'), { status: 400 });
-      }
+      if (!item.pid) badRequest('Backup contains an invalid patient');
     });
     validateUnique(preparedPatients, 'pid', 'patient IDs');
     validateUnique(preparedPatients, 'mobile', 'patient mobile numbers');
 
     const sourcePatientIndex = new Map();
-    preparedPatients.forEach((item, index) => item._sourceKeys.forEach((key) => sourcePatientIndex.set(key, index)));
-    const preparedReports = (hasReports ? payload.reports : []).map((item) => {
-      const sourceIndex = reportPatientKeys(item?.patient).map((key) => sourcePatientIndex.get(key)).find((value) => value !== undefined);
-      if (sourceIndex === undefined) throw Object.assign(new Error('Backup report references an unavailable patient'), { status: 400 });
+    preparedPatients.forEach((item, index) => item._sourceKeys.forEach((key) => {
+      const existing = sourcePatientIndex.get(key);
+      if (existing !== undefined && existing !== index) badRequest('Backup contains ambiguous patient references');
+      sourcePatientIndex.set(key, index);
+    }));
+
+    const sourceDoctors = backupRecords(payload.doctors, 'doctors');
+    const sourceDoctorIndex = new Map();
+    (sourceDoctors || []).forEach((doctor, index) => {
+      [doctor?._id, doctor?.id, doctor?.name].filter(Boolean).forEach((key) => {
+        const normalized = String(key);
+        const existing = sourceDoctorIndex.get(normalized);
+        if (existing !== undefined && existing !== index) badRequest('Backup contains ambiguous doctor references');
+        sourceDoctorIndex.set(normalized, index);
+      });
+    });
+
+    const preparedReports = (reportRecords || []).map((item) => {
+      const sourceIndex = reportPatientKeys(item.patient)
+        .map((key) => sourcePatientIndex.get(key))
+        .find((value) => value !== undefined);
+      if (sourceIndex === undefined) badRequest('Backup report references an unavailable patient');
+      const doctorName = String(item.doctor || 'Direct');
+      const sourceDoctor = [item.doctorId, doctorName]
+        .filter(Boolean)
+        .map((key) => sourceDoctorIndex.get(String(key)))
+        .find((value) => value !== undefined);
+      if (sourceDoctors && doctorName !== 'Direct' && sourceDoctor === undefined) {
+        badRequest('Backup report references an unavailable doctor');
+      }
       const report = {
         ...pick(item, ['reportId', ...REPORT_FIELDS]),
-        reportId: String(item?.reportId || '').trim(), test: String(item?.test || '').trim(), amount: num(item?.amount),
+        reportId: String(item.reportId || '').trim(),
+        test: String(item.test || '').trim(),
         _sourcePatientIndex: sourceIndex,
+        _sourceDoctorIndex: sourceDoctor,
       };
-      if (!report.reportId || !report.test || report.amount < 0) throw Object.assign(new Error('Backup contains an invalid report'), { status: 400 });
+      if (!report.reportId || !report.test) badRequest('Backup contains an invalid report');
+      if (report.status !== undefined && !['Pending', 'Completed', 'Cancelled'].includes(report.status)) {
+        badRequest('Backup contains an invalid report');
+      }
+      normalizeReportFinancials(report);
+      assertDiscountAllowed(report.amount, report.discount);
       return report;
     });
     validateUnique(preparedReports, 'reportId', 'report IDs');
 
-    const counts = {};
-    let restoredPatients;
-    if (hasPatients) {
-      if (useMemory()) {
-        mem.patients = preparedPatients.map(({ _sourceKeys, ...item }) => ({ ...item, _id: makeId(), createdAt: new Date(), updatedAt: new Date() }));
-        restoredPatients = mem.patients;
-        // Replacing patients invalidates reports unless reports are restored too.
-        mem.reports = [];
-      } else {
-        await Report.deleteMany({});
-        await Patient.deleteMany({});
-        restoredPatients = await Patient.insertMany(preparedPatients.map(({ _sourceKeys, ...item }) => item));
-      }
-      counts.patients = restoredPatients.length;
-    } else {
-      restoredPatients = incomingPatients;
-    }
-
-    if (hasReports) {
-      const records = preparedReports.map(({ _sourcePatientIndex, ...item }) => ({
-        ...item,
-        patient: useMemory() ? restoredPatients[_sourcePatientIndex] : restoredPatients[_sourcePatientIndex]._id,
-      }));
-      if (useMemory()) {
-        mem.reports = records.map((item) => ({ ...item, _id: makeId(), createdAt: new Date(), updatedAt: new Date() }));
-      } else {
-        if (!hasPatients) await Report.deleteMany({});
-        await Report.insertMany(records);
-      }
-      counts.reports = records.length;
-    } else if (hasPatients) counts.reports = 0;
-
-    if (hasPatients) await setSequenceAtLeast('patient', Math.max(maxSequence(preparedPatients, 'pid'), num(payload.sequences?.patient)));
-    if (hasReports) await setSequenceAtLeast('report', Math.max(maxSequence(preparedReports, 'reportId'), num(payload.sequences?.report)));
-
+    const preparedCollections = new Map();
     for (const kind of COLLECTIONS) {
-      if (!Array.isArray(payload[kind])) continue;
-      const records = payload[kind].slice(0, 100000).map(({ _id, id, ownerId, createdAt, updatedAt, ...data }) => data);
-      if (records.length !== payload[kind].length) throw Object.assign(new Error('Backup is too large'), { status: 413 });
-      if (useMemory()) mem[kind] = records.map((data) => ({ ...data, _id: makeId(), id: makeId(), createdAt: new Date(), updatedAt: new Date() }));
-      else {
-        await Meta.deleteMany({ kind }); // tenant plugin makes this account-local
-        if (records.length) await Meta.insertMany(records.map((data) => ({ kind, data })));
+      const source = backupRecords(payload[kind], kind);
+      if (source === null) continue;
+      const records = source.map((item) => {
+        const { _id, id, ownerId, createdAt, updatedAt, ...data } = item; // eslint-disable-line no-unused-vars
+        return data;
+      });
+      if (kind === 'doctors') {
+        const names = new Set();
+        records.forEach((doctor) => {
+          const name = String(doctor.name || '').trim();
+          const key = name.toLocaleLowerCase('en-IN');
+          if (!name || names.has(key)) badRequest('Backup contains duplicate or invalid doctors');
+          names.add(key);
+          doctor.name = name;
+        });
       }
-      counts[kind] = records.length;
+      if (kind === 'commissions') {
+        records.forEach((commission) => {
+          commission._sourceDoctorIndex = [commission.doctorId, commission.doctor]
+            .filter(Boolean)
+            .map((key) => sourceDoctorIndex.get(String(key)))
+            .find((value) => value !== undefined);
+        });
+      }
+      preparedCollections.set(kind, records);
     }
 
-    if (payload.settings && typeof payload.settings === 'object') await settings.update(payload.settings);
-    if (payload.subscription && typeof payload.subscription === 'object') {
-      if (useMemory()) mem.subscription = payload.subscription;
-      else {
-        const doc = (await Meta.findOne({ kind: 'subscription' })) || await Meta.create({ kind: 'subscription', data: {} });
-        doc.data = payload.subscription; doc.markModified('data'); await doc.save();
-      }
+    let preparedDeleted = null;
+    const deletedRecords = backupRecords(payload.deleted, 'deleted');
+    if (deletedRecords !== null) {
+      const allowedKinds = new Set(['patients', 'reports', ...COLLECTIONS]);
+      const deletedPatientSources = new Map();
+      deletedRecords.forEach((item) => {
+        if (item.kind !== 'patients') return;
+        [item._id, item.id, item.pid].filter(Boolean).forEach((key) => {
+          deletedPatientSources.set(String(key), item);
+        });
+      });
+      preparedDeleted = deletedRecords.map((item) => {
+        const { _id, id, ownerId, createdAt, updatedAt, ...data } = item; // eslint-disable-line no-unused-vars
+        if (!allowedKinds.has(data.kind)) badRequest('Backup contains an invalid deleted record');
+        if (data.kind === 'reports') {
+          const patientKeys = reportPatientKeys(data.patient);
+          const sourceIndex = patientKeys
+            .map((key) => sourcePatientIndex.get(key))
+            .find((value) => value !== undefined);
+          const deletedPatient = patientKeys
+            .map((key) => deletedPatientSources.get(key))
+            .find(Boolean);
+          const doctorName = String(data.doctor || 'Direct');
+          const doctorIndex = [data.doctorId, doctorName]
+            .filter(Boolean)
+            .map((key) => sourceDoctorIndex.get(String(key)))
+            .find((value) => value !== undefined);
+          return {
+            ...data,
+            ...(sourceIndex === undefined && deletedPatient
+              ? { patient: { pid: deletedPatient.pid } }
+              : {}),
+            _sourcePatientIndex: sourceIndex,
+            _sourceDoctorIndex: doctorIndex,
+          };
+        }
+        return data;
+      });
     }
-    if (payload.notificationRead && typeof payload.notificationRead === 'object') await persistNotificationState(payload.notificationRead);
-    return { restored: counts, storage: useMemory() ? 'memory' : 'mongodb' };
+
+    for (const [field, value] of [
+      ['settings', payload.settings],
+      ['subscription', payload.subscription],
+      ['notification state', payload.notificationRead],
+    ]) {
+      if (value !== undefined && !plainObject(value)) badRequest(`Backup contains invalid ${field}`);
+    }
+    if (plainObject(payload.notificationRead)
+      && Object.keys(payload.notificationRead).length > MAX_BACKUP_RECORDS) {
+      throw Object.assign(new Error('Backup is too large'), { status: 413 });
+    }
+    const cleanNotificationRead = plainObject(payload.notificationRead)
+      ? Object.fromEntries(Object.entries(payload.notificationRead).map(([key, value]) => [key, !!value]))
+      : null;
+    const patientSequence = Math.max(maxSequence(preparedPatients, 'pid'), num(payload.sequences?.patient));
+    const reportSequence = Math.max(maxSequence(preparedReports, 'reportId'), num(payload.sequences?.report));
+    const counts = {};
+
+    if (useMemory()) {
+      // Build every replacement first, then swap the tenant state only after
+      // the complete snapshot is known to be valid.
+      const restoredPatients = hasPatients
+        ? preparedPatients.map(({ _sourceKeys, ...item }) => ({
+          ...item, _id: makeId(), createdAt: new Date(), updatedAt: new Date(),
+        }))
+        : incomingPatients;
+      const restoredCollections = new Map();
+      preparedCollections.forEach((records, kind) => {
+        restoredCollections.set(kind, records.map((data) => {
+          const id = makeId();
+          return { ...data, _id: id, id, createdAt: new Date(), updatedAt: new Date() };
+        }));
+      });
+      const restoredDoctors = restoredCollections.get('doctors') || [];
+      (restoredCollections.get('commissions') || []).forEach((commission) => {
+        const doctorIndex = commission._sourceDoctorIndex;
+        delete commission._sourceDoctorIndex;
+        if (doctorIndex !== undefined) commission.doctorId = restoredDoctors[doctorIndex]?._id || '';
+      });
+      const restoredReports = hasReports
+        ? preparedReports.map(({ _sourcePatientIndex, _sourceDoctorIndex, ...item }) => ({
+          ...item,
+          _id: makeId(),
+          patient: restoredPatients[_sourcePatientIndex],
+          ...(_sourceDoctorIndex !== undefined
+            ? { doctorId: restoredDoctors[_sourceDoctorIndex]?._id || null }
+            : {}),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }))
+        : (hasPatients ? [] : null);
+      const restoredDeleted = preparedDeleted?.map((data) => {
+        const { _sourcePatientIndex, _sourceDoctorIndex, ...record } = data;
+        return {
+          ...record,
+          ...(record.kind === 'reports' && _sourcePatientIndex !== undefined
+            ? { patient: restoredPatients[_sourcePatientIndex] }
+            : {}),
+          ...(record.kind === 'reports' && _sourceDoctorIndex !== undefined
+            ? { doctorId: restoredDoctors[_sourceDoctorIndex]?._id || null }
+            : {}),
+          _id: makeId(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+      });
+
+      if (hasPatients) {
+        mem.patients = restoredPatients;
+        counts.patients = restoredPatients.length;
+      }
+      if (restoredReports) {
+        mem.reports = restoredReports;
+        counts.reports = restoredReports.length;
+      }
+      restoredCollections.forEach((records, kind) => {
+        mem[kind] = records;
+        counts[kind] = records.length;
+      });
+      if (restoredDeleted) {
+        mem.deleted = restoredDeleted;
+        counts.deleted = restoredDeleted.length;
+      }
+      if (plainObject(payload.settings)) mem.settings = { ...defaultSettings(), ...payload.settings };
+      if (plainObject(payload.subscription)) mem.subscription = structuredClone(payload.subscription);
+      if (cleanNotificationRead) mem.notificationState = cleanNotificationRead;
+      if (hasPatients) mem.sequences.patient = Math.max(num(mem.sequences.patient), patientSequence);
+      if (hasReports) mem.sequences.report = Math.max(num(mem.sequences.report), reportSequence);
+      return { restored: counts, storage: 'memory' };
+    }
+
+    try {
+      await mongoose.connection.transaction(async (session) => {
+        let restoredPatients = incomingPatients;
+        if (hasPatients) {
+          await Report.deleteMany({}).session(session);
+          await Patient.deleteMany({}).session(session);
+          restoredPatients = preparedPatients.length
+            ? await Patient.insertMany(
+              preparedPatients.map(({ _sourceKeys, ...item }) => item),
+              { session },
+            )
+            : [];
+          counts.patients = restoredPatients.length;
+        }
+
+        let restoredDoctors = null;
+        if (preparedCollections.has('doctors')) {
+          const doctorRecords = preparedCollections.get('doctors');
+          await Meta.deleteMany({ kind: 'doctors' }).session(session);
+          restoredDoctors = doctorRecords.length
+            ? await Meta.insertMany(doctorRecords.map((data) => ({ kind: 'doctors', data })), { session })
+            : [];
+          counts.doctors = restoredDoctors.length;
+        }
+
+        if (hasReports) {
+          const records = preparedReports.map(({ _sourcePatientIndex, _sourceDoctorIndex, ...item }) => ({
+            ...item,
+            patient: restoredPatients[_sourcePatientIndex]._id,
+            ...(_sourceDoctorIndex !== undefined
+              ? { doctorId: restoredDoctors?.[_sourceDoctorIndex]?._id || null }
+              : {}),
+          }));
+          if (!hasPatients) await Report.deleteMany({}).session(session);
+          if (records.length) await Report.insertMany(records, { session });
+          counts.reports = records.length;
+        } else if (hasPatients) {
+          counts.reports = 0;
+        }
+
+        if (hasPatients) {
+          await TenantCounter.findOneAndUpdate(
+            { key: 'patient' }, { $max: { value: patientSequence } },
+            { upsert: true, setDefaultsOnInsert: true, session },
+          );
+        }
+        if (hasReports) {
+          await TenantCounter.findOneAndUpdate(
+            { key: 'report' }, { $max: { value: reportSequence } },
+            { upsert: true, setDefaultsOnInsert: true, session },
+          );
+        }
+
+        for (const [kind, records] of preparedCollections) {
+          if (kind === 'doctors') continue;
+          await Meta.deleteMany({ kind }).session(session);
+          const remapped = records.map((data) => {
+            const { _sourceDoctorIndex, ...record } = data;
+            return {
+              ...record,
+              ...(kind === 'commissions' && _sourceDoctorIndex !== undefined
+                ? { doctorId: String(restoredDoctors?.[_sourceDoctorIndex]?._id || '') }
+                : {}),
+            };
+          });
+          if (remapped.length) await Meta.insertMany(remapped.map((data) => ({ kind, data })), { session });
+          counts[kind] = remapped.length;
+        }
+        if (preparedDeleted) {
+          await Meta.deleteMany({ kind: 'deleted' }).session(session);
+          if (preparedDeleted.length) {
+            const deleted = preparedDeleted.map((data) => {
+              const { _sourcePatientIndex, _sourceDoctorIndex, ...record } = data;
+              return {
+                kind: 'deleted',
+                data: {
+                  ...record,
+                  ...(record.kind === 'reports' && _sourcePatientIndex !== undefined
+                    ? { patient: restoredPatients[_sourcePatientIndex]._id }
+                    : {}),
+                  ...(record.kind === 'reports' && _sourceDoctorIndex !== undefined
+                    ? { doctorId: restoredDoctors?.[_sourceDoctorIndex]?._id || null }
+                    : {}),
+                },
+              };
+            });
+            await Meta.insertMany(deleted, { session });
+          }
+          counts.deleted = preparedDeleted.length;
+        }
+
+        const replaceSingleton = async (kind, data) => {
+          if (!data) return;
+          await Meta.deleteMany({ kind }).session(session);
+          await Meta.create([{ kind, data }], { session });
+        };
+        await replaceSingleton(
+          'settings',
+          plainObject(payload.settings) ? { ...defaultSettings(), ...payload.settings } : null,
+        );
+        await replaceSingleton(
+          'subscription',
+          plainObject(payload.subscription) ? payload.subscription : null,
+        );
+        await replaceSingleton(
+          'notification-state',
+          cleanNotificationRead ? { read: cleanNotificationRead } : null,
+        );
+      });
+    } catch (error) {
+      if (error?.code === 20 || /Transaction numbers are only allowed|does not support transactions/i.test(error?.message || '')) {
+        throw Object.assign(new Error('Atomic backup restore requires a transaction-capable MongoDB deployment'), { status: 503 });
+      }
+      throw error;
+    }
+    return { restored: counts, storage: 'mongodb' };
   },
 
   async status() {

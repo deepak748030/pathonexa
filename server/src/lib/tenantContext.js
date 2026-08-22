@@ -7,6 +7,8 @@ function runWithTenant(auth, callback) {
   return storage.run({
     id: String(auth.id),
     mobile: auth.mobile ? String(auth.mobile) : '',
+    name: auth.name ? String(auth.name) : '',
+    role: auth.role ? String(auth.role) : '',
   }, callback);
 }
 

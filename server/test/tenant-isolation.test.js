@@ -194,6 +194,8 @@ test('two mobile accounts cannot list, fetch, mutate, delete, infer, export, or 
   const exportB = await api('/backup/export', { token: b });
   assert.equal(exportA.status, 200);
   assert.equal(exportB.status, 200);
+  assert.equal(exportA.data.meta.version, 3);
+  assert.match(exportA.data.meta.signature, /^[a-f\d]{64}$/);
   assert.notEqual(exportA.data.meta.owner, exportB.data.meta.owner);
   assert.deepEqual(exportA.data.patients.map((item) => item.name), ['Account A Patient']);
   assert.deepEqual(exportB.data.patients.map((item) => item.name), ['Account B Patient']);
@@ -202,6 +204,22 @@ test('two mobile accounts cannot list, fetch, mutate, delete, infer, export, or 
   const crossRestore = await api('/backup/restore', { token: b, method: 'POST', body: exportA.data });
   assert.equal(crossRestore.status, 403);
   assert.equal(crossRestore.data.message, 'This backup belongs to a different account');
+
+  // Replacing the visible owner proof with this account's own proof must not
+  // turn another account's snapshot into an accepted backup.
+  const forgedOwner = structuredClone(exportA.data);
+  forgedOwner.meta.owner = exportB.data.meta.owner;
+  const forgedRestore = await api('/backup/restore', { token: b, method: 'POST', body: forgedOwner });
+  assert.equal(forgedRestore.status, 400);
+  assert.equal(forgedRestore.data.message, 'Backup integrity check failed');
+
+  const tamperedSelf = structuredClone(exportA.data);
+  tamperedSelf.patients[0].name = 'Tampered Patient';
+  const tamperedRestore = await api('/backup/restore', { token: a, method: 'POST', body: tamperedSelf });
+  assert.equal(tamperedRestore.status, 400);
+  assert.equal(tamperedRestore.data.message, 'Backup integrity check failed');
+  assert.deepEqual((await api('/patients', { token: a })).data.map((item) => item.name), ['Account A Patient']);
+
   const selfRestore = await api('/backup/restore', { token: a, method: 'POST', body: exportA.data });
   assert.equal(selfRestore.status, 200);
   const afterRestoreB = await api('/patients', { token: b });
@@ -216,6 +234,315 @@ test('two mobile accounts cannot list, fetch, mutate, delete, infer, export, or 
   assert.equal(crossDeletedRestore.status, 404);
   const deletedB = await api('/deleted', { token: b });
   assert.equal(deletedB.data.length, 0);
+
+  // Deleted-record history is part of a full backup and must survive restore.
+  const backupWithDeleted = await api('/backup/export', { token: a });
+  assert.equal(backupWithDeleted.data.deleted.length, 1);
+  assert.equal((await api(`/deleted/${deletedA.data[0]._id}/restore`, { token: a, method: 'POST' })).status, 200);
+  assert.equal((await api('/deleted', { token: a })).data.length, 0);
+  assert.equal((await api('/backup/restore', { token: a, method: 'POST', body: backupWithDeleted.data })).status, 200);
+  assert.equal((await api('/deleted', { token: a })).data.length, 1);
+});
+
+test('patient, report, and payment validation keeps balances and ledgers consistent', async () => {
+  const { token } = await signIn('9654321098');
+  const patient = await api('/patients', {
+    token, method: 'POST',
+    body: { name: 'Infant Patient', age: 0, gender: 'Other', mobile: '8765400001', ownerId: '507f191e810c19729de860ea' },
+  });
+  assert.equal(patient.status, 201);
+  assert.equal(patient.data.age, 0);
+  assert.equal(patient.data.ownerId, undefined);
+
+  const invalidPatient = await api(`/patients/${patient.data._id}`, {
+    token, method: 'PATCH', body: { mobile: '123', age: 500 },
+  });
+  assert.equal(invalidPatient.status, 400);
+  const unchangedPatient = await api(`/patients/${patient.data._id}`, { token });
+  assert.equal(unchangedPatient.data.mobile, '8765400001');
+  assert.equal(unchangedPatient.data.age, 0);
+
+  const duplicatePatients = await Promise.all([
+    api('/patients', {
+      token, method: 'POST',
+      body: { name: 'Duplicate One', age: 20, gender: 'Male', mobile: '8765400002' },
+    }),
+    api('/patients', {
+      token, method: 'POST',
+      body: { name: 'Duplicate Two', age: 21, gender: 'Female', mobile: '8765400002' },
+    }),
+  ]);
+  assert.deepEqual(duplicatePatients.map((response) => response.status).sort(), [201, 400]);
+
+  const negativeReport = await api('/reports', {
+    token, method: 'POST', body: { patient: patient.data._id, test: 'CBC', amount: -1 },
+  });
+  assert.equal(negativeReport.status, 400);
+  const inconsistentReport = await api('/reports', {
+    token, method: 'POST',
+    body: { patient: patient.data._id, test: 'CBC', amount: 100, paidAmount: 20, pendingAmount: 10 },
+  });
+  assert.equal(inconsistentReport.status, 400);
+
+  const duplicateReports = await Promise.all([
+    api('/reports', {
+      token, method: 'POST',
+      body: {
+        reportId: 'RPT-RACE-001', patient: patient.data._id, test: 'Duplicate CBC',
+        amount: 40, paidAmount: 10, pendingAmount: 30,
+      },
+    }),
+    api('/reports', {
+      token, method: 'POST',
+      body: {
+        reportId: 'RPT-RACE-001', patient: patient.data._id, test: 'Duplicate CBC',
+        amount: 40, paidAmount: 10, pendingAmount: 30,
+      },
+    }),
+  ]);
+  assert.deepEqual(duplicateReports.map((response) => response.status).sort(), [201, 400]);
+  const duplicateReportLedger = await api('/transactions?reportId=RPT-RACE-001', { token });
+  assert.equal(duplicateReportLedger.data.length, 1);
+  assert.equal(duplicateReportLedger.data[0].amount, 10);
+
+  const directNegativeExpense = await api('/expenses', {
+    token, method: 'POST', body: { name: 'Invalid expense', amount: -1 },
+  });
+  assert.equal(directNegativeExpense.status, 400);
+  const expense = await api('/expenses', {
+    token, method: 'POST', body: { name: 'Protected expense', amount: 25 },
+  });
+  assert.equal(expense.status, 201);
+  const crossCollectionPatch = await api(`/doctors/${expense.data._id}`, {
+    token, method: 'PATCH', body: { name: 'Wrong collection' },
+  });
+  assert.equal(crossCollectionPatch.status, 404);
+  const crossCollectionDelete = await api(`/doctors/${expense.data._id}`, {
+    token, method: 'DELETE',
+  });
+  assert.equal(crossCollectionDelete.status, 404);
+  assert.equal((await api(`/expenses/${expense.data._id}`, { token })).data.amount, 25);
+
+  const forgedTransaction = await api('/transactions', {
+    token, method: 'POST', body: { amount: 999, type: 'Collection', txnId: 'FORGED' },
+  });
+  assert.equal(forgedTransaction.status, 405);
+
+  const initiallyPaidReport = await api('/reports', {
+    token, method: 'POST',
+    body: {
+      patient: patient.data._id,
+      test: 'LFT',
+      amount: 50,
+      paidAmount: 20,
+      pendingAmount: 30,
+      transactionId: 'FORGED-TRANSACTION-ID',
+    },
+  });
+  assert.equal(initiallyPaidReport.status, 201);
+  assert.equal(initiallyPaidReport.data.transactionId, undefined);
+  const initialLedger = await api(`/transactions?reportId=${encodeURIComponent(initiallyPaidReport.data.reportId)}`, { token });
+  assert.equal(initialLedger.data.reduce((sum, item) => sum + item.amount, 0), 20);
+  assert.notEqual(initialLedger.data[0].txnId, 'FORGED-TRANSACTION-ID');
+  const ledgerRewrite = await api(`/transactions/${initialLedger.data[0]._id}`, {
+    token, method: 'PATCH', body: { amount: 999 },
+  });
+  assert.equal(ledgerRewrite.status, 405);
+  assert.equal((await api(`/transactions?reportId=${encodeURIComponent(initiallyPaidReport.data.reportId)}`, { token })).data[0].amount, 20);
+
+  const report = await api('/reports', {
+    token, method: 'POST', body: { patient: patient.data._id, test: 'CBC', amount: 100, status: 'Pending' },
+  });
+  assert.equal(report.status, 201);
+  assert.equal(report.data.paidAmount, 0);
+  assert.equal(report.data.pendingAmount, 100);
+  assert.equal(report.data.paid, false);
+
+  const directBalanceEdit = await api(`/reports/${report.data._id}`, {
+    token, method: 'PATCH', body: { paidAmount: 99, pendingAmount: 1 },
+  });
+  assert.equal(directBalanceEdit.status, 400);
+  for (const patch of [
+    { amount: 1 },
+    { discount: 1 },
+    { paymentMode: 'UPI' },
+    { transactionId: 'FORGED' },
+    { doctor: 'Reassigned Doctor' },
+    { verified: true, verifiedBy: 'Forged Verifier' },
+  ]) {
+    const immutableBillingEdit = await api(`/reports/${report.data._id}`, {
+      token, method: 'PATCH', body: patch,
+    });
+    assert.equal(immutableBillingEdit.status, 400);
+  }
+  const unchangedBilling = await api(`/reports/${report.data._id}`, { token });
+  assert.equal(unchangedBilling.data.amount, 100);
+  assert.equal(unchangedBilling.data.discount || 0, 0);
+  assert.equal(unchangedBilling.data.verified, false);
+
+  const verifiedReport = await api(`/reports/${report.data._id}/verify`, {
+    token, method: 'POST', body: { by: 'Forged Verifier' },
+  });
+  assert.equal(verifiedReport.status, 200);
+  assert.equal(verifiedReport.data.verified, true);
+  assert.equal(verifiedReport.data.verifiedBy, 'Lab Owner');
+  assert.equal(verifiedReport.data.status, 'Completed');
+
+  const negativePayment = await api('/transactions/collect', {
+    token, method: 'POST', body: { reportId: report.data._id, amount: -10 },
+  });
+  assert.equal(negativePayment.status, 400);
+
+  const collections = await Promise.all([
+    api('/transactions/collect', { token, method: 'POST', body: { reportId: report.data._id, amount: 80, mode: 'Cash' } }),
+    api('/transactions/collect', { token, method: 'POST', body: { reportId: report.data._id, amount: 80, mode: 'UPI' } }),
+  ]);
+  collections.forEach((response) => assert.equal(response.status, 201));
+  assert.equal(collections.reduce((sum, response) => sum + response.data.transaction.amount, 0), 100);
+  const paidReport = await api(`/reports/${report.data._id}`, { token });
+  assert.equal(paidReport.data.paidAmount, 100);
+  assert.equal(paidReport.data.pendingAmount, 0);
+  assert.equal(paidReport.data.paid, true);
+  const ledger = await api(`/transactions?reportId=${encodeURIComponent(report.data.reportId)}`, { token });
+  assert.equal(ledger.data.reduce((sum, item) => sum + item.amount, 0), 100);
+
+  const doctor = await api('/doctors', {
+    token, method: 'POST', body: { name: 'Commission Doctor', commission: 10 },
+  });
+  assert.equal(doctor.status, 201);
+  const duplicateDoctor = await api('/doctors', {
+    token, method: 'POST', body: { name: ' commission doctor ', commission: 15 },
+  });
+  assert.equal(duplicateDoctor.status, 400);
+  const referredReport = await api('/reports', {
+    token, method: 'POST',
+    body: { patient: patient.data._id, doctor: doctor.data.name, test: 'KFT', amount: 100 },
+  });
+  assert.equal(referredReport.status, 201);
+  assert.equal(referredReport.data.commission, 10);
+  assert.equal(referredReport.data.commissionPaid, false);
+
+  const racingPayouts = await Promise.all([
+    api('/commissions/pay', { token, method: 'POST', body: { doctorId: doctor.data._id, amount: 8 } }),
+    api('/commissions/pay', { token, method: 'POST', body: { doctorId: doctor.data._id, amount: 8 } }),
+  ]);
+  assert.deepEqual(racingPayouts.map((response) => response.status).sort(), [201, 400]);
+  const remainingPayout = await api('/commissions', {
+    token, method: 'POST', body: { doctorId: doctor.data._id, amount: 2 },
+  });
+  assert.equal(remainingPayout.status, 201);
+  const payouts = await api('/commissions', { token });
+  assert.equal(payouts.data.filter((item) => item.doctor === doctor.data.name).reduce((sum, item) => sum + item.amount, 0), 10);
+  const payoutRewrite = await api(`/commissions/${remainingPayout.data._id}`, {
+    token, method: 'DELETE',
+  });
+  assert.equal(payoutRewrite.status, 405);
+
+  const renamedDoctor = await api(`/doctors/${doctor.data._id}`, {
+    token, method: 'PATCH', body: { name: 'Renamed Commission Doctor' },
+  });
+  assert.equal(renamedDoctor.status, 200);
+  const renamedLedger = await api(`/doctors/${doctor.data._id}/ledger`, { token });
+  assert.equal(renamedLedger.status, 200);
+  assert.equal(renamedLedger.data.totalReports, 1);
+  assert.equal(renamedLedger.data.totalCommission, 10);
+  assert.equal(renamedLedger.data.paidCommission, 10);
+  const protectedDoctorDelete = await api(`/doctors/${doctor.data._id}`, {
+    token, method: 'DELETE',
+  });
+  assert.equal(protectedDoctorDelete.status, 409);
+
+  const subscriptionBefore = await api('/subscription', { token });
+  const previousExpiry = new Date(subscriptionBefore.data.expiresAt).getTime();
+  const activations = await Promise.all([
+    api('/subscription/subscribe', { token, method: 'POST', body: { planId: 'monthly' } }),
+    api('/subscription/subscribe', { token, method: 'POST', body: { planId: 'monthly' } }),
+  ]);
+  activations.forEach((response) => assert.equal(response.status, 200));
+  const subscriptionAfter = await api('/subscription', { token });
+  const extendedByDays = (new Date(subscriptionAfter.data.expiresAt).getTime() - previousExpiry) / 86_400_000;
+  assert.ok(extendedByDays >= 59.99 && extendedByDays <= 60.01);
+  assert.equal(subscriptionAfter.data.history.length, subscriptionBefore.data.history.length + 2);
+  assert.equal(new Set(subscriptionAfter.data.history.slice(-2).map((item) => item.invoice)).size, 2);
+  const subscriptionLedger = await api('/transactions?type=Subscription', { token });
+  assert.equal(subscriptionLedger.data.length, 2);
+  assert.equal(new Set(subscriptionLedger.data.map((item) => item.txnId)).size, 2);
+
+  const patientWithReportsDelete = await api(`/patients/${patient.data._id}`, {
+    token, method: 'DELETE',
+  });
+  assert.equal(patientWithReportsDelete.status, 409);
+  assert.equal((await api(`/patients/${patient.data._id}`, { token })).status, 200);
+});
+
+test('backup restore remaps stable doctor history and commission references', async () => {
+  const { token } = await signIn('9665432109');
+  const patient = await api('/patients', {
+    token, method: 'POST',
+    body: { name: 'Doctor History Patient', age: 34, gender: 'Female', mobile: '8765499991' },
+  });
+  const doctor = await api('/doctors', {
+    token, method: 'POST', body: { name: 'Backup Doctor', commission: 10 },
+  });
+  const report = await api('/reports', {
+    token, method: 'POST',
+    body: { patient: patient.data._id, doctor: doctor.data.name, test: 'CBC', amount: 100 },
+  });
+  assert.equal(report.status, 201);
+  assert.equal(report.data.doctorId, doctor.data._id);
+  assert.equal((await api('/commissions/pay', {
+    token, method: 'POST', body: { doctorId: doctor.data._id, amount: 4 },
+  })).status, 201);
+
+  const exported = await api('/backup/export', { token });
+  assert.equal(exported.status, 200);
+  const restored = await api('/backup/restore', { token, method: 'POST', body: exported.data });
+  assert.equal(restored.status, 200);
+
+  const restoredDoctor = (await api('/doctors', { token })).data
+    .find((item) => item.name === 'Backup Doctor');
+  const restoredReport = (await api('/reports', { token })).data
+    .find((item) => item.reportId === report.data.reportId);
+  assert.ok(restoredDoctor);
+  assert.ok(restoredReport);
+  assert.notEqual(restoredDoctor._id, doctor.data._id);
+  assert.equal(restoredReport.doctorId, restoredDoctor._id);
+  const ledger = await api(`/doctors/${restoredDoctor._id}/ledger`, { token });
+  assert.equal(ledger.status, 200);
+  assert.equal(ledger.data.totalReports, 1);
+  assert.equal(ledger.data.totalCommission, 10);
+  assert.equal(ledger.data.paidCommission, 4);
+});
+
+test('concurrent settings and notification mutations preserve account state', async () => {
+  const { token } = await signIn('9675432109');
+  const settingsWrites = await Promise.all([
+    api('/settings', { token, method: 'PATCH', body: { labName: 'Concurrent Lab' } }),
+    api('/settings', { token, method: 'PATCH', body: { whatsappNumber: '9876543210' } }),
+  ]);
+  settingsWrites.forEach((response) => assert.equal(response.status, 200));
+  const currentSettings = await api('/settings', { token });
+  assert.equal(currentSettings.data.labName, 'Concurrent Lab');
+  assert.equal(currentSettings.data.whatsappNumber, '9876543210');
+
+  const patient = await api('/patients', {
+    token, method: 'POST',
+    body: { name: 'Notification Patient', age: 29, gender: 'Male', mobile: '8765499992' },
+  });
+  const report = await api('/reports', {
+    token, method: 'POST',
+    body: { patient: patient.data._id, test: 'Pending CBC', amount: 80 },
+  });
+  assert.equal(report.status, 201);
+  const before = await api('/notifications', { token });
+  const pending = before.data.find((item) => item.id === `pay-${report.data._id}`);
+  assert.ok(pending);
+  const notificationWrites = await Promise.all([
+    api(`/notifications/${encodeURIComponent(pending.id)}/read`, { token, method: 'POST' }),
+    api('/notifications/read-all', { token, method: 'POST' }),
+  ]);
+  notificationWrites.forEach((response) => assert.equal(response.status, 200));
+  assert.equal((await api('/notifications/count', { token })).data.unread, 0);
 });
 
 test('parallel creates and backup restore preserve unique account-scoped sequences', async () => {

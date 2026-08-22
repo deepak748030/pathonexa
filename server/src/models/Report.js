@@ -8,6 +8,7 @@ const reportSchema = new mongoose.Schema({
   tests: { type: Array, default: [] },
   package: { type: String, default: '' },
   doctor: { type: String, default: 'Direct' },
+  doctorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Meta', default: null },
   date: { type: String },
   time: { type: String },
   amount: { type: Number, required: true, min: 0 },
@@ -34,6 +35,7 @@ const reportSchema = new mongoose.Schema({
 reportSchema.plugin(tenantPlugin);
 reportSchema.index({ ownerId: 1, reportId: 1 }, { unique: true });
 reportSchema.index({ ownerId: 1, patient: 1, createdAt: -1 });
+reportSchema.index({ ownerId: 1, doctorId: 1, createdAt: -1 });
 reportSchema.index({ ownerId: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Report', reportSchema);

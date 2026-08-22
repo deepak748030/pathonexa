@@ -64,7 +64,7 @@ notifications. Only the account-owned clinical test catalogue is initialized.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `PORT` | `5000` | Port the API listens on |
-| `MONGODB_URI` | `mongodb://localhost:27017/pathonexa` | Required persistent Mongo connection string |
+| `MONGODB_URI` | — | Required persistent MongoDB Atlas or replica-set connection string |
 | `JWT_SECRET` | — | Secret for signing JWT tokens (**32+ random characters in production**) |
 | `NODE_ENV` | `development` | Runtime environment |
 | `ALLOW_IN_MEMORY` | `false` | Explicit disposable local adapter; never enable in production |
@@ -84,9 +84,13 @@ notifications. Only the account-owned clinical test catalogue is initialized.
 > are persisted and atomically consumed, so verification remains safe across
 > concurrent requests and multiple API instances.
 
-**MongoDB Atlas:** create a free cluster at [mongodb.com](https://www.mongodb.com/cloud/atlas),
-whitelist your IP in *Network Access*, and paste the connection string into
-`MONGODB_URI`.
+**MongoDB must support transactions.** Use MongoDB Atlas (recommended) or a
+local replica set; a standalone `mongod` is intentionally rejected rather than
+allowing partial financial, subscription, backup, or delete/archive writes.
+For local development, initialize a replica set and use a URI such as
+`mongodb://localhost:27017/pathonexa?replicaSet=rs0`. For Atlas, create a cluster
+at [mongodb.com](https://www.mongodb.com/cloud/atlas), allow your deployment in
+*Network Access*, and paste the connection string into `MONGODB_URI`.
 
 ---
 
@@ -230,7 +234,7 @@ vercel                      # inside the server/ folder
 
 | Problem | Fix |
 | --- | --- |
-| `MongoDB connection failed` in logs | The server fails closed. Check `MONGODB_URI`, database availability, and the Atlas IP allowlist. |
+| `MongoDB connection failed` in logs | The server fails closed. Check `MONGODB_URI`, transaction/replica-set support, database availability, and the Atlas network allowlist. |
 | App can't reach the server | Ensure the server is running (`npm run dev`) and the app's `EXPO_PUBLIC_API_URL` matches your platform (table above). |
 | `EADDRINUSE` on port 5000 | Change `PORT` in `.env` and update `EXPO_PUBLIC_API_URL` in the app. |
 | CORS errors | Add the exact browser origin to `CORS_ORIGINS`; native requests do not require a browser origin. |

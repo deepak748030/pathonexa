@@ -65,7 +65,7 @@ router.post('/:id/duplicate', async (req, res, next) => {
 
 router.post('/:id/verify', async (req, res, next) => {
   try {
-    res.json(await store.reports.verify(req.params.id, req.body?.by));
+    res.json(await store.reports.verify(req.params.id));
   } catch (err) {
     next(err);
   }
