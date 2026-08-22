@@ -3,64 +3,110 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
-const { connectDB, isReady } = require('./config/db');
-const store = require('./lib/store');
+const { connectDB, startDB, isReady, mode, retrying } = require('./config/db');
+const { requireAuth } = require('./middleware/auth');
+// Register models/store before database index synchronization starts.
+require('./lib/store');
 
 const app = express();
 
-// Connect to MongoDB (falls back to the in-memory store when unreachable).
-connectDB();
+function corsOrigin(origin, callback) {
+  if (!origin) return callback(null, true); // native apps and server-to-server clients
+  const configured = String(process.env.CORS_ORIGINS || '')
+    .split(',').map((item) => item.trim()).filter(Boolean);
+  if (configured.includes(origin)) return callback(null, true);
+  if (process.env.NODE_ENV !== 'production') {
+    try {
+      const url = new URL(origin);
+      if (['localhost', '127.0.0.1', '10.0.2.2'].includes(url.hostname) || url.hostname.endsWith('.e2b.app')) {
+        return callback(null, true);
+      }
+    } catch { /* rejected below */ }
+  }
+  return callback(Object.assign(new Error('Origin is not allowed'), { status: 403 }));
+}
 
-// Middleware
-app.use(cors());
-app.use(express.json({ limit: '25mb' }));
-app.use(express.urlencoded({ extended: true, limit: '25mb' }));
-app.use(morgan('dev'));
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
+app.use(cors({ origin: corsOrigin, credentials: false, allowedHeaders: ['Authorization', 'Content-Type'] }));
+app.use(express.json({ limit: '10mb', strict: true }));
+app.use(express.urlencoded({ extended: false, limit: '1mb' }));
+if (process.env.NODE_ENV !== 'test') app.use(morgan('dev'));
 
-// Health check — the app pings this to show the server connection status.
 app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    status: 'ok',
-    message: 'PathoNexa API is running',
-    db: isReady() ? 'mongodb' : 'memory',
+  const dbMode = mode();
+  const available = isReady() || dbMode === 'memory';
+  res.status(available ? 200 : 503).json({
+    status: available ? 'ok' : 'unavailable',
+    message: available ? 'PathoNexa API is running' : 'Persistent database is unavailable',
+    db: dbMode,
+    persistent: isReady(),
+    retrying: retrying(),
     time: new Date().toISOString(),
   });
 });
 
-// Routes
+// OTP request/verification are the only unauthenticated business endpoints.
 app.use('/api/auth', require('./routes/authRoutes'));
+
+// Every route below this point has a verified account and AsyncLocalStorage
+// tenant context. Store and model layers additionally enforce that owner.
+app.use('/api', requireAuth);
 app.use('/api/patients', require('./routes/patientRoutes'));
 app.use('/api/reports', require('./routes/reportRoutes'));
 app.use('/api/dashboard', require('./routes/dashboardRoutes'));
-// Module routes (ledger, commissions, analytics, subscription, backup, …)
-// are mounted before the generic master-data CRUD so their nested paths win.
 app.use('/api', require('./routes/moduleRoutes'));
 app.use('/api', require('./routes/metaRoutes'));
 
-// 404 Handler
 app.use((req, res) => {
   res.status(404).json({ message: `Route not found: ${req.originalUrl}` });
 });
 
-// Error Handler
-app.use((err, req, res, next) => {
-  console.error('API Error:', err.message);
-  const status = err.status || 500;
+app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
+  const duplicate = err?.code === 11000;
+  const validation = err?.name === 'ValidationError' || err?.name === 'CastError';
+  const status = duplicate ? 409 : validation ? 400 : (err.status || 500);
+  if (status >= 500) console.error('API Error:', err.message);
   res.status(status).json({
-    message: err.message || 'Something went wrong!',
-    // Only leak stack traces for unexpected server errors in development.
-    error: status >= 500 && process.env.NODE_ENV === 'development' ? err.stack : undefined,
+    message: duplicate ? 'A record with these details already exists' : validation ? 'Invalid request data' : (err.message || 'Something went wrong'),
   });
 });
 
-const PORT = process.env.PORT || 5000;
-if (process.env.NODE_ENV !== 'production') {
-  // 0.0.0.0 so the app can reach the server from Android emulators / LAN devices.
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[server] PathoNexa API running on http://localhost:${PORT} (${isReady() ? 'MongoDB' : 'in-memory'} mode)`);
-    console.log(`[server] Health check: http://localhost:${PORT}/api/health`);
+const PORT = Number(process.env.PORT) || 5000;
+let listenerPromise = null;
+if (require.main === module) {
+  // Listen independently of MongoDB so nodemon/container health checks keep
+  // working during temporary Atlas/network outages. Health and every business
+  // operation remain fail-closed until the required persistence is ready.
+  const listener = app.listen(PORT, '0.0.0.0');
+  listenerPromise = new Promise((resolve, reject) => {
+    listener.once('listening', () => {
+      console.log(`[server] PathoNexa API listening on http://localhost:${PORT} (${mode()} mode)`);
+      resolve(listener);
+    });
+    listener.once('error', reject);
   });
+  listenerPromise.catch((error) => {
+    console.error(`[server] HTTP listener failed: ${error.message}`);
+    process.exitCode = 1;
+  });
+  startDB().catch(() => {
+    const detail = process.env.MONGODB_URI?.trim()
+      ? 'automatic MongoDB retry is active.'
+      : 'configure MONGODB_URI and restart the process.';
+    console.warn(`[server] API is listening in database-wait mode; ${detail}`);
+  });
+} else {
+  // Serverless handlers await readiness through requireAuth/store methods.
+  connectDB().catch(() => {});
 }
 
-// Export for Vercel
 module.exports = app;
+module.exports.listenerPromise = listenerPromise;

@@ -10,7 +10,7 @@ const store = require('../lib/store');
  */
 router.get('/', async (req, res, next) => {
   try {
-    res.json(await store.patients.list());
+    res.json(await store.patients.list(req.query));
   } catch (err) {
     next(err);
   }

@@ -21,11 +21,21 @@ const keys = [
   'templates', 'packages', 'expenses', 'transactions', 'commissions',
   'drafts', 'labs', 'roles',
 ];
+const immutableLedgers = new Set(['transactions', 'commissions']);
+
+function rejectLedgerRewrite(key) {
+  if (immutableLedgers.has(key)) {
+    throw Object.assign(new Error('Financial ledger entries are immutable'), { status: 405 });
+  }
+}
 
 keys.forEach((key) => {
   router.get(`/${key}`, async (req, res, next) => {
     try {
-      res.json(await store.meta[key].list());
+      // The transaction ledger has server-owned filtering/normalization that
+      // must not be bypassed through the generic metadata route.
+      const api = key === 'transactions' ? store.transactions : store.meta[key];
+      res.json(await api.list(req.query));
     } catch (err) { next(err); }
   });
 
@@ -37,24 +47,34 @@ keys.forEach((key) => {
 
   router.post(`/${key}`, async (req, res, next) => {
     try {
-      res.status(201).json(await store.meta[key].create(req.body));
+      if (key === 'transactions') {
+        throw Object.assign(
+          new Error('Transaction entries must be created through a billing workflow'),
+          { status: 405 },
+        );
+      }
+      const api = key === 'commissions' ? { create: store.commissions.pay } : store.meta[key];
+      res.status(201).json(await api.create(req.body));
     } catch (err) { next(err); }
   });
 
   router.patch(`/${key}/:id`, async (req, res, next) => {
     try {
+      rejectLedgerRewrite(key);
       res.json(await store.meta[key].update(req.params.id, req.body));
     } catch (err) { next(err); }
   });
 
   router.put(`/${key}/:id`, async (req, res, next) => {
     try {
+      rejectLedgerRewrite(key);
       res.json(await store.meta[key].update(req.params.id, req.body));
     } catch (err) { next(err); }
   });
 
   router.delete(`/${key}/:id`, async (req, res, next) => {
     try {
+      rejectLedgerRewrite(key);
       res.json(await store.meta[key].remove(req.params.id));
     } catch (err) { next(err); }
   });
@@ -63,7 +83,7 @@ keys.forEach((key) => {
 /* Deleted records bin ------------------------------------------------ */
 router.get('/deleted', async (req, res, next) => {
   try {
-    res.json(await store.meta.deleted());
+    res.json(await store.meta.deleted(req.query));
   } catch (err) { next(err); }
 });
 

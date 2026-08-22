@@ -196,13 +196,13 @@ export function Stamp() {
 }
 
 const styles = StyleSheet.create({
-  donutWrap: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  donutWrap: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4 },
   donutCenter: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   donutTotal: { fontSize: 22, fontWeight: '800', color: C.text },
   donutTotalSub: { fontSize: 10, color: C.faint },
-  donutLegend: { flex: 1, gap: 10 },
-  legendRow: { flexDirection: 'row', alignItems: 'center' },
-  legendDot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
+  donutLegend: { flex: 1, gap: 0 },
+  legendRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
+  legendDot: { width: 8, height: 8, borderRadius: 4, marginRight: 4 },
   legendLabel: { fontSize: 12, color: C.sub, flex: 1 },
   legendValue: { fontSize: 12, fontWeight: '700', color: C.text },
 });

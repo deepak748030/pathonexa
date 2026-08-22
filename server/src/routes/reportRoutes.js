@@ -9,7 +9,7 @@ const store = require('../lib/store');
  */
 router.get('/', async (req, res, next) => {
   try {
-    res.json(await store.reports.list());
+    res.json(await store.reports.list(req.query));
   } catch (err) {
     next(err);
   }
@@ -65,7 +65,7 @@ router.post('/:id/duplicate', async (req, res, next) => {
 
 router.post('/:id/verify', async (req, res, next) => {
   try {
-    res.json(await store.reports.verify(req.params.id, req.body?.by));
+    res.json(await store.reports.verify(req.params.id));
   } catch (err) {
     next(err);
   }

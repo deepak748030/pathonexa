@@ -7,8 +7,11 @@ export const C = {
   headerBottom: '#1668E8',
   bg: '#F3F5FA',
   card: '#FFFFFF',
+  primaryPale: '#F5F8FF',
+  primaryBorder: '#CFE0FB',
   border: '#E7ECF5',
   borderSoft: '#EEF2F9',
+  borderStrong: '#D7DFEC',
   text: '#101D35',
   sub: '#66748E',
   faint: '#9AA6BD',
@@ -27,10 +30,11 @@ export const C = {
   darker: '#141A24',
 } as const;
 
+// Compact radius scale for a flatter, less-rounded interface.
 export const R = {
-  card: 16,
-  field: 10,
-  chip: 10,
+  card: 6,
+  field: 4,
+  chip: 4,
 } as const;
 
 export const S = {
@@ -42,13 +46,19 @@ export const S = {
   tiny: 10.5,
 } as const;
 
-export const shadow = {
-  shadowColor: '#12244A',
-  shadowOffset: { width: 0, height: 4 },
-  shadowOpacity: 0.06,
-  shadowRadius: 12,
-  elevation: 3,
-} as const;
+// Screen content intentionally sits close to the viewport edge.
+export const PAGE_GUTTER = 4;
+export const COMPACT_GAP = 4;
+
+export type Tone = 'blue' | 'green' | 'orange' | 'purple' | 'pink' | 'red';
+export const toneColor: Record<Tone, { fg: string; bg: string }> = {
+  blue: { fg: '#1467E8', bg: '#E8F0FE' },
+  green: { fg: '#16A34A', bg: '#E6F6EC' },
+  orange: { fg: '#F59E0B', bg: '#FEF3E0' },
+  purple: { fg: '#7C3AED', bg: '#F1E9FE' },
+  pink: { fg: '#EC4899', bg: '#FDE9F1' },
+  red: { fg: '#EF4444', bg: '#FDEBEC' },
+};
 
 export const fmtINR = (n: number) => '₹' + n.toLocaleString('en-IN');
 

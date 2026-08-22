@@ -1,13 +1,19 @@
 {
   "expo": {
-    "name": "PathoNexa New",
+    "name": "PathoNexa",
     "slug": "pathonexa-newapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "pathonexa-new",
     "userInterfaceStyle": "light",
+    "backgroundColor": "#1467E8",
     "softwareKeyboardLayoutMode": "pan",
+    "androidStatusBar": {
+      "backgroundColor": "#1467E8",
+      "barStyle": "light-content",
+      "translucent": true
+    },
     "splash": {
       "image": "./assets/icon.png",
       "resizeMode": "contain",

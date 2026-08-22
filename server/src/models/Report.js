@@ -1,15 +1,17 @@
 const mongoose = require('mongoose');
+const tenantPlugin = require('../lib/tenantPlugin');
 
-const reportSchema = mongoose.Schema({
-  reportId: { type: String, required: true, unique: true },
+const reportSchema = new mongoose.Schema({
+  reportId: { type: String, required: true, trim: true },
   patient: { type: mongoose.Schema.Types.ObjectId, ref: 'Patient', required: true },
   test: { type: String, required: true },
   tests: { type: Array, default: [] },
   package: { type: String, default: '' },
   doctor: { type: String, default: 'Direct' },
+  doctorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Meta', default: null },
   date: { type: String },
   time: { type: String },
-  amount: { type: Number, required: true },
+  amount: { type: Number, required: true, min: 0 },
   status: { type: String, enum: ['Completed', 'Pending', 'Cancelled'], default: 'Pending' },
   paid: { type: Boolean, default: false },
   discount: { type: Number, default: 0 },
@@ -26,9 +28,14 @@ const reportSchema = mongoose.Schema({
   commissionRate: { type: Number, default: 0 },
   commissionPaid: { type: Boolean, default: false },
   transactionId: { type: String, default: '' },
-  values: { type: Array },
-  parameters: { type: Array },
-  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  values: { type: Array, default: [] },
+  parameters: { type: Array, default: [] },
 }, { timestamps: true });
+
+reportSchema.plugin(tenantPlugin);
+reportSchema.index({ ownerId: 1, reportId: 1 }, { unique: true });
+reportSchema.index({ ownerId: 1, patient: 1, createdAt: -1 });
+reportSchema.index({ ownerId: 1, doctorId: 1, createdAt: -1 });
+reportSchema.index({ ownerId: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Report', reportSchema);

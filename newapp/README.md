@@ -7,11 +7,21 @@ folder is untouched. Dependency versions mirror `app/package.json`
 
 ## Run
 
+The app requires the authenticated PathoNexa server. Set its public base URL
+(the client appends `/api` when needed):
+
 ```bash
 npm install --legacy-peer-deps
-# web (port 8081)
-EXPO_NO_TELEMETRY=1 EXPO_NO_DEPENDENCY_VALIDATION=1 EXPO_OFFLINE=1 npx expo start --web --port 8081 --lan
+EXPO_PUBLIC_API_URL=https://your-api.example.com/api \
+  EXPO_NO_TELEMETRY=1 EXPO_NO_DEPENDENCY_VALIDATION=1 \
+  npx expo start --web --port 8081 --lan
 ```
+
+For local web development, the default is `http://localhost:5000/api`. Android
+emulators use `http://10.0.2.2:5000/api`; Expo Go resolves the development host.
+Production web builds can use a same-origin `/api` reverse proxy, while native
+release builds require `EXPO_PUBLIC_API_URL` and fail closed when it is absent.
+JWTs are stored in SecureStore on native platforms and localStorage on web.
 
 ## Screens (per UI PDF)
 
@@ -20,7 +30,7 @@ EXPO_NO_TELEMETRY=1 EXPO_NO_DEPENDENCY_VALIDATION=1 EXPO_OFFLINE=1 npx expo star
 | Dashboard (stats, quick actions, line chart, recent reports, donut) | `/` |
 | Patients (stats, search, list, import/export row) | `/patients` |
 | Add New Patient (3-section form) | `/add-patient` |
-| Reports (date chips, status tabs, pagination) | `/reports` |
+| Reports (date chips, status tabs, infinite loading) | `/reports` |
 | Create Report — 3-step wizard | `/create-report` |
 | Report Preview (PDF viewer look) | `/report-preview` |
 | More (lab card, manage/settings sections, logout) | `/more` |

@@ -1,47 +1,196 @@
 // Report Preview — PDF viewer look, UI PDF screen 7 (right side)
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { T } from '../components/T';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { BrandLogo } from '../components/Brand';
+import { Alert, Platform, View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import Svg, { Path, Circle } from 'react-native-svg';
-import { BlueHeader, HeaderIconBtn } from '../components/kit';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import { BlueHeader, HeaderIconBtn, Skeleton } from '../components/kit';
 import { QRBox, Signature, Stamp } from '../components/charts';
-import { C } from '../src/theme';
-import { lab, cbcGroups } from '../src/data';
-
-function LogoMark() {
-  return (
-    <Svg width={34} height={34}>
-      <Path d="M17 3 C 22 10, 27 14, 27 20 a 10 10 0 0 1 -20 0 C 7 14, 12 10, 17 3 Z" fill="#1467E8" />
-      <Path d="M17 10 C 19.5 13.5, 22 16, 22 19.5 a 5 5 0 0 1 -10 0 C 12 16, 14.5 13.5, 17 10 Z" fill="#7FB2F7" />
-    </Svg>
-  );
-}
-
-const infoRows: [string, string, string, string][] = [
-  ['Patient Name', 'Ramesh Kumar', 'Ref. Doctor', 'Dr. Rakesh Kumar'],
-  ['PID', 'PT250726001', 'Lab No.', 'RP250726001'],
-  ['Age / Gender', '32 Yrs / Male', 'Sample Collected', '26 Jul 2024 08:45 AM'],
-  ['Blood Group', 'B+', 'Report Date', '26 Jul 2024 09:21 AM'],
-];
+import { C, PAGE_GUTTER } from '../src/theme';
+import { api, type LabSettings, type Report, type ReportValue } from '../src/api';
+import { reportHtml, reportPdfBlob, reportTextLines } from '../src/reportDocument';
+const formatDateTime = (value?: string) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : `${date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} ${date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`;
+};
+const valueFlag = (item: ReportValue): '' | 'H' | 'L' => {
+  const result = Number(item.value);
+  const limits = String(item.range || '').match(/\d+(?:\.\d+)?/g)?.map(Number) || [];
+  if (!Number.isFinite(result) || limits.length < 2) return '';
+  return result < limits[0] ? 'L' : result > limits[1] ? 'H' : '';
+};
 
 export default function ReportPreview() {
   const router = useRouter();
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const insets = useSafeAreaInsets();
+  const [report, setReport] = useState<Report | null>(null);
+  const [lab, setLab] = useState<LabSettings>({ name: '' });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    if (!id) {
+      setError('A report ID is required.');
+      setLoading(false);
+      return () => { active = false; };
+    }
+    Promise.all([api.reports.get(id), api.settings()]).then(([reportData, settings]) => {
+      if (!active) return;
+      setReport(reportData);
+      setLab(settings);
+      setError('');
+    }).catch((requestError) => {
+      if (active) setError(requestError instanceof Error ? requestError.message : 'Unable to load this report.');
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
+    return () => { active = false; };
+  }, [id]);
+
+  const infoRows = useMemo<[string, string, string, string][]>(() => [
+    ['Patient Name', report?.patient?.name || '—', 'Ref. Doctor', report?.doctor || 'Direct'],
+    ['PID', report?.patient?.pid || '—', 'Lab No.', report?.reportId || '—'],
+    ['Age / Gender', report ? `${report.patient?.age ?? '—'} Yrs / ${report.patient?.gender || '—'}` : '—', 'Sample Collected', formatDateTime(report?.sampleDate || report?.createdAt)],
+    ['Blood Group', report?.patient?.blood || '—', 'Report Date', formatDateTime(report?.reportDate || report?.createdAt)],
+  ], [report]);
+  const groups = useMemo(() => {
+    const map = new Map<string, ReportValue[]>();
+    (report?.values || report?.parameters || []).forEach((item) => {
+      const title = item.group || item.test || 'Results';
+      map.set(title, [...(map.get(title) || []), item]);
+    });
+    return Array.from(map, ([title, values]) => ({ title, values }));
+  }, [report]);
+  const requireReport = () => {
+    if (report && !loading) return report;
+    Alert.alert('Report unavailable', error || 'Wait for the report to finish loading.');
+    return null;
+  };
+
+  const downloadReport = async () => {
+    const current = requireReport();
+    if (!current) return;
+    try {
+      if (Platform.OS === 'web') {
+        const url = URL.createObjectURL(reportPdfBlob(current, lab));
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `${current.reportId || 'pathology-report'}.pdf`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        return;
+      }
+      const file = await Print.printToFileAsync({ html: reportHtml(current, lab), base64: false });
+      if (!(await Sharing.isAvailableAsync())) throw new Error('File saving is not available on this device.');
+      await Sharing.shareAsync(file.uri, {
+        mimeType: 'application/pdf',
+        UTI: 'com.adobe.pdf',
+        dialogTitle: `Save ${current.reportId}.pdf`,
+      });
+    } catch (actionError) {
+      Alert.alert('Download failed', actionError instanceof Error ? actionError.message : 'Unable to create the report PDF.');
+    }
+  };
+
+  const shareReport = async () => {
+    const current = requireReport();
+    if (!current) return;
+    try {
+      if (Platform.OS === 'web') {
+        const blob = reportPdfBlob(current, lab);
+        const file = new File([blob], `${current.reportId}.pdf`, { type: 'application/pdf' });
+        const browserNavigator = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
+        if (browserNavigator.share && browserNavigator.canShare?.({ files: [file] })) {
+          await browserNavigator.share({ title: current.reportId, text: `${lab.name || 'Pathology'} report`, files: [file] });
+          return;
+        }
+        if (browserNavigator.share) {
+          await browserNavigator.share({ title: current.reportId, text: reportTextLines(current, lab).join('\n') });
+          return;
+        }
+        await downloadReport();
+        return;
+      }
+      const file = await Print.printToFileAsync({ html: reportHtml(current, lab), base64: false });
+      if (!(await Sharing.isAvailableAsync())) throw new Error('Sharing is not available on this device.');
+      await Sharing.shareAsync(file.uri, {
+        mimeType: 'application/pdf',
+        UTI: 'com.adobe.pdf',
+        dialogTitle: `Share ${current.reportId}`,
+      });
+    } catch (actionError) {
+      if ((actionError as Error)?.name !== 'AbortError') {
+        Alert.alert('Sharing failed', actionError instanceof Error ? actionError.message : 'Unable to share this report.');
+      }
+    }
+  };
+
+  const printReport = async () => {
+    const current = requireReport();
+    if (!current) return;
+    try {
+      const html = reportHtml(current, lab);
+      if (Platform.OS === 'web') {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) throw new Error('Allow pop-ups to print this report.');
+        printWindow.opener = null;
+        printWindow.document.open();
+        printWindow.document.write(html);
+        printWindow.document.close();
+        setTimeout(() => { printWindow.focus(); printWindow.print(); }, 250);
+        return;
+      }
+      await Print.printAsync({ html });
+    } catch (actionError) {
+      Alert.alert('Printing failed', actionError instanceof Error ? actionError.message : 'Unable to print this report.');
+    }
+  };
+
+  const searchReport = () => {
+    const current = requireReport();
+    if (!current) return;
+    const find = (term?: string) => {
+      if (!term?.trim()) return;
+      const matches = reportTextLines(current, lab).filter((line) => line.toLowerCase().includes(term.trim().toLowerCase()));
+      Alert.alert(matches.length ? `${matches.length} match${matches.length === 1 ? '' : 'es'}` : 'No matches', matches.slice(0, 8).join('\n') || `“${term.trim()}” was not found.`);
+    };
+    if (Platform.OS === 'ios') Alert.prompt('Search report', 'Enter a patient, test, or result.', find);
+    else if (Platform.OS === 'web') find(window.prompt('Search this report') || undefined);
+    else Alert.alert('Search report', 'Search by test or result', [
+      { text: 'Patient', onPress: () => find(current.patient?.name) },
+      { text: 'Abnormal', onPress: () => find('H') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const moreActions = () => Alert.alert('Report actions', 'Choose an action', [
+    { text: 'Share', onPress: () => { shareReport().catch(() => {}); } },
+    { text: 'Download PDF', onPress: () => { downloadReport().catch(() => {}); } },
+    { text: 'Print', onPress: () => { printReport().catch(() => {}); } },
+    { text: 'Cancel', style: 'cancel' },
+  ]);
+
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <View style={styles.phone}>
         <BlueHeader
           onBack={() => router.back()}
           title="Report Preview"
-          sub="Report ID: RP250726001"
+          sub={loading ? 'Loading report…' : `Report ID: ${report?.reportId || '—'}`}
           right={
             <>
-              <HeaderIconBtn icon="magnify" />
-              <HeaderIconBtn icon="printer" />
-              <HeaderIconBtn icon="dots-vertical" />
+              <HeaderIconBtn icon="magnify" onPress={searchReport} />
+              <HeaderIconBtn icon="printer" onPress={() => { printReport().catch(() => {}); }} />
+              <HeaderIconBtn icon="dots-vertical" onPress={moreActions} />
             </>
           }
         />
@@ -55,32 +204,37 @@ export default function ReportPreview() {
           <T style={styles.pageOf}>/ 1</T>
           <View style={{ flex: 1 }} />
           <MaterialCommunityIcons name="minus" size={16} color="#E5E7EB" />
-          <MaterialCommunityIcons name="plus" size={16} color="#E5E7EB" style={{ marginLeft: 12 }} />
+          <MaterialCommunityIcons name="plus" size={16} color="#E5E7EB" style={{ marginLeft: 4 }} />
           <View style={styles.zoomChip}>
             <T style={styles.zoomText}>100%</T>
             <MaterialCommunityIcons name="chevron-down" size={12} color="#E5E7EB" />
           </View>
-          <MaterialCommunityIcons name="fullscreen" size={16} color="#E5E7EB" style={{ marginLeft: 12 }} />
+          <MaterialCommunityIcons name="fullscreen" size={16} color="#E5E7EB" style={{ marginLeft: 4 }} />
         </View>
 
-        <ScrollView style={{ flex: 1, backgroundColor: C.darker }} contentContainerStyle={{ padding: 14, alignItems: 'center' }}>
+        <ScrollView
+          style={{ flex: 1, backgroundColor: C.darker }}
+          contentContainerStyle={{ paddingHorizontal: PAGE_GUTTER, paddingVertical: 8, alignItems: 'center' }}
+          bounces={false}
+          alwaysBounceVertical={false}
+          overScrollMode="never"
+          contentInsetAdjustmentBehavior="never"
+          automaticallyAdjustContentInsets={false}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.paper}>
             {/* letter head */}
             <View style={styles.letterHead}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                <LogoMark />
-                <View style={{ marginLeft: 8 }}>
-                  <T style={styles.brand}>PathoNexa</T>
-                  <T style={styles.brandSub}>DIAGNOSTIC LABORATORY</T>
-                  <T style={styles.brandTag}>{lab.tagline}</T>
-                </View>
+              <View style={styles.letterHeadBrand}>
+                <BrandLogo width={112} />
               </View>
               <View style={{ alignItems: 'flex-end' }}>
-                <T style={styles.addr}>{lab.name}</T>
-                <T style={styles.addr}>{lab.address}</T>
-                <T style={styles.addr}>{lab.address2}</T>
-                <T style={styles.addr}>{lab.phone}</T>
-                <T style={styles.addr}>{lab.email}</T>
+                {loading ? <><Skeleton width={120} height={7} /><Skeleton width={145} height={7} style={{ marginTop: 3 }} /><Skeleton width={110} height={7} style={{ marginTop: 3 }} /></> : <>
+                  <T style={styles.addr}>{lab.name || 'My Pathology Lab'}</T>
+                  <T style={styles.addr}>{lab.address || lab.city || ''}</T>
+                  <T style={styles.addr}>{lab.phone || lab.altPhone || ''}</T>
+                  <T style={styles.addr}>{lab.email || ''}</T>
+                </>}
               </View>
               <QRBox size={56} />
             </View>
@@ -91,54 +245,55 @@ export default function ReportPreview() {
                 <View key={i} style={[styles.infoRow, i > 0 && { borderTopWidth: 1, borderTopColor: '#E5E7EB' }]}>
                   <View style={styles.infoCell}>
                     <T style={styles.infoLbl}>{r[0]}</T>
-                    <T style={styles.infoVal}>{r[1]}</T>
+                    {loading ? <Skeleton width="55%" height={7} /> : <T style={styles.infoVal}>{r[1]}</T>}
                   </View>
                   <View style={[styles.infoCell, { borderLeftWidth: 1, borderLeftColor: '#E5E7EB' }]}>
                     <T style={styles.infoLbl}>{r[2]}</T>
-                    <T style={styles.infoVal}>{r[3]}</T>
+                    {loading ? <Skeleton width="55%" height={7} /> : <T style={styles.infoVal}>{r[3]}</T>}
                   </View>
                 </View>
               ))}
             </View>
 
-            <T style={styles.reportTitle}>COMPLETE BLOOD COUNT (CBC)</T>
+            {loading ? <Skeleton width="55%" height={11} style={{ alignSelf: 'center', marginTop: 14 }} /> : <T style={styles.reportTitle}>{report?.test?.toUpperCase() || 'PATHOLOGY REPORT'}</T>}
             <View style={styles.titleRule} />
 
-            {cbcGroups.map((g) => (
-              <View key={g.title} style={{ marginTop: 10 }}>
-                <T style={styles.pdfGroup}>{g.title}</T>
+            {loading ? [0, 1, 2].map((group) => <View key={group}><Skeleton width="42%" height={9} style={{ marginTop: 10, marginBottom: 4 }} /><Skeleton width="100%" height={17} />{[0, 1, 2, 3].map((row) => <View key={row} style={styles.pdfRow}><Skeleton width="30%" height={7} /><Skeleton width="12%" height={7} style={{ marginLeft: 18 }} /><Skeleton width="15%" height={7} style={{ marginLeft: 18 }} /><Skeleton width="20%" height={7} style={{ marginLeft: 18 }} /></View>)}</View>) : groups.map((group) => (
+              <View key={group.title}>
+                <T style={styles.pdfGroup}>{group.title}</T>
                 <View style={styles.pdfTblHead}>
                   <T style={[styles.pdfTh, { flex: 1.4 }]}>Test Name</T>
                   <T style={[styles.pdfTh, { flex: 0.8 }]}>Result</T>
                   <T style={[styles.pdfTh, { flex: 0.9 }]}>Unit</T>
                   <T style={[styles.pdfTh, { flex: 1.2 }]}>Reference Range</T>
                 </View>
-                {g.params.map((p) => (
-                  <View key={p.name} style={styles.pdfRow}>
-                    <T style={[styles.pdfTd, { flex: 1.4 }]} numberOfLines={1}>
-                      {p.name}
-                    </T>
-                    <T style={[styles.pdfTd, { flex: 0.8, fontWeight: '700' }]}>{p.value}</T>
-                    <T style={[styles.pdfTd, { flex: 0.9 }]}>{p.unit}</T>
+                {group.values.map((item, index) => {
+                  const flag = valueFlag(item);
+                  return <View key={`${item.testId || group.title}:${item.short || item.name}:${index}`} style={styles.pdfRow}>
+                    <T style={[styles.pdfTd, { flex: 1.4 }]} numberOfLines={1}>{item.name}</T>
+                    <T style={[styles.pdfTd, { flex: 0.8, fontWeight: '700' }]}>{item.value || '—'}</T>
+                    <T style={[styles.pdfTd, { flex: 0.9 }]}>{item.unit || '—'}</T>
                     <View style={{ flex: 1.2, flexDirection: 'row', justifyContent: 'space-between' }}>
-                      <T style={styles.pdfTd}>{p.range}</T>
-                      {p.flag && <T style={styles.pdfFlag}>{p.flag}</T>}
+                      <T style={styles.pdfTd}>{item.range || '—'}</T>
+                      {flag ? <T style={styles.pdfFlag}>{flag}</T> : null}
                     </View>
-                  </View>
-                ))}
+                  </View>;
+                })}
               </View>
             ))}
+            {!loading && error ? <T style={[styles.pdfRemarks, { color: C.red }]}>{error}</T> : null}
+            {!loading && !error && !groups.length ? <T style={styles.pdfRemarks}>No report values have been entered.</T> : null}
 
             <T style={styles.pdfRemarksTitle}>Remarks / Comments</T>
-            <T style={styles.pdfRemarks}>No significant abnormality detected.</T>
+            <T style={styles.pdfRemarks}>{report?.remarks || 'No remarks added.'}</T>
 
             {/* signatures */}
             <View style={styles.sigRow}>
               <View style={styles.sigCell}>
                 <T style={styles.sigLbl}>Verified By</T>
                 <Signature />
-                <T style={styles.sigName}>Dr. Rakesh Kumar</T>
-                <T style={styles.sigSub}>MD (Pathology)</T>
+                <T style={styles.sigName}>{report?.verifiedBy || lab.pathologist || 'Pending verification'}</T>
+                <T style={styles.sigSub}>{report?.verified ? 'Verified report' : 'Not yet verified'}</T>
               </View>
               <View style={{ alignItems: 'center' }}>
                 <Stamp />
@@ -147,29 +302,29 @@ export default function ReportPreview() {
                 <T style={styles.sigLbl}>Authorized By</T>
                 <Signature color="#334" />
                 <T style={styles.sigName}>Lab Incharge</T>
-                <T style={styles.sigSub}>PathoNexa Diagnostics</T>
+                <T style={styles.sigSub}>{lab.name || 'My Pathology Lab'}</T>
               </View>
             </View>
 
-            <T style={styles.pdfFoot}>This is a computer generated report and does not require physical signature.</T>
+            <T style={styles.pdfFoot}>{lab.footer || 'This is a computer generated report and does not require physical signature.'}</T>
           </View>
         </ScrollView>
 
         {/* dark action bar */}
         <View style={[styles.actionBar, { paddingBottom: insets.bottom + 12 }]}>
-          <TouchableOpacity style={styles.actionBtn}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => { shareReport().catch(() => {}); }}>
             <MaterialCommunityIcons name="share-variant" size={14} color="#fff" />
             <T style={styles.actionText}>Share</T>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => { downloadReport().catch(() => {}); }}>
             <MaterialCommunityIcons name="download-outline" size={14} color="#fff" />
             <T style={styles.actionText}>Download PDF</T>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => { printReport().catch(() => {}); }}>
             <MaterialCommunityIcons name="printer" size={14} color="#fff" />
             <T style={styles.actionText}>Print</T>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn}>
+          <TouchableOpacity style={styles.actionBtn} onPress={moreActions}>
             <MaterialCommunityIcons name="dots-horizontal" size={14} color="#fff" />
             <T style={styles.actionText}>More</T>
           </TouchableOpacity>
@@ -180,28 +335,34 @@ export default function ReportPreview() {
 }
 
 const styles = StyleSheet.create({
-  phone: { flex: 1, maxWidth: 520, width: '100%', alignSelf: 'center', borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#E4E9F2', backgroundColor: C.bg, overflow: 'hidden' },
-  toolbar: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.dark, paddingHorizontal: 14, paddingVertical: 9 },
-  pageBox: { borderWidth: 1, borderColor: '#3A4656', borderRadius: 5, paddingHorizontal: 10, paddingVertical: 2, marginLeft: 10 },
+  phone: { flex: 1, maxWidth: 520, width: '100%', alignSelf: 'center', backgroundColor: C.bg, overflow: 'hidden' },
+  toolbar: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.dark, paddingHorizontal: PAGE_GUTTER, paddingVertical: 8 },
+  pageBox: { borderWidth: 1, borderColor: '#3A4656', borderRadius: 2, paddingHorizontal: 10, paddingVertical: 2, marginLeft: 4 },
   pageBoxText: { color: '#E5E7EB', fontSize: 10.5 },
-  pageOf: { color: '#9CA3AF', fontSize: 10.5, marginLeft: 6 },
-  zoomChip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#3A4656', borderRadius: 5, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 12 },
+  pageOf: { color: '#9CA3AF', fontSize: 10.5, marginLeft: 4 },
+  zoomChip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#3A4656', borderRadius: 2, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 4 },
   zoomText: { color: '#E5E7EB', fontSize: 10 },
-  paper: { backgroundColor: '#fff', width: '100%', maxWidth: 430, borderRadius: 4, padding: 16, shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 10, elevation: 6 },
-  letterHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  brand: { color: C.primary, fontSize: 17, fontWeight: '800' },
-  brandSub: { color: C.text, fontSize: 7.5, letterSpacing: 1.2, fontWeight: '700', marginTop: 1 },
-  brandTag: { color: C.faint, fontSize: 7, marginTop: 2 },
+  paper: {
+    backgroundColor: '#fff',
+    width: '100%',
+    maxWidth: 430,
+    borderRadius: 2,
+    borderWidth: 1,
+    borderColor: '#D9DEE7',
+    padding: 10,
+  },
+  letterHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 4 },
+  letterHeadBrand: { flex: 1, alignItems: 'flex-start' },
   addr: { color: C.sub, fontSize: 6.8, textAlign: 'right', lineHeight: 9 },
-  infoGrid: { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 4, marginTop: 12 },
+  infoGrid: { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 2, marginTop: 12 },
   infoRow: { flexDirection: 'row' },
-  infoCell: { flex: 1, flexDirection: 'row', paddingHorizontal: 8, paddingVertical: 6, gap: 6 },
+  infoCell: { flex: 1, flexDirection: 'row', paddingHorizontal: 6, paddingVertical: 5, gap: 4 },
   infoLbl: { fontSize: 7.5, color: C.faint, flexBasis: '38%' as any },
   infoVal: { fontSize: 7.8, color: C.text, fontWeight: '700', flex: 1 },
   reportTitle: { textAlign: 'center', color: C.primary, fontWeight: '800', fontSize: 11, letterSpacing: 0.8, marginTop: 14 },
   titleRule: { height: 1, backgroundColor: '#DBE4F2', marginTop: 4 },
   pdfGroup: { color: C.primary, fontSize: 8.5, fontWeight: '800', marginBottom: 3 },
-  pdfTblHead: { flexDirection: 'row', backgroundColor: '#F1F5FB', paddingHorizontal: 6, paddingVertical: 4, borderRadius: 2 },
+  pdfTblHead: { flexDirection: 'row', backgroundColor: '#F1F5FB', paddingHorizontal: 6, paddingVertical: 4, borderRadius: 1 },
   pdfTh: { fontSize: 7.3, color: C.sub, fontWeight: '800' },
   pdfRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: '#F0F2F6' },
   pdfTd: { fontSize: 7.6, color: C.text },
@@ -214,15 +375,17 @@ const styles = StyleSheet.create({
   sigName: { fontSize: 7.8, color: C.text, fontWeight: '800', marginTop: 2 },
   sigSub: { fontSize: 7, color: C.faint },
   pdfFoot: { textAlign: 'center', fontSize: 6.8, color: C.faint, marginTop: 14, borderTopWidth: 1, borderTopColor: '#EEF1F5', paddingTop: 8 },
-  actionBar: { flexDirection: 'row', gap: 8, backgroundColor: C.dark, paddingHorizontal: 12, paddingTop: 10, paddingBottom: 16 },
+  actionBar: { flexDirection: 'row', gap: 0, backgroundColor: C.dark, paddingHorizontal: PAGE_GUTTER, paddingTop: 8, paddingBottom: 12 },
   actionBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 4,
     backgroundColor: C.primary,
-    borderRadius: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: C.dark,
     paddingVertical: 9,
   },
   actionText: { color: '#fff', fontSize: 10.5, fontWeight: '700' },

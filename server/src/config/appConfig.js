@@ -32,8 +32,8 @@ const config = {
   yearlyPlanDays: clamp(toNum(process.env.YEARLY_PLAN_DAYS, 365), 1, 731),
 
   /* Auth ------------------------------------------------------------------ */
-  // Demo OTP accepted at login until a real SMS gateway is wired in.
-  demoOtp: String(process.env.DEMO_OTP || '123456'),
+  // Internal OTP used by the current production-style challenge flow.
+  internalOtp: String(process.env.INTERNAL_OTP || '123456'),
 };
 
 /** Safe subset exposed to the app via GET /api/config (never the OTP). */
