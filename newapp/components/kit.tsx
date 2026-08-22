@@ -348,29 +348,46 @@ export function Field(props: {
   onPress?: () => void;
   keyboardType?: 'default' | 'numeric' | 'phone-pad' | 'email-address' | 'number-pad';
 }) {
-  return (
-    <View style={{ flexBasis: '46%', flexGrow: 1, minWidth: 0 }}>
-      <T style={styles.fieldLabel}>
-        {props.label}
-        {props.required ? <T style={{ color: C.red }}> *</T> : null}
-      </T>
-      <View style={[styles.fieldBox, props.multiline && { minHeight: 74 }, props.disabled && { backgroundColor: '#F5F7FB' }]}>
-        {!!props.icon && <MaterialCommunityIcons name={props.icon as any} size={15} color={C.faint} style={{ marginRight: 4 }} />}
+  const box = (
+    <View style={[styles.fieldBox, props.multiline && { minHeight: 74 }, props.disabled && { backgroundColor: '#F5F7FB' }]}>
+      {!!props.icon && <MaterialCommunityIcons name={props.icon as any} size={15} color={C.faint} style={{ marginRight: 4 }} />}
+      {props.onPress ? (
+        // Read-only "select" field: show the chosen value (or placeholder) and
+        // make the WHOLE box tappable — reliable on web and native alike.
+        <T style={[styles.fieldInput, { lineHeight: 17, paddingVertical: 10 }, !props.value && { color: C.faint }]} numberOfLines={1}>
+          {props.value || props.placeholder}
+        </T>
+      ) : (
         <TextInput
           style={[styles.fieldInput, props.multiline && { minHeight: 66, textAlignVertical: 'top' }]}
           placeholder={props.placeholder}
           placeholderTextColor={C.faint}
           selectionColor={C.primary}
           multiline={props.multiline}
-          editable={!props.disabled && !props.onPress}
-          onPressIn={props.onPress}
+          editable={!props.disabled}
           value={props.value}
           onChangeText={props.onChange}
           keyboardType={props.keyboardType}
           {...fieldFocusProps()}
         />
-        {props.right}
-      </View>
+      )}
+      {props.right}
+    </View>
+  );
+
+  return (
+    <View style={{ flexBasis: '46%', flexGrow: 1, minWidth: 0 }}>
+      <T style={styles.fieldLabel}>
+        {props.label}
+        {props.required ? <T style={{ color: C.red }}> *</T> : null}
+      </T>
+      {props.onPress ? (
+        <Press onPress={props.onPress} accessibilityLabel={props.label} style={{ width: '100%' }}>
+          {box}
+        </Press>
+      ) : (
+        box
+      )}
     </View>
   );
 }
