@@ -58,6 +58,7 @@ export function Press({
   style,
   children,
   scaleTo = 0.96,
+  disabled = false,
   accessibilityLabel,
   accessibilityState,
 }: {
@@ -65,6 +66,7 @@ export function Press({
   style?: StyleProp<ViewStyle>;
   children: React.ReactNode;
   scaleTo?: number;
+  disabled?: boolean;
   accessibilityLabel?: string;
   accessibilityState?: { selected?: boolean; disabled?: boolean };
 }) {
@@ -74,16 +76,17 @@ export function Press({
   return (
     <Animated.View
       style={[style, { transform: [{ scale: s }] }]}
-      onStartShouldSetResponder={() => true}
+      onStartShouldSetResponder={() => !disabled}
       onResponderGrant={down}
       onResponderRelease={() => {
         up();
-        onPress?.();
+        if (!disabled) onPress?.();
       }}
       onResponderTerminate={up}
+      pointerEvents={disabled ? 'none' : 'auto'}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      accessibilityState={accessibilityState}
+      accessibilityState={{ ...accessibilityState, disabled }}
     >
       {children}
     </Animated.View>

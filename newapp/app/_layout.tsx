@@ -57,6 +57,13 @@ function AppNavigator() {
           <Stack.Screen name="create-report" />
           <Stack.Screen name="report-preview" />
           <Stack.Screen name="notifications" />
+          <Stack.Screen name="manage/[module]" />
+          <Stack.Screen name="tests-packages" />
+          <Stack.Screen name="data-backup" />
+          <Stack.Screen name="deleted-records" />
+          <Stack.Screen name="lab-profile" />
+          <Stack.Screen name="help-support" />
+          <Stack.Screen name="about-app" />
         </Stack.Protected>
       </Stack>
     </DrawerProvider>

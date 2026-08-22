@@ -306,8 +306,34 @@ export const api = {
   },
   meta: {
     list: <T = Record<string, any>>(key: string) => apiRequest<T[]>(`/${encodeURIComponent(key)}`),
+    get: <T = Record<string, any>>(key: string, id: string) =>
+      apiRequest<T>(`/${encodeURIComponent(key)}/${encodeURIComponent(id)}`),
     create: <T = Record<string, any>>(key: string, data: Record<string, unknown>) =>
       apiRequest<T>(`/${encodeURIComponent(key)}`, { method: 'POST', body: data }),
+    update: <T = Record<string, any>>(key: string, id: string, data: Record<string, unknown>) =>
+      apiRequest<T>(`/${encodeURIComponent(key)}/${encodeURIComponent(id)}`, { method: 'PATCH', body: data }),
+    remove: <T = Record<string, any>>(key: string, id: string) =>
+      apiRequest<T>(`/${encodeURIComponent(key)}/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  },
+  doctors: {
+    summary: () => apiRequest<Array<Record<string, any>>>('/doctors/summary'),
+    ledger: (id: string) => apiRequest<Record<string, any>>(`/doctors/${encodeURIComponent(id)}/ledger`),
+  },
+  deleted: {
+    list: () => apiRequest<DeletedRecord[]>('/deleted'),
+    restore: (id: string) => apiRequest<Record<string, any>>(`/deleted/${encodeURIComponent(id)}/restore`, { method: 'POST' }),
+  },
+  backup: {
+    status: () => apiRequest<BackupStatus>('/backup/status'),
+    run: () => apiRequest<BackupStatus | Record<string, any>>('/backup/run', { method: 'POST' }),
+    export: () => apiRequest<BackupDocument>('/backup/export', { timeoutMs: 30_000 }),
+    restore: (document: BackupDocument) => apiRequest<{ restored: Record<string, number>; storage: string }>('/backup/restore', {
+      method: 'POST', body: document, timeoutMs: 60_000,
+    }),
+  },
+  lab: {
+    get: () => apiRequest<LabSettings>('/lab'),
+    update: (data: Partial<LabSettings>) => apiRequest<LabSettings>('/lab', { method: 'PATCH', body: data }),
   },
   notifications: {
     list: (params: { page?: number; limit?: number; unread?: boolean } = {}) =>
@@ -319,6 +345,34 @@ export const api = {
   settings: () => apiRequest<LabSettings>('/settings'),
   updateSettings: (data: Partial<LabSettings>) => apiRequest<LabSettings>('/settings', { method: 'PATCH', body: data }),
   subscription: () => apiRequest<Record<string, any>>('/subscription'),
+};
+
+export type DeletedRecord = Record<string, any> & {
+  _id: string;
+  id?: string;
+  kind: string;
+  name?: string;
+  reportId?: string;
+  pid?: string;
+  deletedAt?: string;
+};
+
+export type BackupStatus = {
+  storage: string;
+  autoBackup: boolean;
+  lastBackupAt?: string;
+  records: Record<string, number>;
+  totalRecords: number;
+};
+
+export type BackupDocument = Record<string, any> & {
+  meta: {
+    app: string;
+    version: number;
+    exportedAt?: string;
+    signature?: string;
+    owner?: string;
+  };
 };
 
 export type ApiNotification = {

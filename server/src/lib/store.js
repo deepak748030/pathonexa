@@ -1000,6 +1000,15 @@ const reports = {
 /* Master data collections                                             */
 /* ------------------------------------------------------------------ */
 
+function masterDataPayload(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) badRequest('Record data must be an object');
+  const out = Object.fromEntries(Object.entries(data).map(([field, value]) => [
+    field, typeof value === 'string' ? value.trim() : value,
+  ]));
+  ['_id', 'id', 'ownerId', 'kind', 'createdAt', 'updatedAt', 'deletedAt'].forEach((field) => delete out[field]);
+  return out;
+}
+
 function collectionApi(key, required = []) {
   return {
     async list() {
@@ -1017,15 +1026,16 @@ function collectionApi(key, required = []) {
     },
     async create(data, options = {}) {
       ensureSeeded();
+      const payload = masterDataPayload(data);
       for (const f of required) {
-        if (data == null || data[f] == null || data[f] === '') {
+        if (payload[f] == null || payload[f] === '') {
           const err = new Error(`${f} is required`);
           err.status = 400;
           throw err;
         }
       }
       if (useMemory()) {
-        const doc = { ...data, _id: makeId(), createdAt: new Date(), updatedAt: new Date() };
+        const doc = { ...payload, _id: makeId(), createdAt: new Date(), updatedAt: new Date() };
         doc.id = doc._id;
         mem[key].unshift(doc);
         return doc;
@@ -1033,7 +1043,7 @@ function collectionApi(key, required = []) {
       // Domain workflows may already be inside a transaction; they perform
       // onboarding before opening it to avoid nesting MongoDB transactions.
       if (!options.session) await ensureMongoSeeded();
-      const document = { kind: key, data: { ...data, id: undefined } };
+      const document = { kind: key, data: payload };
       const created = options.session
         ? (await Meta.create([document], { session: options.session }))[0]
         : await Meta.create(document);
@@ -1041,6 +1051,7 @@ function collectionApi(key, required = []) {
     },
     async update(id, patch, options = {}) {
       ensureSeeded();
+      const payload = masterDataPayload(patch);
       if (useMemory()) {
         const item = mem[key].find((x) => String(x._id) === String(id) || String(x.id) === String(id));
         if (!item) {
@@ -1048,7 +1059,7 @@ function collectionApi(key, required = []) {
           err.status = 404;
           throw err;
         }
-        Object.assign(item, patch, { updatedAt: new Date() });
+        Object.assign(item, payload, { updatedAt: new Date() });
         return item;
       }
       const query = Meta.findOne({ _id: id, kind: key });
@@ -1059,7 +1070,7 @@ function collectionApi(key, required = []) {
         err.status = 404;
         throw err;
       }
-      doc.data = { ...doc.data, ...patch };
+      doc.data = { ...doc.data, ...payload };
       doc.markModified('data');
       await doc.save(options.session ? { session: options.session } : undefined);
       return { ...doc.data, _id: String(doc._id), id: String(doc._id) };
@@ -1225,13 +1236,48 @@ doctorsApi.update = async (id, patch = {}, options = {}) => {
     : mongoTransaction(update, 'Atomic doctor update requires a transaction-capable MongoDB deployment');
 };
 
+const discountsApi = collectionApi('discounts', ['name', 'type', 'mode', 'value']);
+const baseDiscountCreate = discountsApi.create;
+const baseDiscountUpdate = discountsApi.update;
+
+function normalizeDiscount(data = {}, current = {}) {
+  const adjustment = masterDataPayload(data);
+  const type = adjustment.type ?? current.type;
+  const mode = adjustment.mode ?? current.mode;
+  if (adjustment.type !== undefined && !['Discount', 'Charge'].includes(adjustment.type)) {
+    badRequest('Adjustment type must be Discount or Charge');
+  }
+  if (adjustment.mode !== undefined && !['Percentage', 'Fixed'].includes(adjustment.mode)) {
+    badRequest('Calculation must be Percentage or Fixed');
+  }
+  if (adjustment.value !== undefined) {
+    adjustment.value = money(adjustment.value, 'Adjustment value');
+    if (mode === 'Percentage' && adjustment.value > 100) badRequest('Percentage adjustments cannot exceed 100');
+  }
+  if (adjustment.status !== undefined && !['Active', 'Inactive'].includes(adjustment.status)) {
+    badRequest('Status must be Active or Inactive');
+  }
+  return { adjustment, type, mode };
+}
+
+discountsApi.create = (data = {}, options = {}) => {
+  const { adjustment, type, mode } = normalizeDiscount(data);
+  if (!type || !mode) badRequest('Adjustment type and calculation are required');
+  return baseDiscountCreate(adjustment, options);
+};
+discountsApi.update = async (id, patch = {}, options = {}) => {
+  const current = await discountsApi.get(id);
+  const { adjustment } = normalizeDiscount(patch, current);
+  return baseDiscountUpdate(id, adjustment, options);
+};
+
 const meta = {
   tests: withNumericValidation(collectionApi('tests', ['name', 'price']), 'price', 'Test price'),
   doctors: doctorsApi,
   employees: collectionApi('employees', ['name', 'role']),
   centers: collectionApi('centers', ['name']),
   payments: collectionApi('payments', ['name']),
-  discounts: collectionApi('discounts', ['name']),
+  discounts: discountsApi,
   templates: collectionApi('templates', ['name']),
   packages: withNumericValidation(collectionApi('packages', ['name', 'price']), 'price', 'Package price'),
   expenses: withNumericValidation(collectionApi('expenses', ['name', 'amount']), 'amount', 'Expense amount', { positive: true }),

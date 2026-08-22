@@ -244,6 +244,93 @@ test('two mobile accounts cannot list, fetch, mutate, delete, infer, export, or 
   assert.equal((await api('/deleted', { token: a })).data.length, 1);
 });
 
+test('More management modules support tenant-safe CRUD, restore, lab profile, and backup workflows', async () => {
+  const accountA = await signIn('9765432108');
+  const accountB = await signIn('9865432107');
+  const modules = [
+    ['tests', { name: 'More Screen Test', price: 175, category: 'Biochemistry', status: 'Active' }],
+    ['doctors', { name: 'Dr More Screen', mobile: '9876500001', commission: 8 }],
+    ['employees', { name: 'More Employee', role: 'Technician', mobile: '9876500002', status: 'Active' }],
+    ['centers', { name: 'More Collection Center', city: 'Indore', status: 'Active' }],
+    ['discounts', { name: 'More Discount', type: 'Discount', mode: 'Percentage', value: 5, status: 'Active' }],
+    ['payments', { name: 'More UPI', details: 'lab@upi', status: 'Active' }],
+    ['templates', { name: 'More Standard Template', footer: 'Verified report', status: 'Active' }],
+    ['packages', { name: 'More Health Package', description: 'CBC and LFT', price: 499, status: 'Active' }],
+  ];
+
+  const created = [];
+  for (const [key, payload] of modules) { // eslint-disable-line no-restricted-syntax
+    const response = await api(`/${key}`, { token: accountA.token, method: 'POST', body: payload }); // eslint-disable-line no-await-in-loop
+    assert.equal(response.status, 201, `${key} create should succeed`);
+    created.push([key, response.data]);
+
+    const ownList = await api(`/${key}`, { token: accountA.token }); // eslint-disable-line no-await-in-loop
+    assert.ok(ownList.data.some((item) => item._id === response.data._id));
+    const otherList = await api(`/${key}`, { token: accountB.token }); // eslint-disable-line no-await-in-loop
+    assert.equal(otherList.data.some((item) => item.name === payload.name), false);
+    const crossRead = await api(`/${key}/${response.data._id}`, { token: accountB.token }); // eslint-disable-line no-await-in-loop
+    assert.equal(crossRead.status, 404);
+
+    const update = await api(`/${key}/${response.data._id}`, { // eslint-disable-line no-await-in-loop
+      token: accountA.token, method: 'PATCH',
+      body: { status: 'Inactive', _id: 'forged-id', ownerId: accountB.user.id, kind: 'deleted' },
+    });
+    assert.equal(update.status, 200);
+    assert.equal(update.data.status, 'Inactive');
+    assert.equal(update.data._id, response.data._id);
+    assert.notEqual(update.data.kind, 'deleted');
+  }
+
+  const invalidPercentage = await api('/discounts', {
+    token: accountA.token, method: 'POST',
+    body: { name: 'Invalid Percentage', type: 'Discount', mode: 'Percentage', value: 101 },
+  });
+  assert.equal(invalidPercentage.status, 400);
+
+  const profileUpdate = await api('/lab', {
+    token: accountA.token, method: 'PATCH',
+    body: { name: 'More Screen Lab', city: 'Indore', email: 'lab@example.com', autoBackup: false },
+  });
+  assert.equal(profileUpdate.status, 200);
+  const ownProfile = await api('/lab', { token: accountA.token });
+  const otherProfile = await api('/lab', { token: accountB.token });
+  assert.equal(ownProfile.data.name, 'More Screen Lab');
+  assert.equal(ownProfile.data.city, 'Indore');
+  assert.equal(otherProfile.data.name, 'My Pathology Lab');
+  assert.equal(otherProfile.data.city, '');
+
+  const initialBackupStatus = await api('/backup/status', { token: accountA.token });
+  assert.equal(initialBackupStatus.status, 200);
+  assert.equal(initialBackupStatus.data.autoBackup, false);
+  assert.ok(initialBackupStatus.data.totalRecords >= modules.length);
+  const runBackup = await api('/backup/run', { token: accountA.token, method: 'POST' });
+  assert.equal(runBackup.status, 200);
+  assert.equal(runBackup.data.ok, true);
+  const completedBackupStatus = await api('/backup/status', { token: accountA.token });
+  assert.ok(completedBackupStatus.data.lastBackupAt);
+
+  for (const [key, record] of created) { // eslint-disable-line no-restricted-syntax
+    const removed = await api(`/${key}/${record._id}`, { token: accountA.token, method: 'DELETE' }); // eslint-disable-line no-await-in-loop
+    assert.equal(removed.status, 200, `${key} delete should succeed`);
+  }
+  const deletedA = await api('/deleted', { token: accountA.token });
+  const deletedB = await api('/deleted', { token: accountB.token });
+  assert.equal(deletedA.data.length, modules.length);
+  assert.equal(deletedB.data.length, 0);
+
+  for (const record of deletedA.data) { // eslint-disable-line no-restricted-syntax
+    const crossRestore = await api(`/deleted/${record._id}/restore`, { token: accountB.token, method: 'POST' }); // eslint-disable-line no-await-in-loop
+    assert.equal(crossRestore.status, 404);
+    const ownRestore = await api(`/deleted/${record._id}/restore`, { token: accountA.token, method: 'POST' }); // eslint-disable-line no-await-in-loop
+    assert.equal(ownRestore.status, 200);
+  }
+  assert.equal((await api('/deleted', { token: accountA.token })).data.length, 0);
+  for (const [key, payload] of modules) { // eslint-disable-line no-restricted-syntax
+    const list = await api(`/${key}`, { token: accountA.token }); // eslint-disable-line no-await-in-loop
+    assert.ok(list.data.some((item) => item.name === payload.name), `${key} record should be restored`);
+  }
+});
+
 test('patient, report, and payment validation keeps balances and ledgers consistent', async () => {
   const { token } = await signIn('9654321098');
   const patient = await api('/patients', {
