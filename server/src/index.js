@@ -3,7 +3,7 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
-const { connectDB, isReady, mode } = require('./config/db');
+const { connectDB, startDB, isReady, mode, retrying } = require('./config/db');
 const { requireAuth } = require('./middleware/auth');
 // Register models/store before database index synchronization starts.
 require('./lib/store');
@@ -40,19 +40,17 @@ app.use(express.json({ limit: '10mb', strict: true }));
 app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 if (process.env.NODE_ENV !== 'test') app.use(morgan('dev'));
 
-app.get('/api/health', async (req, res) => {
-  try {
-    await require('./config/db').whenReady();
-    res.status(200).json({
-      status: 'ok',
-      message: 'PathoNexa API is running',
-      db: mode(),
-      persistent: isReady(),
-      time: new Date().toISOString(),
-    });
-  } catch (error) {
-    res.status(503).json({ status: 'unavailable', message: 'Persistent database is unavailable' });
-  }
+app.get('/api/health', (req, res) => {
+  const dbMode = mode();
+  const available = isReady() || dbMode === 'memory';
+  res.status(available ? 200 : 503).json({
+    status: available ? 'ok' : 'unavailable',
+    message: available ? 'PathoNexa API is running' : 'Persistent database is unavailable',
+    db: dbMode,
+    persistent: isReady(),
+    retrying: retrying(),
+    time: new Date().toISOString(),
+  });
 });
 
 // OTP request/verification are the only unauthenticated business endpoints.
@@ -84,16 +82,29 @@ app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
 const PORT = Number(process.env.PORT) || 5000;
 let listenerPromise = null;
 if (require.main === module) {
-  listenerPromise = connectDB()
-    .then(() => app.listen(PORT, '0.0.0.0', () => {
-      console.log(`[server] PathoNexa API running on http://localhost:${PORT} (${mode()} mode)`);
-    }))
-    .catch((error) => {
-      console.error(`[server] Startup aborted: ${error.message}`);
-      process.exitCode = 1;
+  // Listen independently of MongoDB so nodemon/container health checks keep
+  // working during temporary Atlas/network outages. Health and every business
+  // operation remain fail-closed until the required persistence is ready.
+  const listener = app.listen(PORT, '0.0.0.0');
+  listenerPromise = new Promise((resolve, reject) => {
+    listener.once('listening', () => {
+      console.log(`[server] PathoNexa API listening on http://localhost:${PORT} (${mode()} mode)`);
+      resolve(listener);
     });
+    listener.once('error', reject);
+  });
+  listenerPromise.catch((error) => {
+    console.error(`[server] HTTP listener failed: ${error.message}`);
+    process.exitCode = 1;
+  });
+  startDB().catch(() => {
+    const detail = process.env.MONGODB_URI?.trim()
+      ? 'automatic MongoDB retry is active.'
+      : 'configure MONGODB_URI and restart the process.';
+    console.warn(`[server] API is listening in database-wait mode; ${detail}`);
+  });
 } else {
-  // Serverless handlers await readiness through requireAuth/health.
+  // Serverless handlers await readiness through requireAuth/store methods.
   connectDB().catch(() => {});
 }
 

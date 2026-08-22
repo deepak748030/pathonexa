@@ -65,6 +65,12 @@ notifications. Only the account-owned clinical test catalogue is initialized.
 | --- | --- | --- |
 | `PORT` | `5000` | Port the API listens on |
 | `MONGODB_URI` | — | Required persistent MongoDB Atlas or replica-set connection string |
+| `MONGODB_TIMEOUT_MS` | `15000` | Server-selection timeout for each connection attempt |
+| `MONGODB_CONNECT_TIMEOUT_MS` | `10000` | MongoDB socket connection timeout |
+| `MONGODB_SOCKET_TIMEOUT_MS` | `45000` | Timeout for an inactive connected socket |
+| `MONGODB_RETRY_MS` | `3000` | Initial retry delay after a required connection fails |
+| `MONGODB_RETRY_MAX_MS` | `30000` | Maximum exponential retry delay |
+| `MONGODB_FAMILY` | `4` | DNS address family (`4`; use `0` for automatic or `6` for verified IPv6) |
 | `JWT_SECRET` | — | Secret for signing JWT tokens (**32+ random characters in production**) |
 | `NODE_ENV` | `development` | Runtime environment |
 | `ALLOW_IN_MEMORY` | `false` | Explicit disposable local adapter; never enable in production |
@@ -92,6 +98,14 @@ For local development, initialize a replica set and use a URI such as
 at [mongodb.com](https://www.mongodb.com/cloud/atlas), allow your deployment in
 *Network Access*, and paste the connection string into `MONGODB_URI`.
 
+The HTTP listener remains alive if MongoDB is temporarily unreachable. During
+that time `/api/health` returns HTTP `503` with `db: "connecting"` or
+`db: "unavailable"`, while auth and all business operations also return `503`
+instead of reading/writing disposable data. The process retries automatically
+with bounded exponential backoff and becomes healthy when persistence recovers.
+A configured MongoDB failure never activates memory storage unless
+`ALLOW_IN_MEMORY=true` was explicitly set for isolated development.
+
 ---
 
 ## 📡 API Reference
@@ -101,7 +115,7 @@ Base URL: `http://localhost:5000/api`
 ### Health
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `GET` | `/health` | Server + DB status (`db`: `mongodb` \| `memory`) |
+| `GET` | `/health` | Server + DB status (`db`: `connecting` \| `unavailable` \| `mongodb` \| `memory`) |
 
 ### Auth
 | Method | Endpoint | Body | Description |
@@ -234,7 +248,11 @@ vercel                      # inside the server/ folder
 
 | Problem | Fix |
 | --- | --- |
-| `MongoDB connection failed` in logs | The server fails closed. Check `MONGODB_URI`, transaction/replica-set support, database availability, and the Atlas network allowlist. |
+| `Server selection timed out` | The URI was read, but no eligible MongoDB node was reachable. In Atlas, confirm the cluster is running and add the server/deployment's current public IP under **Security → Network Access**. Also verify outbound internet/firewall access. The API remains alive on `503` and retries automatically. |
+| `querySrv ENOTFOUND` / DNS error | Verify the `mongodb+srv` hostname, DNS/internet access, and try `MONGODB_FAMILY=4`. Do not replace the SRV hostname with an unverified address. |
+| `Authentication failed` | Verify the Atlas database user (not the Atlas website account). URL-encode special password characters such as `@`, `:`, `/`, `%`, `#`, and `?` in `MONGODB_URI`. |
+| Local MongoDB connects but writes fail | Run a replica set and include `?replicaSet=rs0`; a standalone server cannot provide the required transactions. |
+| `/api/health` returns `503` | Read the credential-safe `[db]` diagnostics in server logs. The API intentionally stays fail-closed until MongoDB recovers; never enable `ALLOW_IN_MEMORY` for real account data. |
 | App can't reach the server | Ensure the server is running (`npm run dev`) and the app's `EXPO_PUBLIC_API_URL` matches your platform (table above). |
 | `EADDRINUSE` on port 5000 | Change `PORT` in `.env` and update `EXPO_PUBLIC_API_URL` in the app. |
 | CORS errors | Add the exact browser origin to `CORS_ORIGINS`; native requests do not require a browser origin. |
