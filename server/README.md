@@ -24,7 +24,7 @@ Notifications, Subscriptions).
 
 | Feature | Description |
 | --- | --- |
-| 🔐 **OTP Auth** | Mobile + OTP login (`POST /api/auth/login`, `/verify`) returning JWT |
+| 🔐 **OTP Auth** | Mobile + persisted, one-time OTP challenge (`POST /api/auth/login`, `/verify`) returning JWT |
 | 🧾 **Patients API** | List, get-by-id, stats, create (auto PID generation, duplicate-mobile check) |
 | 📋 **Reports API** | List (patient populated), get-by-id, create |
 | 📊 **Dashboard API** | Headline stats + last-7-days chart data |
@@ -80,6 +80,9 @@ notifications. Only the account-owned clinical test catalogue is initialized.
 
 > Authenticated clients can read the business values (minus the OTP) at
 > `GET /api/config`; change the `.env` and restart the server to update them.
+> In MongoDB mode, OTP challenge hashes, expiry, cooldown, and attempt counts
+> are persisted and atomically consumed, so verification remains safe across
+> concurrent requests and multiple API instances.
 
 **MongoDB Atlas:** create a free cluster at [mongodb.com](https://www.mongodb.com/cloud/atlas),
 whitelist your IP in *Network Access*, and paste the connection string into
@@ -186,7 +189,7 @@ server/
 │   ├── lib/
 │   │   ├── store.js          # Tenant-isolated persistent data store
 │   │   └── seedData.js       # Account-owned test catalogue definitions
-│   ├── models/               # Mongoose schemas (User, Patient, Report, Meta)
+│   ├── models/               # Mongoose schemas (User, OTP challenge, tenant data)
 │   └── routes/               # authRoutes, patientRoutes, reportRoutes,
 │                             # dashboardRoutes, moduleRoutes, metaRoutes
 ├── .env.example              # Environment template

@@ -37,9 +37,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const clearSession = React.useCallback(async () => {
     requestVersion.current += 1;
-    await removeToken();
     setUser(null);
     setPendingPhone(null);
+    try {
+      await removeToken();
+    } catch {
+      // removeToken clears the in-memory credential before touching device
+      // storage, so the active session still closes safely if storage fails.
+    }
   }, []);
 
   React.useEffect(() => {
@@ -51,7 +56,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const response = await api.auth.me();
         if (active) setUser(response.user);
       } catch {
-        await removeToken();
+        try {
+          await removeToken();
+        } catch {
+          // The in-memory credential is already cleared even if storage fails.
+        }
       } finally {
         if (active) setReady(true);
       }
@@ -80,6 +89,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await api.auth.verifyOtp(pendingPhone, otp);
       if (version !== requestVersion.current) return false;
       await saveToken(response.token);
+      if (version !== requestVersion.current) {
+        try {
+          await removeToken(response.token);
+        } catch {
+          // The stale token is still cleared from active memory.
+        }
+        return false;
+      }
       setUser(response.user);
       setPendingPhone(null);
       return true;

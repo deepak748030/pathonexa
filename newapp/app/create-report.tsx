@@ -1,5 +1,5 @@
 // Create Report — 3-step wizard, UI PDF screens 4, 6, 7
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { T } from '../components/T';
 import { Alert, View, Text, StyleSheet, TouchableOpacity, TextInput, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -94,6 +94,8 @@ export default function CreateReport() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
+  const patientSearchRef = useRef(patientSearch);
+  patientSearchRef.current = patientSearch;
 
   useEffect(() => {
     let active = true;
@@ -104,8 +106,10 @@ export default function CreateReport() {
       api.meta.list<Doctor>('doctors'),
     ]).then(([patientPage, tests, doctorRows]) => {
       if (!active) return;
-      setPatientList(patientPage.items);
-      setPatient(patientPage.items[0] || null);
+      if (!patientSearchRef.current.trim()) {
+        setPatientList(patientPage.items);
+        setPatient(patientPage.items[0] || null);
+      }
       setTestsCatalog(tests.filter((test) => test.status !== 'Inactive'));
       setSelected(tests[0]?._id ? [tests[0]._id] : []);
       setDoctors(doctorRows);
@@ -120,15 +124,22 @@ export default function CreateReport() {
   }, []);
 
   useEffect(() => {
+    let active = true;
     const timer = setTimeout(() => {
       api.patients.list({ page: 1, limit: 50, search: patientSearch.trim() || undefined })
         .then((page) => {
+          if (!active) return;
           setPatientList(page.items);
-          if (page.items.length && (!patient || !page.items.some((item) => item._id === patient._id))) setPatient(page.items[0]);
+          setPatient((current) => (
+            page.items.length && (!current || !page.items.some((item) => item._id === current._id)) ? page.items[0] : current
+          ));
         })
         .catch(() => undefined);
     }, 300);
-    return () => clearTimeout(timer);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, [patientSearch]);
 
   const selectedTests = useMemo(() => testsCatalog.filter((test) => selected.includes(test._id)), [selected, testsCatalog]);

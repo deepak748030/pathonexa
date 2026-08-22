@@ -9,10 +9,13 @@ type InfiniteDataOptions<T> = {
 /** Server-backed infinite pagination with stale-request and duplicate-load protection. */
 export function useInfiniteData<T>({ fetchPage, resetKey = 'default' }: InfiniteDataOptions<T>) {
   const fetchRef = React.useRef(fetchPage);
+  const resetKeyRef = React.useRef(resetKey);
   const generationRef = React.useRef(0);
   const loadingMoreRef = React.useRef(false);
   fetchRef.current = fetchPage;
+  resetKeyRef.current = resetKey;
 
+  const [dataKey, setDataKey] = React.useState(resetKey);
   const [items, setItems] = React.useState<T[]>([]);
   const [page, setPage] = React.useState(0);
   const [total, setTotal] = React.useState(0);
@@ -24,6 +27,7 @@ export function useInfiniteData<T>({ fetchPage, resetKey = 'default' }: Infinite
 
   const requestFirstPage = React.useCallback(async (refreshing: boolean) => {
     const generation = ++generationRef.current;
+    const requestKey = resetKeyRef.current;
     loadingMoreRef.current = true;
     setError(null);
     setIsLoading(!refreshing);
@@ -36,6 +40,7 @@ export function useInfiniteData<T>({ fetchPage, resetKey = 'default' }: Infinite
       setPage(response.pagination.page);
       setTotal(response.pagination.total);
       setHasMore(response.pagination.hasMore);
+      setDataKey(requestKey);
     } catch (requestError) {
       if (generation !== generationRef.current) return;
       setError(requestError instanceof Error ? requestError.message : 'Unable to load data.');
@@ -43,6 +48,7 @@ export function useInfiniteData<T>({ fetchPage, resetKey = 'default' }: Infinite
       setPage(0);
       setTotal(0);
       setHasMore(false);
+      setDataKey(requestKey);
     } finally {
       if (generation === generationRef.current) {
         loadingMoreRef.current = false;
@@ -53,6 +59,12 @@ export function useInfiniteData<T>({ fetchPage, resetKey = 'default' }: Infinite
   }, []);
 
   React.useEffect(() => {
+    // Remove the previous key's cached rows as soon as the identity/filter key
+    // changes. Returned values are also masked synchronously until this runs.
+    setItems([]);
+    setPage(0);
+    setTotal(0);
+    setHasMore(true);
     requestFirstPage(false);
     return () => {
       generationRef.current += 1;
@@ -61,7 +73,7 @@ export function useInfiniteData<T>({ fetchPage, resetKey = 'default' }: Infinite
   }, [requestFirstPage, resetKey]);
 
   const loadMore = React.useCallback(async () => {
-    if (loadingMoreRef.current || !hasMore) return;
+    if (dataKey !== resetKey || loadingMoreRef.current || !hasMore) return;
     const generation = generationRef.current;
     loadingMoreRef.current = true;
     setIsLoadingMore(true);
@@ -86,27 +98,31 @@ export function useInfiniteData<T>({ fetchPage, resetKey = 'default' }: Infinite
         setIsLoadingMore(false);
       }
     }
-  }, [hasMore, page]);
+  }, [dataKey, hasMore, page, resetKey]);
 
   const refresh = React.useCallback(() => requestFirstPage(true), [requestFirstPage]);
 
   const updateItem = React.useCallback((id: string, update: Partial<T>) => {
-    setItems((current) => current.map((item: any) =>
-      String(item?._id ?? item?.id) === id ? { ...item, ...update } : item,
-    ));
-  }, []);
+    const callerKey = resetKey;
+    setItems((current) => {
+      if (callerKey !== resetKeyRef.current) return current;
+      return current.map((item: any) =>
+        String(item?._id ?? item?.id) === id ? { ...item, ...update } : item);
+    });
+  }, [resetKey]);
 
+  const isCurrentKey = dataKey === resetKey;
   return {
-    items,
+    items: isCurrentKey ? items : [],
     loadMore,
     refresh,
     updateItem,
-    isLoading,
-    isLoadingMore,
-    isRefreshing,
-    hasMore,
-    loadedCount: items.length,
-    total,
-    error,
+    isLoading: isCurrentKey ? isLoading : true,
+    isLoadingMore: isCurrentKey ? isLoadingMore : false,
+    isRefreshing: isCurrentKey ? isRefreshing : false,
+    hasMore: isCurrentKey ? hasMore : false,
+    loadedCount: isCurrentKey ? items.length : 0,
+    total: isCurrentKey ? total : 0,
+    error: isCurrentKey ? error : null,
   };
 }

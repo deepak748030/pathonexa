@@ -12,6 +12,7 @@ const db = require('../config/db');
 const Patient = require('../models/Patient');
 const Report = require('../models/Report');
 const User = require('../models/User');
+const OtpChallenge = require('../models/OtpChallenge');
 const Meta = require('../models/Meta');
 const TenantCounter = require('../models/TenantCounter');
 const defaults = require('./seedData');
@@ -191,6 +192,7 @@ async function allReports() {
 }
 
 const OTP = cfg.internalOtp;
+const OTP_RESEND_COOLDOWN_MS = 30_000;
 function authSecret() {
   const secret = process.env.JWT_SECRET;
   if (!secret || (process.env.NODE_ENV === 'production' && secret.length < 32)) {
@@ -217,9 +219,36 @@ const auth = {
     mobile = String(mobile || '').trim();
     if (!/^[6-9]\d{9}$/.test(mobile)) throw Object.assign(new Error('A valid 10-digit Indian mobile number is required'), { status: 400 });
     const now = Date.now();
-    const existing = globalMem.otpChallenges.get(mobile);
-    if (existing && now - existing.requestedAt < 1500) throw Object.assign(new Error('Please wait before requesting another OTP'), { status: 429 });
-    globalMem.otpChallenges.set(mobile, { hash: otpHash(mobile, OTP), expiresAt: now + 5 * 60_000, requestedAt: now, attempts: 0 });
+    const challenge = {
+      hash: otpHash(mobile, OTP),
+      expiresAt: new Date(now + 5 * 60_000),
+      requestedAt: new Date(now),
+      attempts: 0,
+    };
+    if (useMemory()) {
+      const existing = globalMem.otpChallenges.get(mobile);
+      if (existing && now - existing.requestedAt < OTP_RESEND_COOLDOWN_MS) throw Object.assign(new Error('Please wait before requesting another OTP'), { status: 429 });
+      globalMem.otpChallenges.set(mobile, { ...challenge, expiresAt: challenge.expiresAt.getTime(), requestedAt: now });
+    } else {
+      try {
+        // The unique mobile index makes the cooldown atomic across concurrent
+        // requests and across multiple API instances.
+        await OtpChallenge.findOneAndUpdate(
+          {
+            mobile,
+            $or: [
+              { requestedAt: { $lte: new Date(now - OTP_RESEND_COOLDOWN_MS) } },
+              { requestedAt: { $exists: false } },
+            ],
+          },
+          { $set: challenge },
+          { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true },
+        );
+      } catch (error) {
+        if (error?.code === 11000) throw Object.assign(new Error('Please wait before requesting another OTP'), { status: 429 });
+        throw error;
+      }
+    }
     return { message: 'OTP sent successfully', expiresInSeconds: 300 };
   },
 
@@ -228,16 +257,57 @@ const auth = {
     mobile = String(mobile || '').trim();
     otp = String(otp || '').trim();
     if (!/^[6-9]\d{9}$/.test(mobile) || !/^\d{6}$/.test(otp)) throw Object.assign(new Error('Mobile number and OTP are required'), { status: 400 });
-    const challenge = globalMem.otpChallenges.get(mobile);
-    if (!challenge || challenge.expiresAt < Date.now() || challenge.attempts >= 5) {
-      globalMem.otpChallenges.delete(mobile);
+    const now = Date.now();
+    const challenge = useMemory()
+      ? globalMem.otpChallenges.get(mobile)
+      : await OtpChallenge.findOne({ mobile }).lean();
+    if (!challenge || new Date(challenge.expiresAt).getTime() <= now || challenge.attempts >= 5) {
+      if (useMemory()) globalMem.otpChallenges.delete(mobile);
+      else if (challenge?._id) {
+        // Match the challenge snapshot so a concurrent resend cannot have its
+        // freshly reset challenge deleted by this stale verification.
+        await OtpChallenge.deleteOne({
+          _id: challenge._id,
+          hash: challenge.hash,
+          expiresAt: challenge.expiresAt,
+          requestedAt: challenge.requestedAt,
+          attempts: challenge.attempts,
+        });
+      }
       throw Object.assign(new Error('Invalid or expired OTP'), { status: 400 });
     }
-    challenge.attempts += 1;
+
+    const challengeSnapshot = {
+      _id: challenge._id,
+      hash: challenge.hash,
+      expiresAt: challenge.expiresAt,
+      requestedAt: challenge.requestedAt,
+    };
     const actual = Buffer.from(challenge.hash, 'hex');
     const supplied = Buffer.from(otpHash(mobile, otp), 'hex');
-    if (actual.length !== supplied.length || !crypto.timingSafeEqual(actual, supplied)) throw Object.assign(new Error('Invalid or expired OTP'), { status: 400 });
-    globalMem.otpChallenges.delete(mobile);
+    const valid = actual.length === supplied.length && crypto.timingSafeEqual(actual, supplied);
+    if (!valid) {
+      if (useMemory()) challenge.attempts += 1;
+      else {
+        await OtpChallenge.updateOne(
+          { ...challengeSnapshot, expiresAt: { $eq: challenge.expiresAt, $gt: new Date() }, attempts: { $lt: 5 } },
+          { $inc: { attempts: 1 } },
+        );
+      }
+      throw Object.assign(new Error('Invalid or expired OTP'), { status: 400 });
+    }
+
+    if (useMemory()) globalMem.otpChallenges.delete(mobile);
+    else {
+      // Deleting with the validity constraints is the atomic one-time consume:
+      // only one concurrent verification can exchange this challenge for JWT.
+      const consumed = await OtpChallenge.findOneAndDelete({
+        ...challengeSnapshot,
+        expiresAt: { $eq: challenge.expiresAt, $gt: new Date() },
+        attempts: { $lt: 5 },
+      });
+      if (!consumed) throw Object.assign(new Error('Invalid or expired OTP'), { status: 400 });
+    }
 
     let user;
     if (useMemory()) {
@@ -247,8 +317,19 @@ const auth = {
         globalMem.users.push(user);
       }
     } else {
-      user = await User.findOne({ mobile });
-      if (!user) user = await User.create({ mobile, name: 'Lab Owner', role: 'Lab Owner' });
+      try {
+        user = await User.findOneAndUpdate(
+          { mobile },
+          { $setOnInsert: { mobile, name: 'Lab Owner', role: 'Lab Owner' } },
+          { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true },
+        );
+      } catch (error) {
+        // A unique-index race can only mean another verifier created the same
+        // mobile account first; always converge on that single account.
+        if (error?.code !== 11000) throw error;
+        user = await User.findOne({ mobile });
+        if (!user) throw error;
+      }
     }
     return { token: signToken(user), user: publicUser(user) };
   },

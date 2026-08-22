@@ -5,7 +5,18 @@ import { Platform } from 'react-native';
 export const TOKEN_KEY = 'pathonexa.auth.token';
 const REQUEST_TIMEOUT_MS = 15_000;
 let memoryToken: string | null = null;
+let desiredToken: string | null | undefined;
+let tokenRevision = 0;
+// Preserve invocation order across SecureStore/localStorage so an old async
+// save or removal cannot overwrite the credential for a newer account.
+let tokenStorageQueue: Promise<void> = Promise.resolve();
 let unauthorizedHandler: (() => void | Promise<void>) | null = null;
+
+function queueTokenStorage<T>(operation: () => T | Promise<T>) {
+  const result = tokenStorageQueue.then(operation, operation);
+  tokenStorageQueue = result.then(() => undefined, () => undefined);
+  return result;
+}
 
 function normalizeApiUrl(value: string) {
   const clean = value.trim().replace(/\/+$/, '');
@@ -57,29 +68,58 @@ function webStorage() {
 }
 
 export async function loadToken() {
+  if (desiredToken !== undefined) return desiredToken;
   if (memoryToken) return memoryToken;
-  try {
-    memoryToken = webStorage()?.getItem(TOKEN_KEY) ?? (await SecureStore.getItemAsync(TOKEN_KEY));
-  } catch {
-    memoryToken = null;
-  }
-  return memoryToken;
-}
-
-export async function saveToken(token: string) {
-  memoryToken = token;
-  const storage = webStorage();
-  if (storage) storage.setItem(TOKEN_KEY, token);
-  else await SecureStore.setItemAsync(TOKEN_KEY, token, {
-    keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+  const revision = tokenRevision;
+  return queueTokenStorage(async () => {
+    if (memoryToken) return memoryToken;
+    try {
+      const storage = webStorage();
+      const loaded = storage ? storage.getItem(TOKEN_KEY) : await SecureStore.getItemAsync(TOKEN_KEY);
+      if (revision === tokenRevision) {
+        memoryToken = loaded;
+        desiredToken = loaded;
+      }
+    } catch {
+      if (revision === tokenRevision) {
+        memoryToken = null;
+        desiredToken = null;
+      }
+    }
+    return memoryToken;
   });
 }
 
-export async function removeToken() {
+export async function saveToken(token: string) {
+  const revision = ++tokenRevision;
+  desiredToken = token;
   memoryToken = null;
-  const storage = webStorage();
-  if (storage) storage.removeItem(TOKEN_KEY);
-  else await SecureStore.deleteItemAsync(TOKEN_KEY);
+  try {
+    await queueTokenStorage(async () => {
+      const storage = webStorage();
+      if (storage) storage.setItem(TOKEN_KEY, token);
+      else await SecureStore.setItemAsync(TOKEN_KEY, token, {
+        keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+      });
+      if (revision === tokenRevision) memoryToken = token;
+    });
+  } catch (error) {
+    if (revision === tokenRevision) desiredToken = null;
+    throw error;
+  }
+}
+
+export async function removeToken(expectedToken?: string) {
+  const logicalToken = desiredToken === undefined ? memoryToken : desiredToken;
+  if (expectedToken && logicalToken !== expectedToken) return;
+  tokenRevision += 1;
+  desiredToken = null;
+  memoryToken = null;
+  await queueTokenStorage(async () => {
+    const storage = webStorage();
+    if (storage) storage.removeItem(TOKEN_KEY);
+    else await SecureStore.deleteItemAsync(TOKEN_KEY);
+  });
 }
 
 export function onUnauthorized(handler: (() => void | Promise<void>) | null) {
@@ -124,7 +164,10 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     }
 
     if (!response.ok) {
-      if (response.status === 401 && authenticated) await unauthorizedHandler?.();
+      // A delayed response made with an older account token must never clear a
+      // newer session that has since been established on this device.
+      const currentToken = desiredToken === undefined ? memoryToken : desiredToken;
+      if (response.status === 401 && authenticated && token === currentToken) await unauthorizedHandler?.();
       throw new ApiError(payload?.message ?? `Request failed (${response.status})`, response.status, payload);
     }
     return payload as T;

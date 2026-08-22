@@ -13,11 +13,11 @@ function memoryAllowed() {
   return process.env.NODE_ENV === 'test' || process.env.ALLOW_IN_MEMORY === 'true';
 }
 
-async function syncTenantIndexes() {
+async function syncApplicationIndexes() {
   // Models are registered by store.js before connectDB is called from index.js.
-  // syncIndexes removes the old globally-unique pid/reportId indexes and
-  // installs owner-scoped compound indexes.
-  const names = ['Patient', 'Report', 'Meta', 'TenantCounter'];
+  // syncIndexes removes the old globally-unique pid/reportId indexes, installs
+  // owner-scoped compound indexes, and enforces unique account/challenge keys.
+  const names = ['User', 'OtpChallenge', 'Patient', 'Report', 'Meta', 'TenantCounter'];
   await Promise.all(names.filter((name) => mongoose.models[name]).map((name) => mongoose.models[name].syncIndexes()));
 }
 
@@ -40,15 +40,18 @@ async function connectOnce() {
       serverSelectionTimeoutMS: Number(process.env.MONGODB_TIMEOUT_MS) || 4000,
       autoIndex: false,
     });
+    await syncApplicationIndexes();
     state.ready = true;
     state.mode = 'mongodb';
     state.error = null;
-    await syncTenantIndexes();
     console.log(`[db] MongoDB connected → ${conn.connection.host}/${conn.connection.name}`);
     return true;
   } catch (error) {
     state.ready = false;
     state.error = error;
+    // Index synchronization can fail after the socket has connected. Do not
+    // leave that unusable connection alive while reporting memory/unavailable.
+    if (mongoose.connection.readyState !== 0) await mongoose.disconnect().catch(() => {});
     if (!memoryAllowed()) {
       state.mode = 'unavailable';
       console.error(`[db] MongoDB is required but unavailable: ${error.message}`);
