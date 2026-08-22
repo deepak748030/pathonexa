@@ -4,11 +4,8 @@ Production-grade REST API for the **PathoNexa Lab Management app** — built wit
 **Node.js + Express + MongoDB (Mongoose)**.
 
 > 🔐 **Persistent by default:** MongoDB is required for account data. The server
-> fails closed when persistence is unavailable. For local development the
-> server automatically falls back to a disposable, tenant-partitioned in-memory
-> adapter when no `MONGODB_URI` is configured (or `ALLOW_IN_MEMORY=true` is
-> set), so `npm run dev` works out of the box. Production always stays
-> fail-closed.
+> fails closed when persistence is unavailable. A disposable, tenant-partitioned
+> in-memory adapter exists only for automated tests or explicit local opt-in.
 
 ---
 
@@ -43,9 +40,8 @@ Notifications, Subscriptions).
 cd server
 npm install
 
-# 1) Optional: copy env only if you have a real MongoDB. Without a `.env`
-#    the server runs in development in-memory mode (data resets on restart).
-cp .env.example .env      # skip if you just want to try the app
+# 1) Copy env and set your MONGODB_URI (required)
+cp .env.example .env      # skip if .env already exists
 
 # 2) Run the API
 npm run dev               # http://localhost:5000
@@ -55,8 +51,7 @@ Verify it's alive:
 
 ```bash
 curl http://localhost:5000/api/health
-# With MongoDB:      { "status": "ok", "db": "mongodb", "persistent": true, ... }
-# Dev in-memory mode: { "status": "ok", "db": "memory", "persistent": false, ... }
+# → { "status": "ok", "db": "mongodb", "persistent": true, ... }
 ```
 
 New accounts start without patients, reports, doctors, transactions, or
@@ -78,7 +73,8 @@ notifications. Only the account-owned clinical test catalogue is initialized.
 | `MONGODB_FAMILY` | `4` | DNS address family (`4`; use `0` for automatic or `6` for verified IPv6) |
 | `JWT_SECRET` | — | Secret for signing JWT tokens (**32+ random characters in production**; development uses an insecure fallback with a warning when unset) |
 | `NODE_ENV` | `development` | Runtime environment |
-| `ALLOW_IN_MEMORY` | `false` | Explicit disposable local adapter; never enable in production (development auto-falls-back when no `MONGODB_URI` is set) |
+| `ALLOW_IN_MEMORY` | `false` | Explicit disposable local adapter; never enable in production |
+| `MONGOOSE_DEBUG` | `false` | Set `true` to log every MongoDB query for debugging |
 | `DEFAULT_COMMISSION_PERCENT` | `10` | Doctor commission % applied when a doctor is added without one |
 | `MAX_DISCOUNT_PERCENT` | `50` | Max discount allowed on a report (% of the gross bill) |
 | `CURRENCY_SYMBOL` | `₹` | Currency symbol used on receipts / seeded settings |
@@ -109,10 +105,7 @@ that time `/api/health` returns HTTP `503` with `db: "connecting"` or
 instead of reading/writing disposable data. The process retries automatically
 with bounded exponential backoff and becomes healthy when persistence recovers.
 A configured MongoDB failure never activates memory storage unless
-`ALLOW_IN_MEMORY=true` was explicitly set for isolated development. Only when
-**no `MONGODB_URI` is configured at all in development** does the server start
-directly in memory mode — this is what makes the default `npm run dev` work
-without any setup.
+`ALLOW_IN_MEMORY=true` was explicitly set for isolated development.
 
 ---
 

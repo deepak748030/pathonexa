@@ -5,6 +5,14 @@ const mongoose = require('mongoose');
 // buffering a write until some later reconnect.
 mongoose.set('bufferCommands', false);
 
+// Opt-in verbose logging of every MongoDB query (helps debug persistence
+// issues). Enable with MONGOOSE_DEBUG=true in server/.env.
+if (process.env.MONGOOSE_DEBUG === 'true') {
+  mongoose.set('debug', (collection, method, ...args) => {
+    console.log(`[db:query] ${collection}.${method}`, JSON.stringify(args));
+  });
+}
+
 const state = {
   mode: 'connecting',
   ready: false,
@@ -17,13 +25,11 @@ const state = {
 };
 
 function memoryAllowed() {
-  // Persistence is mandatory unless an operator explicitly enables the
-  // disposable adapter (or the isolated test suite is running). In
-  // development, an unconfigured MONGODB_URI automatically falls back to
-  // in-memory storage so `npm run dev` works out of the box (production
-  // always stays fail-closed when persistence is not configured).
-  if (process.env.NODE_ENV === 'test' || process.env.ALLOW_IN_MEMORY === 'true') return true;
-  return !process.env.MONGODB_URI?.trim() && process.env.NODE_ENV !== 'production';
+  // Persistence is mandatory: the disposable in-memory adapter is used ONLY
+  // for the isolated test suite or an explicit opt-in (ALLOW_IN_MEMORY=true).
+  // Without a configured MONGODB_URI the server stays fail-closed — it never
+  // silently falls back to in-memory storage.
+  return process.env.NODE_ENV === 'test' || process.env.ALLOW_IN_MEMORY === 'true';
 }
 
 function milliseconds(name, fallback, { min = 250, max = 120000 } = {}) {
@@ -113,7 +119,7 @@ async function connectOnce() {
       throw error;
     }
     state.mode = 'memory';
-    console.warn('[db] MONGODB_URI is not set; development in-memory storage is active (data is lost on restart).');
+    console.warn('[db] MONGODB_URI is not set; explicit development in-memory storage is active.');
     return false;
   }
 
