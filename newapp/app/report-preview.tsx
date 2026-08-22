@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { T } from '../components/T';
 import { BrandLogo } from '../components/Brand';
-import { Alert, Platform, View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { Platform, View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -13,6 +13,7 @@ import { QRBox, Signature, Stamp } from '../components/charts';
 import { C, PAGE_GUTTER } from '../src/theme';
 import { api, type LabSettings, type Report, type ReportValue } from '../src/api';
 import { reportHtml, reportPdfBlob, reportTextLines } from '../src/reportDocument';
+import { useFeedback } from '../src/feedback';
 const formatDateTime = (value?: string) => {
   if (!value) return '—';
   const date = new Date(value);
@@ -29,6 +30,7 @@ export default function ReportPreview() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const insets = useSafeAreaInsets();
+  const { toast, prompt, actionSheet } = useFeedback();
   const [report, setReport] = useState<Report | null>(null);
   const [lab, setLab] = useState<LabSettings>({ name: '' });
   const [loading, setLoading] = useState(true);
@@ -70,7 +72,7 @@ export default function ReportPreview() {
   }, [report]);
   const requireReport = () => {
     if (report && !loading) return report;
-    Alert.alert('Report unavailable', error || 'Wait for the report to finish loading.');
+    toast({ kind: 'error', title: 'Report unavailable', message: error || 'Wait for the report to finish loading.' });
     return null;
   };
 
@@ -97,7 +99,7 @@ export default function ReportPreview() {
         dialogTitle: `Save ${current.reportId}.pdf`,
       });
     } catch (actionError) {
-      Alert.alert('Download failed', actionError instanceof Error ? actionError.message : 'Unable to create the report PDF.');
+      toast({ kind: 'error', title: 'Download failed', message: actionError instanceof Error ? actionError.message : 'Unable to create the report PDF.' });
     }
   };
 
@@ -129,7 +131,7 @@ export default function ReportPreview() {
       });
     } catch (actionError) {
       if ((actionError as Error)?.name !== 'AbortError') {
-        Alert.alert('Sharing failed', actionError instanceof Error ? actionError.message : 'Unable to share this report.');
+        toast({ kind: 'error', title: 'Sharing failed', message: actionError instanceof Error ? actionError.message : 'Unable to share this report.' });
       }
     }
   };
@@ -151,7 +153,7 @@ export default function ReportPreview() {
       }
       await Print.printAsync({ html });
     } catch (actionError) {
-      Alert.alert('Printing failed', actionError instanceof Error ? actionError.message : 'Unable to print this report.');
+      toast({ kind: 'error', title: 'Printing failed', message: actionError instanceof Error ? actionError.message : 'Unable to print this report.' });
     }
   };
 
@@ -161,23 +163,31 @@ export default function ReportPreview() {
     const find = (term?: string) => {
       if (!term?.trim()) return;
       const matches = reportTextLines(current, lab).filter((line) => line.toLowerCase().includes(term.trim().toLowerCase()));
-      Alert.alert(matches.length ? `${matches.length} match${matches.length === 1 ? '' : 'es'}` : 'No matches', matches.slice(0, 8).join('\n') || `“${term.trim()}” was not found.`);
+      toast({
+        kind: matches.length ? 'info' : 'warning',
+        title: matches.length ? `${matches.length} match${matches.length === 1 ? '' : 'es'}` : 'No matches',
+        message: matches.slice(0, 8).join('\n') || `“${term.trim()}” was not found.`,
+        durationMs: 4500,
+      });
     };
-    if (Platform.OS === 'ios') Alert.prompt('Search report', 'Enter a patient, test, or result.', find);
-    else if (Platform.OS === 'web') find(window.prompt('Search this report') || undefined);
-    else Alert.alert('Search report', 'Search by test or result', [
-      { text: 'Patient', onPress: () => find(current.patient?.name) },
-      { text: 'Abnormal', onPress: () => find('H') },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    prompt({
+      title: 'Search report',
+      message: 'Search by patient, test, or result.',
+      placeholder: 'Enter a search term',
+      submitText: 'Search',
+      onSubmit: (value) => find(value),
+    });
   };
 
-  const moreActions = () => Alert.alert('Report actions', 'Choose an action', [
-    { text: 'Share', onPress: () => { shareReport().catch(() => {}); } },
-    { text: 'Download PDF', onPress: () => { downloadReport().catch(() => {}); } },
-    { text: 'Print', onPress: () => { printReport().catch(() => {}); } },
-    { text: 'Cancel', style: 'cancel' },
-  ]);
+  const moreActions = () => actionSheet({
+    title: 'Report actions',
+    message: 'Choose an action for this report.',
+    actions: [
+      { icon: 'share-variant', label: 'Share', onPress: () => { shareReport().catch(() => {}); } },
+      { icon: 'download-outline', label: 'Download PDF', onPress: () => { downloadReport().catch(() => {}); } },
+      { icon: 'printer', label: 'Print', onPress: () => { printReport().catch(() => {}); } },
+    ],
+  });
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>

@@ -19,11 +19,14 @@ export function formatIndianMobile(value: string) {
 type AuthContextValue = {
   isAuthenticated: boolean;
   isReady: boolean;
+  /** True for a signed-in account that has not completed name + email setup. */
+  needsOnboarding: boolean;
   pendingPhone: string | null;
   user: AuthUser | null;
   requestOtp: (phone: string) => Promise<void>;
   verifyOtp: (otp: string) => Promise<boolean>;
   clearPendingPhone: () => void;
+  completeProfile: (name: string, email: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -111,16 +114,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setPendingPhone(null);
   }, []);
 
+  const completeProfile = React.useCallback(async (name: string, email: string) => {
+    const response = await api.auth.updateProfile({ name, email });
+    setUser(response.user);
+  }, []);
+
+  // A fresh account is created with the default name and no email; treat that
+  // as "needs onboarding" so the user is prompted to complete their profile.
+  const needsOnboarding = !!user && (!user.email || user.name === 'Lab Owner');
+
   const value = React.useMemo<AuthContextValue>(() => ({
     isAuthenticated: !!user,
     isReady,
+    needsOnboarding,
     pendingPhone,
     user,
     requestOtp,
     verifyOtp,
     clearPendingPhone,
+    completeProfile,
     logout: clearSession,
-  }), [clearPendingPhone, clearSession, isReady, pendingPhone, requestOtp, user, verifyOtp]);
+  }), [clearPendingPhone, clearSession, completeProfile, isReady, needsOnboarding, pendingPhone, requestOtp, user, verifyOtp]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

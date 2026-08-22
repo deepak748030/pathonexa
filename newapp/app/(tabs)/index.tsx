@@ -1,7 +1,7 @@
 // Dashboard — UI PDF screen 1 & 9 (behind drawer)
 import React from 'react';
 import { T } from '../../components/T';
-import { Alert, View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { BlueHeader, HeaderIconBtn, ScrollPage, Card, DashStat, SectionHead, Avatar, StatusPill, Chevron, Press, Skeleton } from '../../components/kit';
@@ -11,6 +11,7 @@ import { C, PAGE_GUTTER } from '../../src/theme';
 import { api, type Report } from '../../src/api';
 import { useAuth } from '../../src/auth';
 import { useNotifications } from '../../src/notifications';
+import { useFeedback } from '../../src/feedback';
 
 const quickActions = [
   { icon: 'account-plus-outline', label: 'New Patient' },
@@ -35,6 +36,7 @@ export default function Dashboard() {
   const router = useRouter();
   const { user } = useAuth();
   const { unreadCount } = useNotifications();
+  const { toast } = useFeedback();
   const [stats, setStats] = React.useState<Array<{ key: string; label: string; value: string; sub: string; tone: string }>>([]);
   const [chart, setChart] = React.useState<{ labels: string[]; values: number[]; totalReports: string; totalRevenue: string; avgPerDay: string } | null>(null);
   const [recentReports, setRecentReports] = React.useState<Report[]>([]);
@@ -130,7 +132,7 @@ export default function Dashboard() {
                 if (q.label === 'New Patient') router.push('/add-patient');
                 else if (q.label === 'New Report') router.push('/create-report');
                 else if (q.label === 'More') router.push('/more');
-                else Alert.alert(q.label, `${q.label} is not available in this app version.`);
+                else toast({ kind: 'info', title: q.label, message: 'This feature is not available in this app version yet.' });
               }}
             >
               <MaterialCommunityIcons name={q.icon as any} size={22} color={C.primary} />

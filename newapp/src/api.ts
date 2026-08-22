@@ -201,7 +201,7 @@ function queryString(values: Record<string, string | number | boolean | undefine
   return query ? `?${query}` : '';
 }
 
-export type AuthUser = { id: string; mobile: string; name: string; role: string };
+export type AuthUser = { id: string; mobile: string; name: string; role: string; email?: string };
 export type LabSettings = {
   name: string;
   shortName?: string;
@@ -291,6 +291,9 @@ export const api = {
       method: 'POST', body: { mobile, otp }, authenticated: false,
     }),
     me: () => apiRequest<{ user: AuthUser }>('/auth/me'),
+    updateProfile: (data: { name: string; email: string }) => apiRequest<{ user: AuthUser }>('/auth/me', {
+      method: 'PATCH', body: data,
+    }),
   },
   dashboard: {
     stats: () => apiRequest<Array<{ key: string; label: string; value: string; sub: string; tone: string }>>('/dashboard/stats'),

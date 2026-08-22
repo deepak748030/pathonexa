@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState } from 'react';
 import { T } from './T';
 import { BrandIcon } from './Brand';
-import { Alert, View, StyleSheet, TouchableOpacity, ScrollView, Animated, Dimensions, Platform } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Animated, Dimensions, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, usePathname } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -11,6 +11,7 @@ import { C, PAGE_GUTTER } from '../src/theme';
 import { drawerSections } from '../src/navigation';
 import { api, type LabSettings } from '../src/api';
 import { useAuth } from '../src/auth';
+import { useFeedback } from '../src/feedback';
 import { Skeleton } from './kit';
 
 const DrawerCtx = createContext<{ open: boolean; setOpen: (v: boolean) => void }>({ open: false, setOpen: () => {} });
@@ -29,6 +30,7 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
 function DrawerPanel() {
   const { open, setOpen } = useDrawer();
   const { logout, user } = useAuth();
+  const { toast } = useFeedback();
   const router = useRouter();
   const path = usePathname();
   const insets = useSafeAreaInsets();
@@ -63,7 +65,7 @@ function DrawerPanel() {
   const go = (route?: string, label?: string) => {
     setOpen(false);
     if (route) router.push(route as any);
-    else if (label) Alert.alert(label, `${label} is not available in this app version.`);
+    else if (label) toast({ kind: 'info', title: label, message: 'This feature is not available in this app version yet.' });
   };
 
   const handleLogout = () => {

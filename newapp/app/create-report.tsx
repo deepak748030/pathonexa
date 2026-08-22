@@ -1,7 +1,7 @@
 // Create Report — 3-step wizard, UI PDF screens 4, 6, 7
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { T } from '../components/T';
-import { Alert, View, Text, StyleSheet, TouchableOpacity, TextInput, Switch } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {
@@ -22,6 +22,7 @@ import {
 import { useDrawer } from '../components/Drawer';
 import { C, F, PAGE_GUTTER } from '../src/theme';
 import { api, Patient } from '../src/api';
+import { useFeedback } from '../src/feedback';
 
 type TestParameter = {
   order?: number;
@@ -75,6 +76,7 @@ const payModes = [
 export default function CreateReport() {
   const router = useRouter();
   const { setOpen } = useDrawer();
+  const { toast } = useFeedback();
   const [step, setStep] = useState(1);
   const [patientList, setPatientList] = useState<Patient[]>([]);
   const [patient, setPatient] = useState<Patient | null>(null);
@@ -202,8 +204,8 @@ export default function CreateReport() {
   const now = new Date();
   const saveReport = async () => {
     if (saving) return;
-    if (!patient) return Alert.alert('Select patient', 'Select a patient before saving the report.');
-    if (!selectedTests.length) return Alert.alert('Select test', 'Select at least one test or package.');
+    if (!patient) return toast({ kind: 'warning', title: 'Select patient', message: 'Select a patient before saving the report.' });
+    if (!selectedTests.length) return toast({ kind: 'warning', title: 'Select test', message: 'Select at least one test or package.' });
     setSaving(true);
     try {
       const reportValues = parameterGroups.flatMap((group) => group.params.map((parameter) => ({
@@ -236,7 +238,7 @@ export default function CreateReport() {
       });
       router.replace({ pathname: '/report-preview', params: { id: report._id } });
     } catch (error) {
-      Alert.alert('Unable to save report', error instanceof Error ? error.message : 'Please try again.');
+      toast({ kind: 'error', title: 'Unable to save report', message: error instanceof Error ? error.message : 'Please try again.' });
     } finally {
       setSaving(false);
     }
@@ -417,8 +419,8 @@ export default function CreateReport() {
           </Card>
 
           <PrimaryBtn label="Create Report" icon="file-document-outline" style={{ marginTop: 8 }} onPress={() => {
-            if (!patient) Alert.alert('Select patient', 'Select a patient before continuing.');
-            else if (!selectedTests.length) Alert.alert('Select test', 'Select at least one test or package.');
+            if (!patient) toast({ kind: 'warning', title: 'Select patient', message: 'Select a patient before continuing.' });
+            else if (!selectedTests.length) toast({ kind: 'warning', title: 'Select test', message: 'Select at least one test or package.' });
             else setStep(2);
           }} />
         </View>

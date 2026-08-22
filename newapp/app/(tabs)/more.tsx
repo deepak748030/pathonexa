@@ -2,7 +2,7 @@
 import React from 'react';
 import { T } from '../../components/T';
 import { BrandIcon } from '../../components/Brand';
-import { Alert, View, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { BlueHeader, HeaderIconBtn, ScrollPage, Card, Chevron, Skeleton } from '../../components/kit';
@@ -11,10 +11,12 @@ import { moreSections } from '../../src/navigation';
 import { api, type LabSettings } from '../../src/api';
 import { useAuth } from '../../src/auth';
 import { useNotifications } from '../../src/notifications';
+import { useFeedback } from '../../src/feedback';
 
 export default function More() {
   const { logout } = useAuth();
   const { unreadCount } = useNotifications();
+  const { toast } = useFeedback();
   const router = useRouter();
   const [lab, setLab] = React.useState<LabSettings | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -35,7 +37,7 @@ export default function More() {
   }, []);
 
   React.useEffect(() => { loadLab().catch(() => {}); }, [loadLab]);
-  const unavailable = (label: string) => Alert.alert(label, `${label} is not available in this app version.`);
+  const unavailable = (label: string) => toast({ kind: 'info', title: label, message: 'This feature is not available in this app version yet.' });
 
   return (
     <ScrollPage refreshing={refreshing} onRefresh={() => loadLab(true)}>
@@ -72,7 +74,7 @@ export default function More() {
               </>
             )}
           </View>
-          <TouchableOpacity style={styles.switchBtn} onPress={() => Alert.alert('Switch Lab', 'Each mobile account is securely linked to one lab.')}>
+          <TouchableOpacity style={styles.switchBtn} onPress={() => toast({ kind: 'info', title: 'Switch Lab', message: 'Each mobile account is securely linked to one lab.' })}>
             <MaterialCommunityIcons name="swap-horizontal" size={15} color={C.primary} />
             <T style={styles.switchBtnText}>Switch Lab</T>
           </TouchableOpacity>

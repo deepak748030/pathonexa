@@ -1,12 +1,13 @@
 // Add New Patient — UI PDF screen 3
 import React from 'react';
 import { T } from '../components/T';
-import { View, StyleSheet, TouchableOpacity, Alert, Modal, Pressable, ScrollView } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Modal, Pressable, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { BlueHeader, HeaderIconBtn, ScrollPage, Card, Field, OutlineBtn, PrimaryBtn, Press } from '../components/kit';
 import { C, PAGE_GUTTER } from '../src/theme';
 import { api } from '../src/api';
+import { useFeedback } from '../src/feedback';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -44,6 +45,7 @@ function monthGrid(view: Date): Array<number | null> {
 
 export default function AddPatient() {
   const router = useRouter();
+  const { toast } = useFeedback();
   const [form, setForm] = React.useState({
     name: '', dob: '', age: '', gender: '', blood: '', mobile: '', altMobile: '',
     address: '', city: '', state: '', pincode: '', email: '', referredBy: '', remarks: '',
@@ -86,21 +88,20 @@ export default function AddPatient() {
   const save = async () => {
     if (saving) return;
     if (!form.name.trim() || !form.age || !form.gender || !/^[6-9]\d{9}$/.test(form.mobile)) {
-      Alert.alert('Check patient details', 'Enter the patient name, date of birth or age, gender, and a valid 10-digit mobile number.');
+      toast({ kind: 'warning', title: 'Check patient details', message: 'Enter the patient name, date of birth or age, gender, and a valid 10-digit mobile number.' });
       return;
     }
     if (!form.address.trim() || !form.city.trim() || !form.state.trim() || !/^\d{6}$/.test(form.pincode)) {
-      Alert.alert('Check address details', 'Enter the complete address, city, state, and a valid 6-digit PIN code.');
+      toast({ kind: 'warning', title: 'Check address details', message: 'Enter the complete address, city, state, and a valid 6-digit PIN code.' });
       return;
     }
     setSaving(true);
     try {
       const patient = await api.patients.create({ ...form, age: Number(form.age) });
-      Alert.alert('Patient Saved ✅', `${patient.name} was added with patient ID ${patient.pid}.`, [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      toast({ kind: 'success', title: 'Patient saved', message: `${patient.name} was added with patient ID ${patient.pid}.` });
+      router.back();
     } catch (error) {
-      Alert.alert('Unable to save patient', error instanceof Error ? error.message : 'Please try again.');
+      toast({ kind: 'error', title: 'Unable to save patient', message: error instanceof Error ? error.message : 'Please try again.' });
     } finally {
       setSaving(false);
     }

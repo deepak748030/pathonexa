@@ -8,6 +8,7 @@ import {
   Avatar,
   BlueHeader,
   Chevron,
+  EmptyState,
   HeaderIconBtn,
   HeaderWhiteBtn,
   InfiniteListFooter,
@@ -378,7 +379,14 @@ export default function Reports() {
                 </View>
               ))}
             </View>
-          ) : <T style={styles.empty}>{error || 'No reports in this filter.'}</T>
+          ) : (
+            <EmptyState
+              icon={error ? 'alert-circle-outline' : 'file-search-outline'}
+              tone={error ? 'red' : 'blue'}
+              title={error || 'No reports found'}
+              subtitle={error ? 'Pull down to retry, or check your connection.' : 'Create your first report to see it here.'}
+            />
+          )
         }
         ListFooterComponent={
           <InfiniteListFooter loading={isLoadingMore} hasMore={hasMore} count={items.length} />
@@ -511,11 +519,12 @@ const styles = StyleSheet.create({
   dateLabel: { marginTop: 4 },
   reportAmount: { fontSize: 12.5, fontWeight: '800', color: C.text },
   chevron: { marginLeft: 4 },
-  empty: { textAlign: 'center', color: C.faint, fontSize: 12, paddingVertical: 24 },
   skeletonList: { marginHorizontal: PAGE_GUTTER },
   reportRowSkeleton: { minHeight: 86, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderBottomWidth: 0, borderColor: C.borderSoft, backgroundColor: C.card },
   reportSkeletonMain: { flex: 1.4, marginLeft: 4, gap: 6 },
   reportSkeletonDetails: { flex: 1, gap: 7 },
   list: { backgroundColor: C.headerTop },
-  listContent: { paddingBottom: 110, backgroundColor: C.bg },
+  // flexGrow keeps the grey content filling the viewport, so a short/empty
+  // list never exposes the blue header background as a "blue box".
+  listContent: { flexGrow: 1, paddingBottom: 110, backgroundColor: C.bg },
 });

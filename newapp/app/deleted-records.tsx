@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Alert,
   FlatList,
   StyleSheet,
   TouchableOpacity,
@@ -20,6 +19,7 @@ import {
 import { api, type DeletedRecord } from '../src/api';
 import { C, PAGE_GUTTER } from '../src/theme';
 import { useInfiniteData } from '../src/useInfiniteData';
+import { useFeedback } from '../src/feedback';
 
 const PAGE_SIZE = 15;
 const FILTERS = ['All', 'Patients', 'Reports', 'Other'] as const;
@@ -64,6 +64,7 @@ function dateLabel(value?: string) {
 
 export default function DeletedRecordsScreen() {
   const router = useRouter();
+  const { toast, confirm } = useFeedback();
   const [filter, setFilter] = React.useState<DeletedFilter>('All');
   const [query, setQuery] = React.useState('');
   const [serverQuery, setServerQuery] = React.useState('');
@@ -121,27 +122,24 @@ export default function DeletedRecordsScreen() {
 
   const restore = (record: DeletedRecord) => {
     const id = String(record._id || record.id || '');
-    Alert.alert(
-      `Restore ${kindLabel(record.kind)}?`,
-      `“${titleFor(record)}” will return to its original module.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Restore', onPress: async () => {
-            setRestoring(id);
-            try {
-              await api.deleted.restore(id);
-              await refreshAll();
-              Alert.alert('Record restored', `${titleFor(record)} is available again.`);
-            } catch (restoreError) {
-              Alert.alert('Unable to restore', restoreError instanceof Error ? restoreError.message : 'Please try again.');
-            } finally {
-              setRestoring('');
-            }
-          },
-        },
-      ],
-    );
+    confirm({
+      kind: 'info',
+      title: `Restore ${kindLabel(record.kind)}?`,
+      message: `“${titleFor(record)}” will return to its original module.`,
+      confirmText: 'Restore',
+      onConfirm: async () => {
+        setRestoring(id);
+        try {
+          await api.deleted.restore(id);
+          await refreshAll();
+          toast({ kind: 'success', title: 'Record restored', message: `${titleFor(record)} is available again.` });
+        } catch (restoreError) {
+          toast({ kind: 'error', title: 'Unable to restore', message: restoreError instanceof Error ? restoreError.message : 'Please try again.' });
+        } finally {
+          setRestoring('');
+        }
+      },
+    });
   };
 
   const header = (

@@ -216,7 +216,14 @@ function permissionsFor(roleName) {
   return role ? role.permissions : (defaults.PERMISSIONS || []);
 }
 function publicUser(user) {
-  return { id: String(user._id), mobile: user.mobile, name: user.name, role: user.role, permissions: permissionsFor(user.role) };
+  return {
+    id: String(user._id),
+    mobile: user.mobile,
+    name: user.name,
+    email: user.email || '',
+    role: user.role,
+    permissions: permissionsFor(user.role),
+  };
 }
 
 const auth = {
@@ -347,6 +354,32 @@ const auth = {
 
   async me(id) {
     const user = await auth.findUser(id);
+    if (!user) throw Object.assign(new Error('Account not found'), { status: 404 });
+    return { user: publicUser(user) };
+  },
+
+  async updateProfile(id, patch) {
+    await db.whenReady();
+    const name = String(patch?.name || '').trim();
+    const email = String(patch?.email || '').trim().toLowerCase();
+    if (!name) throw Object.assign(new Error('Your name is required'), { status: 400 });
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw Object.assign(new Error('Enter a valid email address'), { status: 400 });
+    }
+    let user;
+    if (db.isReady()) {
+      user = await User.findByIdAndUpdate(
+        id,
+        { $set: { name, email } },
+        { new: true, runValidators: true },
+      ).lean();
+    } else {
+      user = globalMem.users.find((item) => String(item._id) === String(id));
+      if (user) {
+        user.name = name;
+        user.email = email;
+      }
+    }
     if (!user) throw Object.assign(new Error('Account not found'), { status: 404 });
     return { user: publicUser(user) };
   },

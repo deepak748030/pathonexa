@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -14,6 +13,7 @@ import { BrandIcon } from '../components/Brand';
 import { BlueHeader, Card, Press, Skeleton } from '../components/kit';
 import { api, type LabSettings } from '../src/api';
 import { C, F, PAGE_GUTTER } from '../src/theme';
+import { useFeedback } from '../src/feedback';
 
 type ProfileKey = keyof LabSettings;
 type ProfileField = { key: ProfileKey; label: string; placeholder: string; icon: string; required?: boolean; keyboard?: 'default' | 'phone-pad' | 'email-address'; multiline?: boolean };
@@ -82,6 +82,7 @@ function ProfileSkeleton() {
 
 export default function LabProfileScreen() {
   const router = useRouter();
+  const { toast, confirm } = useFeedback();
   const [profile, setProfile] = React.useState<LabSettings | null>(null);
   const [savedProfile, setSavedProfile] = React.useState<LabSettings | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -118,12 +119,12 @@ export default function LabProfileScreen() {
   const save = async () => {
     const name = profile?.name?.trim();
     if (!name) {
-      Alert.alert('Lab name required', 'Enter your registered lab name.');
+      toast({ kind: 'warning', title: 'Lab name required', message: 'Enter your registered lab name.' });
       return;
     }
     const email = profile?.email?.trim();
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      Alert.alert('Invalid email', 'Enter a valid email address.');
+      toast({ kind: 'warning', title: 'Invalid email', message: 'Enter a valid email address.' });
       return;
     }
     setSaving(true);
@@ -133,9 +134,9 @@ export default function LabProfileScreen() {
       const next = await api.lab.update(payload);
       setProfile(next);
       setSavedProfile(next);
-      Alert.alert('Profile saved', 'Your lab details were updated successfully.');
+      toast({ kind: 'success', title: 'Profile saved', message: 'Your lab details were updated successfully.' });
     } catch (saveError) {
-      Alert.alert('Unable to save', saveError instanceof Error ? saveError.message : 'Please try again.');
+      toast({ kind: 'error', title: 'Unable to save', message: saveError instanceof Error ? saveError.message : 'Please try again.' });
     } finally {
       if (mounted.current) setSaving(false);
     }
@@ -147,10 +148,15 @@ export default function LabProfileScreen() {
       router.back();
       return;
     }
-    Alert.alert('Discard changes?', 'Your unsaved lab profile changes will be lost.', [
-      { text: 'Keep editing', style: 'cancel' },
-      { text: 'Discard', style: 'destructive', onPress: () => router.back() },
-    ]);
+    confirm({
+      kind: 'warning',
+      title: 'Discard changes?',
+      message: 'Your unsaved lab profile changes will be lost.',
+      confirmText: 'Discard',
+      cancelText: 'Keep editing',
+      destructive: true,
+      onConfirm: () => router.back(),
+    });
   };
 
   const fieldSections = [

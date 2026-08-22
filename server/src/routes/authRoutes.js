@@ -28,4 +28,12 @@ router.get('/me', requireAuth, async (req, res, next) => {
   }
 });
 
+router.patch('/me', requireAuth, async (req, res, next) => {
+  try {
+    res.status(200).json(await store.auth.updateProfile(req.auth.id, req.body));
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

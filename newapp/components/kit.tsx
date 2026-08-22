@@ -264,6 +264,50 @@ export function Card({ children, style }: { children: React.ReactNode; style?: S
   return <View style={[styles.card, style]}>{children}</View>;
 }
 
+/**
+ * Friendly empty / no-results placeholder with a spring-in icon. Used by list
+ * screens so an empty records area never renders as a bare blue/grey box.
+ */
+export function EmptyState({
+  icon,
+  tone = 'blue',
+  title,
+  subtitle,
+  action,
+  minHeight = 230,
+}: {
+  icon: string;
+  tone?: Tone;
+  title: string;
+  subtitle?: string;
+  action?: React.ReactNode;
+  minHeight?: number;
+}) {
+  const t = toneColor[tone];
+  const anim = React.useRef(new Animated.Value(0)).current;
+  React.useEffect(() => {
+    Animated.spring(anim, {
+      toValue: 1,
+      useNativeDriver: Platform.OS !== 'web',
+      friction: 7,
+      tension: 90,
+    }).start();
+  }, [anim]);
+  const scale = anim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] });
+  const opacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
+
+  return (
+    <View style={[styles.emptyState, { minHeight }]}>
+      <Animated.View style={[styles.emptyStateIcon, { backgroundColor: t.bg, opacity, transform: [{ scale }] }]}>
+        <MaterialCommunityIcons name={icon as any} size={34} color={t.fg} />
+      </Animated.View>
+      <T style={styles.emptyStateTitle}>{title}</T>
+      {!!subtitle && <T style={styles.emptyStateSub}>{subtitle}</T>}
+      {action}
+    </View>
+  );
+}
+
 export function IconBubble({ icon, tone, size = 40, iconSize = 20 }: { icon: string; tone: Tone; size?: number; iconSize?: number }) {
   const t = toneColor[tone];
   return (
@@ -641,6 +685,33 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.border,
     padding: 10,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  emptyStateIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyStateTitle: {
+    marginTop: 12,
+    color: C.text,
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  emptyStateSub: {
+    marginTop: 4,
+    maxWidth: 320,
+    color: C.sub,
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: 'center',
   },
   row: { flexDirection: 'row', alignItems: 'center' },
   bubble: { alignItems: 'center', justifyContent: 'center' },

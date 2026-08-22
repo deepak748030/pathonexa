@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Alert,
   FlatList,
   Modal,
   ScrollView,
@@ -23,6 +22,7 @@ import {
 import { api } from '../src/api';
 import { C, F, PAGE_GUTTER } from '../src/theme';
 import { useInfiniteData } from '../src/useInfiniteData';
+import { useFeedback } from '../src/feedback';
 
 export type CrudField = {
   key: string;
@@ -117,6 +117,7 @@ function FormField({ field, value, onChange }: { field: CrudField; value: string
 }
 
 export function CrudModuleBody({ config, header }: { config: CrudModuleConfig; header?: React.ReactNode }) {
+  const { toast, confirm } = useFeedback();
   const [saving, setSaving] = React.useState(false);
   const [query, setQuery] = React.useState('');
   const [serverQuery, setServerQuery] = React.useState('');
@@ -162,7 +163,7 @@ export function CrudModuleBody({ config, header }: { config: CrudModuleConfig; h
   const save = async () => {
     const missing = config.fields.find((field) => field.required && !String(values[field.key] || '').trim());
     if (missing) {
-      Alert.alert('Required field', `${missing.label} is required.`);
+      toast({ kind: 'warning', title: 'Required field', message: `${missing.label} is required.` });
       return;
     }
     const invalidNumber = config.fields.find((field) => {
@@ -173,7 +174,7 @@ export function CrudModuleBody({ config, header }: { config: CrudModuleConfig; h
     });
     if (invalidNumber) {
       const maximum = invalidNumber.max === undefined ? '' : ` and no more than ${invalidNumber.max}`;
-      Alert.alert('Invalid value', `${invalidNumber.label} must be zero or a positive number${maximum}.`);
+      toast({ kind: 'warning', title: 'Invalid value', message: `${invalidNumber.label} must be zero or a positive number${maximum}.` });
       return;
     }
     const invalidPhone = config.fields.find((field) => {
@@ -181,7 +182,7 @@ export function CrudModuleBody({ config, header }: { config: CrudModuleConfig; h
       return field.kind === 'phone' && raw !== '' && !/^[6-9]\d{9}$/.test(raw);
     });
     if (invalidPhone) {
-      Alert.alert('Invalid mobile number', `${invalidPhone.label} must be a valid 10-digit Indian mobile number.`);
+      toast({ kind: 'warning', title: 'Invalid mobile number', message: `${invalidPhone.label} must be a valid 10-digit Indian mobile number.` });
       return;
     }
     const invalidEmail = config.fields.find((field) => {
@@ -189,12 +190,12 @@ export function CrudModuleBody({ config, header }: { config: CrudModuleConfig; h
       return field.kind === 'email' && raw !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw);
     });
     if (invalidEmail) {
-      Alert.alert('Invalid email', `Enter a valid ${invalidEmail.label.toLowerCase()}.`);
+      toast({ kind: 'warning', title: 'Invalid email', message: `Enter a valid ${invalidEmail.label.toLowerCase()}.` });
       return;
     }
     const customError = config.validate?.(values);
     if (customError) {
-      Alert.alert('Invalid value', customError);
+      toast({ kind: 'warning', title: 'Invalid value', message: customError });
       return;
     }
     const payload = Object.fromEntries(config.fields.flatMap((field) => {
@@ -209,30 +210,29 @@ export function CrudModuleBody({ config, header }: { config: CrudModuleConfig; h
       setFormOpen(false);
       await refresh();
     } catch (saveError) {
-      Alert.alert('Unable to save', saveError instanceof Error ? saveError.message : 'Please try again.');
+      toast({ kind: 'error', title: 'Unable to save', message: saveError instanceof Error ? saveError.message : 'Please try again.' });
     } finally {
       setSaving(false);
     }
   };
 
   const remove = (item: CrudRecord) => {
-    Alert.alert(
-      `Delete ${config.singular}`,
-      `Delete “${displayValue(item, config.primaryKey || 'name') || config.singular}”? You can restore it from Deleted Records.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete', style: 'destructive', onPress: async () => {
-            try {
-              await api.meta.remove(config.key, recordId(item));
-              await refresh();
-            } catch (removeError) {
-              Alert.alert('Unable to delete', removeError instanceof Error ? removeError.message : 'Please try again.');
-            }
-          },
-        },
-      ],
-    );
+    confirm({
+      kind: 'warning',
+      title: `Delete ${config.singular}`,
+      message: `Delete “${displayValue(item, config.primaryKey || 'name') || config.singular}”? You can restore it from Deleted Records.`,
+      confirmText: 'Delete',
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await api.meta.remove(config.key, recordId(item));
+          await refresh();
+          toast({ kind: 'success', title: 'Deleted', message: `${config.singular} was moved to Deleted Records.` });
+        } catch (removeError) {
+          toast({ kind: 'error', title: 'Unable to delete', message: removeError instanceof Error ? removeError.message : 'Please try again.' });
+        }
+      },
+    });
   };
 
   const primaryKey = config.primaryKey || 'name';
