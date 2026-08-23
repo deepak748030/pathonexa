@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Alert,
   Platform,
   ScrollView,
   StyleSheet,
@@ -17,6 +16,7 @@ import { T } from '../components/T';
 import { BlueHeader, Card, Press, Skeleton } from '../components/kit';
 import { api, type BackupDocument, type BackupStatus } from '../src/api';
 import { C, PAGE_GUTTER } from '../src/theme';
+import { useFeedback } from '../src/feedback';
 
 type PendingBackup = { name: string; document: BackupDocument };
 
@@ -39,6 +39,7 @@ function dateTime(value?: string) {
 
 export default function DataBackupScreen() {
   const router = useRouter();
+  const { toast, confirm } = useFeedback();
   const [status, setStatus] = React.useState<BackupStatus | null>(null);
   const [pending, setPending] = React.useState<PendingBackup | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -72,9 +73,9 @@ export default function DataBackupScreen() {
     try {
       await api.backup.run();
       await load();
-      Alert.alert('Backup ready', 'A secure server backup point was created successfully.');
+      toast({ kind: 'success', title: 'Backup ready', message: 'A secure server backup point was created successfully.' });
     } catch (runError) {
-      Alert.alert('Backup failed', runError instanceof Error ? runError.message : 'Please try again.');
+      toast({ kind: 'error', title: 'Backup failed', message: runError instanceof Error ? runError.message : 'Please try again.' });
     } finally {
       if (mounted.current) setWorking('');
     }
@@ -101,7 +102,7 @@ export default function DataBackupScreen() {
         await Sharing.shareAsync(uri, { mimeType: 'application/json', dialogTitle: 'Save PathoNexa backup', UTI: 'public.json' });
       }
     } catch (exportError) {
-      Alert.alert('Export failed', exportError instanceof Error ? exportError.message : 'Please try again.');
+      toast({ kind: 'error', title: 'Export failed', message: exportError instanceof Error ? exportError.message : 'Please try again.' });
     } finally {
       if (mounted.current) setWorking('');
     }
@@ -121,35 +122,33 @@ export default function DataBackupScreen() {
       }
       setPending({ name: asset.name, document });
     } catch (pickError) {
-      Alert.alert('Unable to open backup', pickError instanceof Error ? pickError.message : 'The selected file could not be read.');
+      toast({ kind: 'error', title: 'Unable to open backup', message: pickError instanceof Error ? pickError.message : 'The selected file could not be read.' });
     }
   };
 
   const restore = () => {
     if (!pending) return;
-    Alert.alert(
-      'Restore this backup?',
-      'Current lab records will be replaced by the selected backup. This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Restore', style: 'destructive', onPress: async () => {
-            setWorking('restore');
-            try {
-              const result = await api.backup.restore(pending.document);
-              setPending(null);
-              await load();
-              const count = Object.values(result.restored || {}).reduce((sum, value) => sum + Number(value || 0), 0);
-              Alert.alert('Restore complete', `${count.toLocaleString('en-IN')} records were restored securely.`);
-            } catch (restoreError) {
-              Alert.alert('Restore failed', restoreError instanceof Error ? restoreError.message : 'Please try again.');
-            } finally {
-              if (mounted.current) setWorking('');
-            }
-          },
-        },
-      ],
-    );
+    confirm({
+      kind: 'warning',
+      title: 'Restore this backup?',
+      message: 'Current lab records will be replaced by the selected backup. This action cannot be undone.',
+      confirmText: 'Restore',
+      destructive: true,
+      onConfirm: async () => {
+        setWorking('restore');
+        try {
+          const result = await api.backup.restore(pending.document);
+          setPending(null);
+          await load();
+          const count = Object.values(result.restored || {}).reduce((sum, value) => sum + Number(value || 0), 0);
+          toast({ kind: 'success', title: 'Restore complete', message: `${count.toLocaleString('en-IN')} records were restored securely.` });
+        } catch (restoreError) {
+          toast({ kind: 'error', title: 'Restore failed', message: restoreError instanceof Error ? restoreError.message : 'Please try again.' });
+        } finally {
+          if (mounted.current) setWorking('');
+        }
+      },
+    });
   };
 
   const toggleAutoBackup = async (enabled: boolean) => {
@@ -161,7 +160,7 @@ export default function DataBackupScreen() {
       await api.lab.update({ autoBackup: enabled });
     } catch (toggleError) {
       setStatus(previous);
-      Alert.alert('Unable to update', toggleError instanceof Error ? toggleError.message : 'Please try again.');
+      toast({ kind: 'error', title: 'Unable to update', message: toggleError instanceof Error ? toggleError.message : 'Please try again.' });
     } finally {
       if (mounted.current) setWorking('');
     }

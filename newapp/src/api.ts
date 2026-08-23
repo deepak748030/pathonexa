@@ -28,11 +28,15 @@ function resolveApiUrl() {
   if (explicit) return normalizeApiUrl(explicit);
 
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    const { hostname, origin } = window.location;
+    const { hostname, origin, protocol } = window.location;
     if (hostname.match(/^\d+-.*\.e2b\.app$/)) {
       return normalizeApiUrl(origin.replace(/^https:\/\/\d+-/, 'https://5000-'));
     }
     if (['localhost', '127.0.0.1'].includes(hostname)) return 'http://localhost:5000/api';
+    // A raw LAN IP (e.g. phone browser → http://192.168.x.x:8081) means the dev
+    // web build is being opened from another device; the API runs on port 5000
+    // of that same host, not the Metro/web port.
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) return `${protocol}//${hostname}:5000/api`;
     // Production web deployments may reverse-proxy `/api` on the same origin.
     return normalizeApiUrl(origin);
   }
@@ -50,6 +54,13 @@ function resolveApiUrl() {
 }
 
 export const API_URL = resolveApiUrl();
+
+// Surface the resolved backend URL during development so connection problems
+// (e.g. a phone resolving `localhost` or the wrong port) are easy to spot.
+if (__DEV__) {
+  // eslint-disable-next-line no-console
+  console.log(`[api] PathoNexa server URL: ${API_URL || '(not configured)'}`);
+}
 
 export class ApiError extends Error {
   status: number;
@@ -190,7 +201,7 @@ function queryString(values: Record<string, string | number | boolean | undefine
   return query ? `?${query}` : '';
 }
 
-export type AuthUser = { id: string; mobile: string; name: string; role: string };
+export type AuthUser = { id: string; mobile: string; name: string; role: string; email?: string };
 export type LabSettings = {
   name: string;
   shortName?: string;
@@ -280,6 +291,9 @@ export const api = {
       method: 'POST', body: { mobile, otp }, authenticated: false,
     }),
     me: () => apiRequest<{ user: AuthUser }>('/auth/me'),
+    updateProfile: (data: { name: string; email: string }) => apiRequest<{ user: AuthUser }>('/auth/me', {
+      method: 'PATCH', body: data,
+    }),
   },
   dashboard: {
     stats: () => apiRequest<Array<{ key: string; label: string; value: string; sub: string; tone: string }>>('/dashboard/stats'),
@@ -338,6 +352,12 @@ export const api = {
     get: () => apiRequest<LabSettings>('/lab'),
     update: (data: Partial<LabSettings>) => apiRequest<LabSettings>('/lab', { method: 'PATCH', body: data }),
   },
+  payments: {
+    order: (data: { amount: number; receipt?: string; notes?: Record<string, unknown> }) =>
+      apiRequest<RazorpayOrder>('/payments/order', { method: 'POST', body: data }),
+    verify: (data: { orderId: string; paymentId: string; signature: string; reportId?: string; mode?: string }) =>
+      apiRequest<RazorpayVerifyResult>('/payments/verify', { method: 'POST', body: data }),
+  },
   notifications: {
     list: (params: { page?: number; limit?: number; unread?: boolean } = {}) =>
       apiRequest<Paged<ApiNotification>>(`/notifications${queryString(params)}`),
@@ -348,6 +368,22 @@ export const api = {
   settings: () => apiRequest<LabSettings>('/settings'),
   updateSettings: (data: Partial<LabSettings>) => apiRequest<LabSettings>('/settings', { method: 'PATCH', body: data }),
   subscription: () => apiRequest<Record<string, any>>('/subscription'),
+};
+
+export type RazorpayOrder = {
+  orderId: string;
+  amount: number; // paise
+  currency: string;
+  receipt?: string;
+  keyId: string;
+};
+
+export type RazorpayVerifyResult = {
+  ok: boolean;
+  orderId: string;
+  paymentId: string;
+  amount: number; // rupees
+  mode: string;
 };
 
 export type DeletedRecord = Record<string, any> & {

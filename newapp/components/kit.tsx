@@ -264,6 +264,50 @@ export function Card({ children, style }: { children: React.ReactNode; style?: S
   return <View style={[styles.card, style]}>{children}</View>;
 }
 
+/**
+ * Friendly empty / no-results placeholder with a spring-in icon. Used by list
+ * screens so an empty records area never renders as a bare blue/grey box.
+ */
+export function EmptyState({
+  icon,
+  tone = 'blue',
+  title,
+  subtitle,
+  action,
+  minHeight = 230,
+}: {
+  icon: string;
+  tone?: Tone;
+  title: string;
+  subtitle?: string;
+  action?: React.ReactNode;
+  minHeight?: number;
+}) {
+  const t = toneColor[tone];
+  const anim = React.useRef(new Animated.Value(0)).current;
+  React.useEffect(() => {
+    Animated.spring(anim, {
+      toValue: 1,
+      useNativeDriver: Platform.OS !== 'web',
+      friction: 7,
+      tension: 90,
+    }).start();
+  }, [anim]);
+  const scale = anim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] });
+  const opacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
+
+  return (
+    <View style={[styles.emptyState, { minHeight }]}>
+      <Animated.View style={[styles.emptyStateIcon, { backgroundColor: t.bg, opacity, transform: [{ scale }] }]}>
+        <MaterialCommunityIcons name={icon as any} size={34} color={t.fg} />
+      </Animated.View>
+      <T style={styles.emptyStateTitle}>{title}</T>
+      {!!subtitle && <T style={styles.emptyStateSub}>{subtitle}</T>}
+      {action}
+    </View>
+  );
+}
+
 export function IconBubble({ icon, tone, size = 40, iconSize = 20 }: { icon: string; tone: Tone; size?: number; iconSize?: number }) {
   const t = toneColor[tone];
   return (
@@ -348,29 +392,46 @@ export function Field(props: {
   onPress?: () => void;
   keyboardType?: 'default' | 'numeric' | 'phone-pad' | 'email-address' | 'number-pad';
 }) {
-  return (
-    <View style={{ flexBasis: '46%', flexGrow: 1, minWidth: 0 }}>
-      <T style={styles.fieldLabel}>
-        {props.label}
-        {props.required ? <T style={{ color: C.red }}> *</T> : null}
-      </T>
-      <View style={[styles.fieldBox, props.multiline && { minHeight: 74 }, props.disabled && { backgroundColor: '#F5F7FB' }]}>
-        {!!props.icon && <MaterialCommunityIcons name={props.icon as any} size={15} color={C.faint} style={{ marginRight: 4 }} />}
+  const box = (
+    <View style={[styles.fieldBox, props.multiline && { minHeight: 74 }, props.disabled && { backgroundColor: '#F5F7FB' }]}>
+      {!!props.icon && <MaterialCommunityIcons name={props.icon as any} size={15} color={C.faint} style={{ marginRight: 4 }} />}
+      {props.onPress ? (
+        // Read-only "select" field: show the chosen value (or placeholder) and
+        // make the WHOLE box tappable — reliable on web and native alike.
+        <T style={[styles.fieldInput, { lineHeight: 17, paddingVertical: 10 }, !props.value && { color: C.faint }]} numberOfLines={1}>
+          {props.value || props.placeholder}
+        </T>
+      ) : (
         <TextInput
           style={[styles.fieldInput, props.multiline && { minHeight: 66, textAlignVertical: 'top' }]}
           placeholder={props.placeholder}
           placeholderTextColor={C.faint}
           selectionColor={C.primary}
           multiline={props.multiline}
-          editable={!props.disabled && !props.onPress}
-          onPressIn={props.onPress}
+          editable={!props.disabled}
           value={props.value}
           onChangeText={props.onChange}
           keyboardType={props.keyboardType}
           {...fieldFocusProps()}
         />
-        {props.right}
-      </View>
+      )}
+      {props.right}
+    </View>
+  );
+
+  return (
+    <View style={{ flexBasis: '46%', flexGrow: 1, minWidth: 0 }}>
+      <T style={styles.fieldLabel}>
+        {props.label}
+        {props.required ? <T style={{ color: C.red }}> *</T> : null}
+      </T>
+      {props.onPress ? (
+        <Press onPress={props.onPress} accessibilityLabel={props.label} style={{ width: '100%' }}>
+          {box}
+        </Press>
+      ) : (
+        box
+      )}
     </View>
   );
 }
@@ -624,6 +685,35 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.border,
     padding: 10,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 36,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  emptyStateIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyStateTitle: {
+    marginTop: 12,
+    color: C.text,
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  emptyStateSub: {
+    marginTop: 4,
+    maxWidth: 320,
+    color: C.sub,
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: 'center',
   },
   row: { flexDirection: 'row', alignItems: 'center' },
   bubble: { alignItems: 'center', justifyContent: 'center' },

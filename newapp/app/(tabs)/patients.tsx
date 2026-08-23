@@ -2,13 +2,14 @@
 import React from 'react';
 import { T } from '../../components/T';
 import { FlatList, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {
   Avatar,
   BlueHeader,
   Card,
   Chevron,
+  EmptyState,
   HeaderIconBtn,
   HeaderWhiteBtn,
   InfiniteListFooter,
@@ -48,12 +49,6 @@ function patientTone(name: string) {
   return avatarTones[hash % avatarTones.length];
 }
 
-function displayDate(value?: string) {
-  if (!value) return 'No previous test';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
 export default function Patients() {
   const { setOpen } = useDrawer();
   const router = useRouter();
@@ -83,6 +78,21 @@ export default function Patients() {
     fetchPage,
     resetKey: `${serverQuery}:${patientFilter}`,
   });
+
+  // Re-fetch whenever the screen gains focus so a newly added patient (or any
+  // change made on another screen) shows up immediately without a manual pull.
+  // Skip the very first focus — the initial load already happens on mount.
+  const firstFocusRef = React.useRef(true);
+  useFocusEffect(
+    React.useCallback(() => {
+      if (firstFocusRef.current) {
+        firstFocusRef.current = false;
+        return;
+      }
+      refresh();
+      api.patients.stats().then(setStats).catch(() => setStats([]));
+    }, [refresh]),
+  );
 
   const header = (
     <>
@@ -221,8 +231,10 @@ export default function Patients() {
                 <MaterialCommunityIcons name="phone" size={11} color={C.sub} style={styles.phoneIcon} />
                 <T style={styles.patientPhone}>{patient.mobile || '—'}</T>
               </View>
-              <T style={styles.patientLast}>Last Test: {displayDate(patient.lastTestDate)}</T>
-              <T style={[styles.patientTest, { color: C.primary }]}>{patient.lastTest || 'No test'}</T>
+              <View style={styles.row}>
+                <MaterialCommunityIcons name="map-marker-outline" size={11} color={C.sub} style={styles.phoneIcon} />
+                <T style={styles.patientCity} numberOfLines={1}>{patient.city || 'City not set'}</T>
+              </View>
             </View>
             <View style={styles.chevron}>
               <Chevron />
@@ -240,7 +252,14 @@ export default function Patients() {
                 </View>
               ))}
             </View>
-          ) : <T style={styles.empty}>{error || 'No matching patients found.'}</T>
+          ) : (
+            <EmptyState
+              icon={error ? 'alert-circle-outline' : 'account-search-outline'}
+              tone={error ? 'red' : 'blue'}
+              title={error || 'No patients found'}
+              subtitle={error ? 'Pull down to retry, or check your connection.' : (serverQuery || patientFilter !== 'All') ? 'Try a different search or filter.' : 'Add your first patient to get started.'}
+            />
+          )
         }
         ListFooterComponent={
           <InfiniteListFooter loading={isLoadingMore} hasMore={hasMore} count={items.length} />
@@ -319,16 +338,16 @@ const styles = StyleSheet.create({
   patientPid: { fontSize: 10.5, color: C.faint, marginTop: 2 },
   patientMeta: { fontSize: 10.5, color: C.sub, marginTop: 3 },
   patientPhone: { fontSize: 11.5, color: C.text, fontWeight: '600' },
-  patientLast: { fontSize: 10, color: C.faint, marginTop: 3 },
-  patientTest: { fontSize: 11, fontWeight: '700', marginTop: 3 },
+  patientCity: { fontSize: 10, color: C.faint, marginTop: 3, maxWidth: 110 },
   barcode: { marginLeft: 4 },
   phoneIcon: { marginRight: 4 },
   chevron: { marginLeft: 4 },
-  empty: { textAlign: 'center', color: C.faint, fontSize: 12, paddingVertical: 24 },
   skeletonList: { marginHorizontal: PAGE_GUTTER },
   patientRowSkeleton: { minHeight: 76, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderBottomWidth: 0, borderColor: C.borderSoft, backgroundColor: C.card },
   patientSkeletonCopy: { flex: 1, marginLeft: 4, gap: 6 },
   patientSkeletonAside: { alignItems: 'flex-end', gap: 7 },
   list: { backgroundColor: C.headerTop },
-  listContent: { paddingBottom: 110, backgroundColor: C.bg },
+  // flexGrow keeps the grey content filling the viewport, so a short/empty
+  // list never exposes the blue header background as a "blue box".
+  listContent: { flexGrow: 1, paddingBottom: 110, backgroundColor: C.bg },
 });

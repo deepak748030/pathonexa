@@ -12,13 +12,12 @@ export const moreSections: NavigationSection[] = [
       { icon: 'account-badge-outline', label: 'Lab Employees', sub: 'Manage lab staff and roles', route: '/manage/employees' },
       { icon: 'home-outline', label: 'Sample Collection Center', sub: 'Manage collection centers', route: '/manage/centers' },
       { icon: 'percent-outline', label: 'Discount & Charges', sub: 'Manage discounts and extra charges', route: '/manage/discounts' },
-      { icon: 'credit-card-outline', label: 'Payment Methods', sub: 'Manage payment modes', route: '/manage/payments' },
+      { icon: 'credit-card-outline', label: 'UPI Payment Apps', sub: 'Manage accepted UPI apps', route: '/manage/payments' },
     ],
   },
   {
     title: 'REPORTS & DATA',
     items: [
-      { icon: 'file-document-outline', label: 'Report Templates', sub: 'Manage report templates', route: '/manage/templates' },
       { icon: 'cloud-upload-outline', label: 'Data Backup', sub: 'Backup and restore data', route: '/data-backup' },
       { icon: 'trash-can-outline', label: 'Deleted Records', sub: 'View deleted patients & reports', route: '/deleted-records' },
     ],

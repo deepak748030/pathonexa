@@ -40,7 +40,7 @@ Notifications, Subscriptions).
 cd server
 npm install
 
-# 1) Copy env (defaults are already fine for local dev)
+# 1) Copy env and set your MONGODB_URI (required)
 cp .env.example .env      # skip if .env already exists
 
 # 2) Run the API
@@ -71,9 +71,10 @@ notifications. Only the account-owned clinical test catalogue is initialized.
 | `MONGODB_RETRY_MS` | `3000` | Initial retry delay after a required connection fails |
 | `MONGODB_RETRY_MAX_MS` | `30000` | Maximum exponential retry delay |
 | `MONGODB_FAMILY` | `4` | DNS address family (`4`; use `0` for automatic or `6` for verified IPv6) |
-| `JWT_SECRET` | — | Secret for signing JWT tokens (**32+ random characters in production**) |
+| `JWT_SECRET` | — | Secret for signing JWT tokens (**32+ random characters in production**; development uses an insecure fallback with a warning when unset) |
 | `NODE_ENV` | `development` | Runtime environment |
 | `ALLOW_IN_MEMORY` | `false` | Explicit disposable local adapter; never enable in production |
+| `MONGOOSE_DEBUG` | `false` | Set `true` to log every MongoDB query for debugging |
 | `DEFAULT_COMMISSION_PERCENT` | `10` | Doctor commission % applied when a doctor is added without one |
 | `MAX_DISCOUNT_PERCENT` | `50` | Max discount allowed on a report (% of the gross bill) |
 | `CURRENCY_SYMBOL` | `₹` | Currency symbol used on receipts / seeded settings |

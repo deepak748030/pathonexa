@@ -17,6 +17,8 @@ const Meta = require('../models/Meta');
 const TenantCounter = require('../models/TenantCounter');
 const defaults = require('./seedData');
 const cfg = require('../config/appConfig');
+const razorpay = require('./razorpay');
+const { authSecret } = require('./authSecret');
 const { currentTenant, requireTenantId } = require('./tenantContext');
 
 const COLLECTIONS = [
@@ -205,13 +207,6 @@ async function allReports() {
 
 const OTP = cfg.internalOtp;
 const OTP_RESEND_COOLDOWN_MS = 30_000;
-function authSecret() {
-  const secret = process.env.JWT_SECRET;
-  if (!secret || (process.env.NODE_ENV === 'production' && secret.length < 32)) {
-    throw Object.assign(new Error('Server authentication is not configured'), { status: 503 });
-  }
-  return secret;
-}
 const signToken = (user) => jwt.sign(
   { mobile: user.mobile, role: user.role }, authSecret(),
   { subject: String(user._id), expiresIn: '30d', algorithm: 'HS256', issuer: 'pathonexa-api', audience: 'pathonexa-app' },
@@ -222,7 +217,14 @@ function permissionsFor(roleName) {
   return role ? role.permissions : (defaults.PERMISSIONS || []);
 }
 function publicUser(user) {
-  return { id: String(user._id), mobile: user.mobile, name: user.name, role: user.role, permissions: permissionsFor(user.role) };
+  return {
+    id: String(user._id),
+    mobile: user.mobile,
+    name: user.name,
+    email: user.email || '',
+    role: user.role,
+    permissions: permissionsFor(user.role),
+  };
 }
 
 const auth = {
@@ -353,6 +355,32 @@ const auth = {
 
   async me(id) {
     const user = await auth.findUser(id);
+    if (!user) throw Object.assign(new Error('Account not found'), { status: 404 });
+    return { user: publicUser(user) };
+  },
+
+  async updateProfile(id, patch) {
+    await db.whenReady();
+    const name = String(patch?.name || '').trim();
+    const email = String(patch?.email || '').trim().toLowerCase();
+    if (!name) throw Object.assign(new Error('Your name is required'), { status: 400 });
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw Object.assign(new Error('Enter a valid email address'), { status: 400 });
+    }
+    let user;
+    if (db.isReady()) {
+      user = await User.findByIdAndUpdate(
+        id,
+        { $set: { name, email } },
+        { new: true, runValidators: true },
+      ).lean();
+    } else {
+      user = globalMem.users.find((item) => String(item._id) === String(id));
+      if (user) {
+        user.name = name;
+        user.email = email;
+      }
+    }
     if (!user) throw Object.assign(new Error('Account not found'), { status: 404 });
     return { user: publicUser(user) };
   },
@@ -625,7 +653,7 @@ const REPORT_FIELDS = [
   'status', 'paid', 'amount', 'values', 'parameters', 'discount', 'paidAmount', 'pendingAmount',
   'paymentMode', 'remarks', 'sampleDate', 'reportDate', 'technician', 'verified',
   'verifiedBy', 'doctor', 'doctorId', 'test', 'tests', 'date', 'time', 'commission', 'commissionRate',
-  'commissionPaid', 'transactionId', 'package',
+  'commissionPaid', 'transactionId', 'package', 'paymentRef',
 ];
 const MONEY_FIELDS = ['amount', 'discount', 'paidAmount', 'pendingAmount'];
 
@@ -784,7 +812,7 @@ const reports = {
           amount: num(payload.paidAmount),
           mode: payload.paymentMode || 'Cash',
           type: 'Collection',
-          note: 'Report billing',
+          note: payload.paymentRef ? `Razorpay ${payload.paymentRef}` : 'Report billing',
         }, options)
         : null
     );
@@ -1537,6 +1565,64 @@ const transactions = {
       transactions: list.length,
       byMode: Object.entries(byMode).map(([mode, amount]) => ({ mode, amount })),
     };
+  },
+};
+
+/* ------------------------------------------------------------------ */
+/* Online payments (Razorpay)                                          */
+/* ------------------------------------------------------------------ */
+
+const payments = {
+  /**
+   * Create a Razorpay order for an online payment. The app then opens the
+   * checkout against this order; the secret key never leaves the server.
+   */
+  async order({ amount, receipt, notes }) {
+    await db.whenReady();
+    const inrAmount = money(amount, 'Payment amount');
+    if (inrAmount <= 0) badRequest('A positive payment amount is required');
+    if (!razorpay.configured()) throw Object.assign(new Error('Online payments are not configured'), { status: 503 });
+    const order = await razorpay.createOrder({
+      amount: Math.round(inrAmount * 100),
+      receipt: String(receipt || `rcpt_${Date.now().toString(36)}${crypto.randomBytes(3).toString('hex')}`),
+      notes: notes && typeof notes === 'object' ? notes : {},
+    });
+    return {
+      orderId: order.id,
+      amount: Number(order.amount),
+      currency: order.currency,
+      receipt: order.receipt,
+      keyId: razorpay.keyId(),
+    };
+  },
+
+  /**
+   * Verify a completed checkout: validate the HMAC signature, then confirm the
+   * captured amount/status with Razorpay (never trust the client). When a
+   * `reportId` is supplied, the captured amount is collected against it.
+   */
+  async verify({ orderId, paymentId, signature, reportId, mode }) {
+    await db.whenReady();
+    if (!razorpay.configured()) throw Object.assign(new Error('Online payments are not configured'), { status: 503 });
+    if (!orderId || !paymentId || !signature) badRequest('Order, payment and signature are required');
+    if (!razorpay.verifySignature({ orderId, paymentId, signature })) {
+      throw Object.assign(new Error('Payment verification failed'), { status: 400 });
+    }
+    const [order, payment] = await Promise.all([
+      razorpay.fetchOrder(orderId),
+      razorpay.fetchPayment(paymentId),
+    ]);
+    if (payment.status !== 'captured') {
+      throw Object.assign(new Error('Payment has not been captured'), { status: 400 });
+    }
+    const amountInr = Number(order.amount) / 100;
+    const note = `Razorpay ${paymentId}`;
+    const upiMode = ['PhonePe', 'Google Pay', 'Paytm', 'UPI'].includes(mode) ? mode : 'UPI';
+    if (reportId) {
+      const result = await transactions.collect({ reportId, amount: amountInr, mode: upiMode, note });
+      return { ok: true, orderId, paymentId, amount: amountInr, mode: upiMode, report: result.report };
+    }
+    return { ok: true, orderId, paymentId, amount: amountInr, mode: upiMode };
   },
 };
 
@@ -2652,5 +2738,5 @@ const backup = {
 module.exports = {
   auth, roles, patients, reports, dashboard, meta, settings, transactions,
   doctors, commissions, expenses, analytics, subscription, notifications,
-  backup, useMemory,
+  backup, payments, useMemory,
 };

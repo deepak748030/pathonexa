@@ -15,6 +15,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { DrawerProvider } from '../components/Drawer';
 import { AuthProvider, useAuth } from '../src/auth';
 import { NotificationProvider } from '../src/notifications';
+import { FeedbackProvider } from '../src/feedback';
 import { C, F } from '../src/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -34,7 +35,7 @@ function PersistentStatusBarBackground() {
 }
 
 function AppNavigator() {
-  const { isAuthenticated, isReady } = useAuth();
+  const { isAuthenticated, isReady, needsOnboarding } = useAuth();
 
   if (!isReady) return <View style={styles.sessionLoading} />;
 
@@ -51,7 +52,11 @@ function AppNavigator() {
           <Stack.Screen name="login" />
           <Stack.Screen name="verify-otp" />
         </Stack.Protected>
-        <Stack.Protected guard={isAuthenticated}>
+        {/* First-time users complete their name + email before entering the app. */}
+        <Stack.Protected guard={isAuthenticated && needsOnboarding}>
+          <Stack.Screen name="onboarding" />
+        </Stack.Protected>
+        <Stack.Protected guard={isAuthenticated && !needsOnboarding}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="add-patient" />
           <Stack.Screen name="create-report" />
@@ -116,11 +121,13 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <StatusBar style="light" backgroundColor={C.headerTop} translucent />
-      <AuthProvider>
-        <NotificationProvider>
-          <AppNavigator />
-        </NotificationProvider>
-      </AuthProvider>
+      <FeedbackProvider>
+        <AuthProvider>
+          <NotificationProvider>
+            <AppNavigator />
+          </NotificationProvider>
+        </AuthProvider>
+      </FeedbackProvider>
       <PersistentStatusBarBackground />
     </SafeAreaProvider>
   );

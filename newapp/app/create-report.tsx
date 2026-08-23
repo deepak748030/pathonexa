@@ -1,7 +1,7 @@
 // Create Report — 3-step wizard, UI PDF screens 4, 6, 7
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { T } from '../components/T';
-import { Alert, View, Text, StyleSheet, TouchableOpacity, TextInput, Switch } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, Modal, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {
@@ -21,7 +21,9 @@ import {
 } from '../components/kit';
 import { useDrawer } from '../components/Drawer';
 import { C, F, PAGE_GUTTER } from '../src/theme';
-import { api, Patient } from '../src/api';
+import { api, Patient, type RazorpayOrder } from '../src/api';
+import { useFeedback } from '../src/feedback';
+import { openRazorpayOnWeb, RazorpayCheckout, type RazorpayPaymentResult } from '../src/razorpay';
 
 type TestParameter = {
   order?: number;
@@ -64,17 +66,17 @@ const valueFlag = (value: string, range = ''): '' | 'H' | 'L' => {
   return '';
 };
 
+// Only UPI apps are offered — online payment goes through Razorpay.
 const payModes = [
-  { icon: 'cash', label: 'Cash' },
-  { icon: 'swap-horizontal', label: 'UPI' },
-  { icon: 'credit-card-outline', label: 'Card' },
-  { icon: 'bank-transfer', label: 'Bank Transfer' },
-  { icon: 'circle-outline', label: 'Other' },
+  { icon: 'cellphone', label: 'PhonePe' },
+  { icon: 'google', label: 'Google Pay' },
+  { icon: 'wallet', label: 'Paytm' },
 ];
 
 export default function CreateReport() {
   const router = useRouter();
   const { setOpen } = useDrawer();
+  const { toast } = useFeedback();
   const [step, setStep] = useState(1);
   const [patientList, setPatientList] = useState<Patient[]>([]);
   const [patient, setPatient] = useState<Patient | null>(null);
@@ -87,7 +89,10 @@ export default function CreateReport() {
   const [selected, setSelected] = useState<string[]>([]);
   const [discount, setDiscount] = useState('0');
   const [paid, setPaid] = useState('0');
-  const [payMode, setPayMode] = useState('Cash');
+  const [payMode, setPayMode] = useState('PhonePe');
+  const [paymentRef, setPaymentRef] = useState('');
+  const [razorpayOrder, setRazorpayOrder] = useState<RazorpayOrder | null>(null);
+  const [payingOnline, setPayingOnline] = useState(false);
   const [showRange, setShowRange] = useState(true);
   const [remarks, setRemarks] = useState('');
   const [values, setValues] = useState<Record<string, string>>({});
@@ -200,10 +205,60 @@ export default function CreateReport() {
     setDoctor(current >= doctors.length - 1 ? null : doctors[current + 1]);
   };
   const now = new Date();
+
+  // Verify a completed Razorpay checkout and mark the bill paid locally.
+  const verifyOnlinePayment = async (result: RazorpayPaymentResult) => {
+    const verified = await api.payments.verify({
+      orderId: result.razorpay_order_id,
+      paymentId: result.razorpay_payment_id,
+      signature: result.razorpay_signature,
+      mode: payMode,
+    });
+    setPaid(String(verified.amount || payable));
+    setPaymentRef(result.razorpay_payment_id);
+    toast({ kind: 'success', title: 'Payment received', message: `₹${verified.amount || payable} paid via ${payMode}.` });
+  };
+
+  // Create a Razorpay order and open the checkout for the payable amount.
+  const startOnlinePayment = async () => {
+    if (payingOnline) return;
+    if (payable <= 0) {
+      toast({ kind: 'warning', title: 'Nothing to pay', message: 'The payable amount must be greater than zero.' });
+      return;
+    }
+    setPayingOnline(true);
+    try {
+      const order = await api.payments.order({
+        amount: payable,
+        notes: { patient: patient?.name || '', mobile: patient?.mobile || '' },
+      });
+      if (Platform.OS === 'web') {
+        const result = await openRazorpayOnWeb({
+          keyId: order.keyId,
+          orderId: order.orderId,
+          amount: order.amount,
+          currency: order.currency,
+          name: 'PathoNexa Lab',
+          description: 'Report payment',
+          prefill: { name: patient?.name, contact: patient?.mobile },
+        });
+        await verifyOnlinePayment(result);
+      } else {
+        setRazorpayOrder(order);
+      }
+    } catch (error) {
+      if ((error as Error)?.name !== 'AbortError') {
+        toast({ kind: 'error', title: 'Payment failed', message: error instanceof Error ? error.message : 'Unable to complete the payment.' });
+      }
+    } finally {
+      if (Platform.OS === 'web') setPayingOnline(false);
+    }
+  };
+
   const saveReport = async () => {
     if (saving) return;
-    if (!patient) return Alert.alert('Select patient', 'Select a patient before saving the report.');
-    if (!selectedTests.length) return Alert.alert('Select test', 'Select at least one test or package.');
+    if (!patient) return toast({ kind: 'warning', title: 'Select patient', message: 'Select a patient before saving the report.' });
+    if (!selectedTests.length) return toast({ kind: 'warning', title: 'Select test', message: 'Select at least one test or package.' });
     setSaving(true);
     try {
       const reportValues = parameterGroups.flatMap((group) => group.params.map((parameter) => ({
@@ -227,6 +282,7 @@ export default function CreateReport() {
         pendingAmount: pending,
         paid: pending === 0,
         paymentMode: payMode,
+        paymentRef: paymentRef || undefined,
         status: allEntered ? 'Completed' : 'Pending',
         sampleDate: now.toISOString(),
         reportDate: now.toISOString(),
@@ -236,7 +292,7 @@ export default function CreateReport() {
       });
       router.replace({ pathname: '/report-preview', params: { id: report._id } });
     } catch (error) {
-      Alert.alert('Unable to save report', error instanceof Error ? error.message : 'Please try again.');
+      toast({ kind: 'error', title: 'Unable to save report', message: error instanceof Error ? error.message : 'Please try again.' });
     } finally {
       setSaving(false);
     }
@@ -414,11 +470,26 @@ export default function CreateReport() {
                 );
               })}
             </View>
+
+            <TouchableOpacity
+              style={[styles.payOnlineBtn, payingOnline && { opacity: 0.6 }]}
+              onPress={startOnlinePayment}
+              disabled={payingOnline || payable <= 0}
+              accessibilityRole="button"
+            >
+              <MaterialCommunityIcons name="qrcode-scan" size={16} color="#fff" />
+              <T style={styles.payOnlineText}>
+                {payingOnline ? 'Opening payment…' : `Pay ₹${payable} via ${payMode}`}
+              </T>
+            </TouchableOpacity>
+            {paymentRef ? (
+              <T style={styles.paidRef}>Paid · Ref: {paymentRef}</T>
+            ) : null}
           </Card>
 
           <PrimaryBtn label="Create Report" icon="file-document-outline" style={{ marginTop: 8 }} onPress={() => {
-            if (!patient) Alert.alert('Select patient', 'Select a patient before continuing.');
-            else if (!selectedTests.length) Alert.alert('Select test', 'Select at least one test or package.');
+            if (!patient) toast({ kind: 'warning', title: 'Select patient', message: 'Select a patient before continuing.' });
+            else if (!selectedTests.length) toast({ kind: 'warning', title: 'Select test', message: 'Select at least one test or package.' });
             else setStep(2);
           }} />
         </View>
@@ -664,6 +735,45 @@ export default function CreateReport() {
           </View>
         </View>
       )}
+
+      {/* Native (Expo Go) Razorpay checkout — a WebView hosts checkout.js. */}
+      {razorpayOrder ? (
+        <Modal visible transparent animationType="slide" onRequestClose={() => { setRazorpayOrder(null); setPayingOnline(false); }}>
+          <View style={styles.rzHost}>
+            <View style={styles.rzBar}>
+              <T style={styles.rzTitle}>Pay ₹{payable} via {payMode}</T>
+              <TouchableOpacity
+                onPress={() => { setRazorpayOrder(null); setPayingOnline(false); }}
+                style={styles.rzClose}
+                accessibilityLabel="Cancel payment"
+              >
+                <MaterialCommunityIcons name="close" size={22} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            <RazorpayCheckout
+              options={{
+                keyId: razorpayOrder.keyId,
+                orderId: razorpayOrder.orderId,
+                amount: razorpayOrder.amount,
+                currency: razorpayOrder.currency,
+                name: 'PathoNexa Lab',
+                description: 'Report payment',
+                prefill: { name: patient?.name, contact: patient?.mobile },
+              }}
+              onSuccess={(result) => {
+                verifyOnlinePayment(result)
+                  .catch((error) => toast({ kind: 'error', title: 'Verification failed', message: error instanceof Error ? error.message : 'Unable to verify the payment.' }))
+                  .finally(() => { setRazorpayOrder(null); setPayingOnline(false); });
+              }}
+              onClose={(error) => {
+                setRazorpayOrder(null);
+                setPayingOnline(false);
+                if (error) toast({ kind: 'error', title: 'Payment failed', message: error });
+              }}
+            />
+          </View>
+        </Modal>
+      ) : null}
     </ScrollPage>
   );
 }
@@ -750,6 +860,29 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   payChipText: { fontSize: 11, color: C.sub, fontWeight: '600' },
+  payOnlineBtn: {
+    marginTop: 10,
+    minHeight: 42,
+    borderRadius: 4,
+    backgroundColor: C.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  payOnlineText: { color: '#fff', fontSize: 12.5, fontWeight: '700' },
+  paidRef: { marginTop: 8, color: C.green, fontSize: 10.5, fontWeight: '600' },
+  rzHost: { flex: 1, backgroundColor: C.headerTop },
+  rzBar: {
+    paddingTop: 16,
+    paddingBottom: 12,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  rzTitle: { color: '#fff', fontSize: 14, fontWeight: '700', flex: 1 },
+  rzClose: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
   btnRow: { flexDirection: 'row', marginTop: 8 },
   summaryPatient: {
     flexDirection: 'row',

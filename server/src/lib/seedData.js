@@ -272,10 +272,9 @@ const centers = [
 ];
 
 const payments = [
-  { id: 'pm1', name: 'Cash', active: true },
-  { id: 'pm2', name: 'UPI', active: true },
-  { id: 'pm3', name: 'Card', active: true },
-  { id: 'pm4', name: 'Bank Transfer', active: true },
+  { id: 'pm1', name: 'PhonePe', active: true },
+  { id: 'pm2', name: 'Google Pay', active: true },
+  { id: 'pm3', name: 'Paytm', active: true },
 ];
 
 const discounts = [

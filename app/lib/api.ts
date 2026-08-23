@@ -31,9 +31,11 @@ function resolveBaseUrl(): string {
 
   const hostUri: string | undefined =
     Constants.expoConfig?.hostUri || (Constants as any).expoGoConfig?.debuggerHost;
-  const host = hostUri ? hostUri.split(':')[0] : undefined;
+  // hostUri may be `192.168.x.x:8081` (LAN) or `localhost:8081`. Strip any
+  // protocol prefix and the port to get the bare host.
+  const host = hostUri ? String(hostUri).replace(/^[a-z]+:\/\//i, '').split(':')[0] : undefined;
   if (host && !['localhost', '127.0.0.1'].includes(host)) {
-    // Phone on LAN → the PC running Metro also runs the API.
+    // Phone on LAN → the PC running Metro also runs the API on port 5000.
     return `http://${host}:5000/api`;
   }
   if (Platform.OS === 'android') return 'http://10.0.2.2:5000/api';
@@ -42,6 +44,11 @@ function resolveBaseUrl(): string {
 
 export const API_URL = resolveBaseUrl();
 export const REQUEST_TIMEOUT_MS = 12000;
+
+if (__DEV__) {
+  // eslint-disable-next-line no-console
+  console.log(`[api] PathoNexa server URL: ${API_URL}`);
+}
 
 /**
  * Central fetch wrapper: attaches the JWT, enforces a timeout and throws

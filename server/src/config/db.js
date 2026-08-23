@@ -5,6 +5,14 @@ const mongoose = require('mongoose');
 // buffering a write until some later reconnect.
 mongoose.set('bufferCommands', false);
 
+// Opt-in verbose logging of every MongoDB query (helps debug persistence
+// issues). Enable with MONGOOSE_DEBUG=true in server/.env.
+if (process.env.MONGOOSE_DEBUG === 'true') {
+  mongoose.set('debug', (collection, method, ...args) => {
+    console.log(`[db:query] ${collection}.${method}`, JSON.stringify(args));
+  });
+}
+
 const state = {
   mode: 'connecting',
   ready: false,
@@ -17,8 +25,10 @@ const state = {
 };
 
 function memoryAllowed() {
-  // Persistence is mandatory unless an operator explicitly enables the
-  // disposable adapter (or the isolated test suite is running).
+  // Persistence is mandatory: the disposable in-memory adapter is used ONLY
+  // for the isolated test suite or an explicit opt-in (ALLOW_IN_MEMORY=true).
+  // Without a configured MONGODB_URI the server stays fail-closed — it never
+  // silently falls back to in-memory storage.
   return process.env.NODE_ENV === 'test' || process.env.ALLOW_IN_MEMORY === 'true';
 }
 

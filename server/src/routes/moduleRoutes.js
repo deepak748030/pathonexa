@@ -42,6 +42,19 @@ router.post('/transactions/collect', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+/* Online payments (Razorpay) ------------------------------------------- */
+router.post('/payments/order', async (req, res, next) => {
+  try {
+    res.status(201).json(await store.payments.order(req.body));
+  } catch (err) { next(err); }
+});
+
+router.post('/payments/verify', async (req, res, next) => {
+  try {
+    res.status(200).json(await store.payments.verify(req.body));
+  } catch (err) { next(err); }
+});
+
 /* Expenses --------------------------------------------------------------- */
 router.get('/expenses/summary', async (req, res, next) => {
   try {

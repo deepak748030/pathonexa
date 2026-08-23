@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Alert,
   Linking,
   ScrollView,
   StyleSheet,
@@ -13,6 +12,7 @@ import { T } from '../components/T';
 import { BlueHeader, Card, Skeleton } from '../components/kit';
 import { api, type AuthUser, type LabSettings } from '../src/api';
 import { C, PAGE_GUTTER } from '../src/theme';
+import { useFeedback } from '../src/feedback';
 
 const SUPPORT_EMAIL = 'care@pathonexa.in';
 const SUPPORT_PHONE = '+919876543210';
@@ -26,17 +26,18 @@ const FAQS = [
   { question: 'What should I do if a request fails?', answer: 'Check your internet connection, use the refresh action, and try again. If the issue continues, contact support with your Lab ID and a short description.' },
 ];
 
-async function openLink(url: string) {
-  try {
-    if (!(await Linking.canOpenURL(url))) throw new Error('This action is not available on your device.');
-    await Linking.openURL(url);
-  } catch (error) {
-    Alert.alert('Unable to open', error instanceof Error ? error.message : 'Please try again.');
-  }
-}
-
 export default function HelpSupportScreen() {
   const router = useRouter();
+  const { toast } = useFeedback();
+
+  const openLink = async (url: string) => {
+    try {
+      if (!(await Linking.canOpenURL(url))) throw new Error('This action is not available on your device.');
+      await Linking.openURL(url);
+    } catch (error) {
+      toast({ kind: 'error', title: 'Unable to open', message: error instanceof Error ? error.message : 'Please try again.' });
+    }
+  };
   const [account, setAccount] = React.useState<AuthUser | null>(null);
   const [lab, setLab] = React.useState<LabSettings | null>(null);
   const [loading, setLoading] = React.useState(true);
