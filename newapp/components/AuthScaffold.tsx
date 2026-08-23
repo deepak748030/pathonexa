@@ -39,14 +39,16 @@ export function AuthScaffold({ title, subtitle, children, onBack }: AuthScaffold
           contentInsetAdjustmentBehavior="never"
           automaticallyAdjustContentInsets={false}
         >
-          <LinearGradient
-            colors={[C.headerTop, C.primary, '#2B7AF0']}
-            start={{ x: 0.06, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.hero, { paddingTop: insets.top + 8 }]}
-          >
-            {/* Full-bleed lab-themed artwork that covers the whole blue band
-                (gradient stays behind as a fallback / edge blend). */}
+          {/* Taller blue hero: gradient stays as the base layer and the
+              full-bleed lab artwork (resizeMode="cover") sits on top of it,
+              so the image always covers the whole blue screen. */}
+          <View style={[styles.hero, { paddingTop: insets.top + 8 }]}>
+            <LinearGradient
+              colors={[C.headerTop, C.primary, '#2B7AF0']}
+              start={{ x: 0.06, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.heroGradient}
+            />
             <Image
               source={require('../assets/login-hero.png')}
               style={styles.heroImage}
@@ -60,7 +62,7 @@ export function AuthScaffold({ title, subtitle, children, onBack }: AuthScaffold
                 </Press>
               ) : null}
             </View>
-          </LinearGradient>
+          </View>
 
           <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 8) + 20 }]}>
             <T style={styles.title}>{title}</T>
@@ -79,10 +81,11 @@ const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: C.headerTop },
   scrollContent: { flexGrow: 1, backgroundColor: C.bg },
   hero: {
-    minHeight: 92,
+    minHeight: 150,
     paddingBottom: 14,
     justifyContent: 'center',
   },
+  heroGradient: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   heroImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   heroInner: {
     width: '100%',
