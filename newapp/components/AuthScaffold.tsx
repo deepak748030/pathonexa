@@ -1,5 +1,7 @@
 import React from 'react';
 import {
+  Dimensions,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -22,6 +24,10 @@ type AuthScaffoldProps = {
 
 export function AuthScaffold({ title, subtitle, children, onBack }: AuthScaffoldProps) {
   const insets = useSafeAreaInsets();
+  // Blue hero band is kept compact (~35% of the screen) so the artwork reads
+  // as a banner rather than dominating the screen; the white form card below
+  // takes the remaining space and looks roomy.
+  const heroHeight = Math.round(Dimensions.get('window').height * 0.35);
 
   return (
     <View style={styles.screen}>
@@ -38,12 +44,22 @@ export function AuthScaffold({ title, subtitle, children, onBack }: AuthScaffold
           contentInsetAdjustmentBehavior="never"
           automaticallyAdjustContentInsets={false}
         >
-          <LinearGradient
-            colors={[C.headerTop, C.primary, '#2B7AF0']}
-            start={{ x: 0.06, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.hero, { paddingTop: insets.top + 8 }]}
-          >
+          {/* Taller blue hero: gradient stays as the base layer and the
+              full-bleed lab artwork (resizeMode="cover") sits on top of it,
+              so the image always covers the whole blue screen. */}
+          <View style={[styles.hero, { height: heroHeight, paddingTop: insets.top + 8 }]}>
+            <LinearGradient
+              colors={[C.headerTop, C.primary, '#2B7AF0']}
+              start={{ x: 0.06, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.heroGradient}
+            />
+            <Image
+              source={require('../assets/login-hero.png')}
+              style={styles.heroImage}
+              resizeMode="cover"
+              accessibilityLabel=""
+            />
             <View style={styles.heroInner}>
               {onBack ? (
                 <Press style={styles.backButton} onPress={onBack} accessibilityLabel="Go back" scaleTo={0.9}>
@@ -51,7 +67,7 @@ export function AuthScaffold({ title, subtitle, children, onBack }: AuthScaffold
                 </Press>
               ) : null}
             </View>
-          </LinearGradient>
+          </View>
 
           <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 8) + 20 }]}>
             <T style={styles.title}>{title}</T>
@@ -69,11 +85,13 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   scroll: { flex: 1, backgroundColor: C.headerTop },
   scrollContent: { flexGrow: 1, backgroundColor: C.bg },
+  // Content (back button) stays pinned to the top of the hero; the artwork
+  // fills the rest via absolute cover.
   hero: {
-    minHeight: 92,
     paddingBottom: 14,
-    justifyContent: 'center',
   },
+  heroGradient: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  heroImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   heroInner: {
     width: '100%',
     maxWidth: 520,
@@ -100,19 +118,21 @@ const styles = StyleSheet.create({
     maxWidth: 520,
     alignSelf: 'center',
     marginTop: -18,
-    paddingTop: 23,
+    paddingTop: 30,
     paddingHorizontal: PAGE_GUTTER,
-    paddingBottom: 28,
+    paddingBottom: 34,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     backgroundColor: C.card,
   },
+  // Login-screen text sits 6pt away from the left/right edges of the sheet.
   title: {
     color: C.text,
     fontFamily: F.bold,
     fontSize: 27,
     lineHeight: 33,
     letterSpacing: -0.5,
+    paddingHorizontal: 6,
   },
   subtitle: {
     maxWidth: 430,
@@ -121,5 +141,6 @@ const styles = StyleSheet.create({
     fontFamily: F.regular,
     fontSize: 12.5,
     lineHeight: 18,
+    paddingHorizontal: 6,
   },
 });

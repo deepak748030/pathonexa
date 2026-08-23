@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  ActivityIndicator,
   Platform,
   ScrollView,
   StyleSheet,
@@ -203,12 +204,24 @@ export default function DataBackupScreen() {
 
         <View style={styles.actionRow}>
           <Press disabled={busy} onPress={runBackup} style={[styles.primaryAction, busy && styles.disabled]}>
-            <MaterialCommunityIcons name={working === 'run' ? 'clock-outline' : 'cloud-upload-outline'} size={19} color="#fff" />
-            <T style={styles.primaryActionText}>{working === 'run' ? 'Backing up…' : 'Back up now'}</T>
+            {working === 'run' ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <MaterialCommunityIcons name="cloud-upload-outline" size={19} color="#fff" />
+                <T style={styles.primaryActionText}>Back up now</T>
+              </>
+            )}
           </Press>
           <Press disabled={busy} onPress={exportBackup} style={[styles.secondaryAction, busy && styles.disabled]}>
-            <MaterialCommunityIcons name={working === 'export' ? 'clock-outline' : 'download-outline'} size={19} color={C.primary} />
-            <T style={styles.secondaryActionText}>{working === 'export' ? 'Exporting…' : 'Export file'}</T>
+            {working === 'export' ? (
+              <ActivityIndicator size="small" color={C.primary} />
+            ) : (
+              <>
+                <MaterialCommunityIcons name="download-outline" size={19} color={C.primary} />
+                <T style={styles.secondaryActionText}>Export file</T>
+              </>
+            )}
           </Press>
         </View>
 
@@ -268,8 +281,14 @@ export default function DataBackupScreen() {
               <T style={styles.chooseText}>{pending ? 'Choose another' : 'Choose JSON file'}</T>
             </Press>
             <Press disabled={!pending || busy} onPress={restore} style={[styles.restoreButton, (!pending || busy) && styles.disabled]}>
-              <MaterialCommunityIcons name={working === 'restore' ? 'clock-outline' : 'restore'} size={17} color="#fff" />
-              <T style={styles.restoreText}>{working === 'restore' ? 'Restoring…' : 'Restore'}</T>
+              {working === 'restore' ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <MaterialCommunityIcons name="restore" size={17} color="#fff" />
+                  <T style={styles.restoreText}>Restore</T>
+                </>
+              )}
             </Press>
           </View>
         </Card>

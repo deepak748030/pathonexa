@@ -1,6 +1,10 @@
 /**
- * Demo seed data used to populate the store (MongoDB or in-memory) the first
- * time the server starts, so the app never opens empty.
+ * Onboarding defaults — the only data seeded into a new lab account.
+ *
+ * Business records (patients, reports, doctors, payments, expenses, …) are
+ * NEVER pre-filled: the app must open empty and only show the lab's own
+ * data. The test master ships as account-owned clinical templates so the
+ * report workflow works out of the box.
  *
  * The shapes here mirror the "Pathonexa structure" specification:
  * every test carries the full parameter definition (short name, unit, normal
@@ -231,106 +235,12 @@ const tests = [
 ];
 
 /* ------------------------------------------------------------------ */
-/* Doctors — full spec fields + ledger data                            */
-/* ------------------------------------------------------------------ */
-
-const doctors = [
-  {
-    id: 'd1', name: 'Dr. Rakesh Kumar', degree: 'MBBS, MD (Pathology)', clinic: 'Radhe Clinic',
-    specialization: 'Pathology', address: 'Hazratganj, Lucknow', mobile: '9871122334',
-    whatsapp: '9871122334', commission: 20, bank: 'HDFC Bank ****4421', upi: 'rakesh@okhdfc',
-    status: 'Active', notes: 'Sends CBC and LFT referrals daily.',
-  },
-  {
-    id: 'd2', name: 'Dr. Sunil Verma', degree: 'MBBS, MD (Medicine)', clinic: 'Verma Medicare',
-    specialization: 'General Medicine', address: 'Aliganj, Lucknow', mobile: '9812233445',
-    whatsapp: '9812233445', commission: 15, bank: 'SBI ****9087', upi: 'sunilverma@ybl',
-    status: 'Active', notes: '',
-  },
-  {
-    id: 'd3', name: 'Dr. Anjali Gupta', degree: 'MBBS, DGO', clinic: 'Gupta Women Care',
-    specialization: 'Gynaecology', address: 'Indira Nagar, Lucknow', mobile: '9823344556',
-    whatsapp: '9823344556', commission: 18, bank: 'ICICI ****3310', upi: 'anjali@okicici',
-    status: 'Active', notes: 'Prefers WhatsApp reports.',
-  },
-];
-
-/* ------------------------------------------------------------------ */
-/* Staff, centers, payment modes, discounts                            */
-/* ------------------------------------------------------------------ */
-
-const employees = [
-  { id: 'e1', name: 'Amit Mishra', role: 'Lab Owner', mobile: '9876500001', status: 'Active' },
-  { id: 'e2', name: 'Neha Singh', role: 'Technician', mobile: '9876500002', status: 'Active' },
-  { id: 'e3', name: 'Kavita Yadav', role: 'Receptionist', mobile: '9876500003', status: 'Active' },
-  { id: 'e4', name: 'Rohit Tiwari', role: 'Manager', mobile: '9876500004', status: 'Active' },
-];
-
-const centers = [
-  { id: 'c1', name: 'Main Lab — Hazratganj', city: 'Lucknow', phone: '0522-4001001' },
-  { id: 'c2', name: 'Collection Point — Aliganj', city: 'Lucknow', phone: '0522-4001002' },
-];
-
-const payments = [
-  { id: 'pm1', name: 'PhonePe', active: true },
-  { id: 'pm2', name: 'Google Pay', active: true },
-  { id: 'pm3', name: 'Paytm', active: true },
-];
-
-const discounts = [
-  { id: 'dc1', name: 'Senior citizen', percent: 10 },
-  { id: 'dc2', name: 'Staff', percent: 20 },
-  { id: 'dc3', name: 'Camp / Home collection charge', percent: 0, charge: 100 },
-];
-
-const templates = [
-  { id: 'tp1', name: 'CBC Standard', test: 'Complete Blood Count (CBC)', header: 'HEMATOLOGY REPORT', footer: 'Kindly correlate clinically.' },
-  { id: 'tp2', name: 'LFT Standard', test: 'Liver Function Test (LFT)', header: 'BIOCHEMISTRY REPORT', footer: 'Kindly correlate clinically.' },
-  { id: 'tp3', name: 'Thyroid Standard', test: 'Thyroid Profile (T3, T4, TSH)', header: 'IMMUNOASSAY REPORT', footer: 'Kindly correlate clinically.' },
-];
-
-/* ------------------------------------------------------------------ */
-/* Packages                                                            */
-/* ------------------------------------------------------------------ */
-
-const packages = [
-  {
-    id: 'pk1',
-    name: 'Full Body Checkup',
-    price: 2499,
-    tests: [
-      'Complete Blood Count (CBC)', 'Liver Function Test (LFT)', 'Kidney Function Test (KFT)',
-      'Blood Sugar Fasting', 'Thyroid Profile (T3, T4, TSH)', 'Urine Routine Examination',
-      'Vitamin D (25-OH)', 'Vitamin B12',
-    ],
-  },
-  {
-    id: 'pk2',
-    name: 'Diabetes Package',
-    price: 899,
-    tests: ['Blood Sugar Fasting', 'HbA1c (Glycated Hemoglobin)', 'Kidney Function Test (KFT)'],
-  },
-  {
-    id: 'pk3',
-    name: 'Basic Health Screen',
-    price: 999,
-    tests: ['Complete Blood Count (CBC)', 'Lipid Profile', 'Blood Sugar Fasting'],
-  },
-];
-
-/* ------------------------------------------------------------------ */
 /* Expenses (spec categories)                                          */
 /* ------------------------------------------------------------------ */
 
 const EXPENSE_CATEGORIES = [
   'Electricity', 'Rent', 'Staff Salary', 'Chemical', 'Needle', 'Syringe',
   'Tube', 'Printer Ink', 'Internet', 'Other',
-];
-
-const expenses = [
-  { id: 'ex1', name: 'Electricity bill', category: 'Electricity', amount: 800, mode: 'UPI', note: 'July bill' },
-  { id: 'ex2', name: 'Printer ink', category: 'Printer Ink', amount: 540, mode: 'Cash', note: '' },
-  { id: 'ex3', name: 'Needles & syringes', category: 'Needle', amount: 800, mode: 'Cash', note: '' },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -367,46 +277,8 @@ const roles = [
 ];
 
 /* ------------------------------------------------------------------ */
-/* Lab settings & subscription                                         */
+/* Subscription plans                                                  */
 /* ------------------------------------------------------------------ */
-
-const settings = {
-  name: 'PathoNexa Diagnostics Pvt. Ltd.',
-  shortName: 'Shri Radhe Pathology Lab',
-  city: 'Lucknow, Uttar Pradesh',
-  labId: 'LAB123456',
-  phone: '+91 98765 43210',
-  altPhone: '0522-1234567',
-  email: 'care@pathonexa.in',
-  website: 'www.pathonexa.com',
-  address: '123, Health City, Medical Road, Lucknow - 226010 (UP)',
-  pathologist: 'Dr. Rakesh Kumar, MD (Pathology)',
-  gst: '09ABCDE1234F1Z5',
-  logo: '',
-  signature: '',
-  stamp: '',
-  footer: 'This is a computer generated report and does not require physical signature.',
-  reportNote: 'Kindly correlate clinically. Results relate only to the sample tested.',
-  whatsappTemplate:
-    'Hello {patient},\n\nYour pathology report is ready.\nReport ID: {reportId}\nPlease find your report attached.\n\nThank You.\n{lab}',
-  theme: 'Blue',
-  language: 'English',
-  autoPrint: true,
-  notifications: true,
-  ownerVerification: true,
-  autoBackup: true,
-  currency: cfg.currencySymbol,
-};
-
-const subscription = {
-  plan: 'Free Trial',
-  status: 'Active',
-  startedAt: null, // filled at seed time
-  expiresAt: null, // filled at seed time (7 day trial)
-  amount: 0,
-  autoRenew: false,
-  history: [],
-};
 
 // Plan pricing/durations come from `.env` (TRIAL_DAYS, MONTHLY_PLAN_PRICE, …)
 // via appConfig, so the business can reprice without a code change.
@@ -416,31 +288,7 @@ const plans = [
   { id: 'yearly', name: 'Yearly Plan', days: cfg.yearlyPlanDays, price: cfg.yearlyPlanPrice, features: ['Everything in Monthly', '2 months free', 'Multi-user roles', 'Dedicated manager'] },
 ];
 
-/* ------------------------------------------------------------------ */
-/* Patients & reports                                                  */
-/* ------------------------------------------------------------------ */
-
-const patients = [
-  { name: 'Ramesh Kumar', age: 32, gender: 'Male', blood: 'B+', mobile: '9876543210', address: '12 Vikas Nagar, Lucknow', city: 'Lucknow', state: 'Uttar Pradesh', pincode: '226022', color: '#DBEAFE', lastTest: 'CBC', lastTestDate: '26 Jul 2026' },
-  { name: 'Sita Devi', age: 28, gender: 'Female', blood: 'O+', mobile: '9123456780', address: 'Aliganj, Lucknow', city: 'Lucknow', state: 'Uttar Pradesh', pincode: '226024', color: '#DCFCE7', lastTest: 'LFT', lastTestDate: '26 Jul 2026' },
-  { name: 'Mohit Sharma', age: 45, gender: 'Male', blood: 'A+', mobile: '9988776655', address: 'Gomti Nagar, Lucknow', city: 'Lucknow', state: 'Uttar Pradesh', pincode: '226010', color: '#EDE9FE', lastTest: 'KFT', lastTestDate: '25 Jul 2026' },
-  { name: 'Pooja Kumari', age: 30, gender: 'Female', blood: 'AB+', mobile: '8877665544', address: 'Indira Nagar, Lucknow', city: 'Lucknow', state: 'Uttar Pradesh', pincode: '226016', color: '#FEF3C7', lastTest: 'Thyroid Profile', lastTestDate: '25 Jul 2026' },
-  { name: 'Arjun Singh', age: 36, gender: 'Male', blood: 'B-', mobile: '9638527410', address: 'Chowk, Lucknow', city: 'Lucknow', state: 'Uttar Pradesh', pincode: '226003', color: '#E0F2FE', lastTest: 'Lipid Profile', lastTestDate: '24 Jul 2026' },
-  { name: 'Vikash Patel', age: 50, gender: 'Male', blood: 'O-', mobile: '8899001122', address: 'Mahanagar, Lucknow', city: 'Lucknow', state: 'Uttar Pradesh', pincode: '226006', color: '#FEE2E2', lastTest: 'Blood Sugar Fasting', lastTestDate: '24 Jul 2026' },
-];
-
-// patientIndex refers to the position in `patients` above.
-const reports = [
-  { reportId: 'RP260726001', patientIndex: 0, test: 'Complete Blood Count (CBC)', doctor: 'Dr. Rakesh Kumar', date: '26 Jul 2026', time: '09:21 AM', amount: 250, status: 'Completed', paid: true, paidAmount: 250, pendingAmount: 0, paymentMode: 'Cash', technician: 'Neha Singh', verified: true },
-  { reportId: 'RP260726002', patientIndex: 1, test: 'Liver Function Test (LFT)', doctor: 'Dr. Rakesh Kumar', date: '26 Jul 2026', time: '09:05 AM', amount: 450, status: 'Completed', paid: true, paidAmount: 450, pendingAmount: 0, paymentMode: 'UPI', technician: 'Neha Singh', verified: true },
-  { reportId: 'RP260726003', patientIndex: 2, test: 'Kidney Function Test (KFT)', doctor: 'Dr. Sunil Verma', date: '25 Jul 2026', time: '08:45 AM', amount: 350, status: 'Pending', paid: false, paidAmount: 150, pendingAmount: 200, paymentMode: 'Cash', technician: 'Neha Singh', verified: false },
-  { reportId: 'RP260726004', patientIndex: 3, test: 'Thyroid Profile (T3, T4, TSH)', doctor: 'Dr. Anjali Gupta', date: '25 Jul 2026', time: '08:30 AM', amount: 500, status: 'Pending', paid: false, paidAmount: 0, pendingAmount: 500, paymentMode: 'Cash', technician: '', verified: false },
-  { reportId: 'RP260726005', patientIndex: 4, test: 'Lipid Profile', doctor: 'Dr. Rakesh Kumar', date: '24 Jul 2026', time: '08:15 AM', amount: 400, status: 'Completed', paid: true, paidAmount: 400, pendingAmount: 0, paymentMode: 'Card', technician: 'Neha Singh', verified: true },
-  { reportId: 'RP260726006', patientIndex: 5, test: 'Blood Sugar Fasting', doctor: 'Dr. Sunil Verma', date: '24 Jul 2026', time: '07:50 AM', amount: 150, status: 'Pending', paid: false, paidAmount: 0, pendingAmount: 150, paymentMode: 'Cash', technician: '', verified: false },
-];
 
 module.exports = {
-  tests, doctors, patients, reports, employees, centers, payments, discounts,
-  templates, packages, expenses, roles, settings, subscription, plans,
-  EXPENSE_CATEGORIES, PERMISSIONS,
+  tests, roles, plans, EXPENSE_CATEGORIES, PERMISSIONS,
 };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, TextInput, View } from 'react-native';
 import { Redirect, useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { T } from '../components/T';
@@ -86,15 +86,20 @@ export default function Login() {
         <Press
           style={[styles.continueButton, (!isValid || submitting) && styles.continueButtonDisabled]}
           onPress={handleContinue}
+          disabled={submitting}
           accessibilityLabel="Continue to OTP verification"
           accessibilityState={{ disabled: !isValid || submitting }}
         >
-          <View style={styles.continueContent}>
-            <T style={styles.continueText}>{submitting ? 'Sending OTP…' : 'Continue securely'}</T>
-            <View style={styles.buttonIcon}>
-              <MaterialCommunityIcons name={submitting ? 'timer-sand' : 'arrow-right'} size={18} color="#fff" />
+          {submitting ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <View style={styles.continueContent}>
+              <T style={styles.continueText}>Continue securely</T>
+              <View style={styles.buttonIcon}>
+                <MaterialCommunityIcons name="arrow-right" size={18} color="#fff" />
+              </View>
             </View>
-          </View>
+          )}
         </Press>
 
         <View style={styles.assurance}>

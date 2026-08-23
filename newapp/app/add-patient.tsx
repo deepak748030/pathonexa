@@ -180,7 +180,7 @@ export default function AddPatient() {
 
         <View style={styles.btnRow}>
           <OutlineBtn label="Cancel" onPress={() => router.back()} style={{ flex: 1 }} />
-          <PrimaryBtn label={saving ? 'Saving…' : 'Save Patient'} onPress={save} style={{ flex: 1.4, marginLeft: 4 }} />
+          <PrimaryBtn label="Save Patient" busy={saving} onPress={save} style={{ flex: 1.4, marginLeft: 4 }} />
         </View>
       </View>
 

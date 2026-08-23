@@ -233,8 +233,14 @@ export default function VerifyOtpScreen() {
               onPress={handleResend}
               style={styles.resendButton}
             >
-              <MaterialCommunityIcons name="refresh" size={16} color={C.primary} />
-              <T style={styles.resendText}>Resend OTP</T>
+              {submitting ? (
+                <ActivityIndicator size="small" color={C.primary} />
+              ) : (
+                <>
+                  <MaterialCommunityIcons name="refresh" size={16} color={C.primary} />
+                  <T style={styles.resendText}>Resend OTP</T>
+                </>
+              )}
             </TouchableOpacity>
           )}
         </View>

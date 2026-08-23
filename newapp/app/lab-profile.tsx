@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -212,8 +213,14 @@ export default function LabProfileScreen() {
         ))}
 
         <Press disabled={loading || saving || !dirty} onPress={save} style={[styles.saveButton, (loading || saving || !dirty) && styles.disabled]}>
-          <MaterialCommunityIcons name={saving ? 'clock-outline' : 'content-save-outline'} size={18} color="#fff" />
-          <T style={styles.saveText}>{saving ? 'Saving profile…' : dirty ? 'Save lab profile' : 'Profile is up to date'}</T>
+          {saving ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <>
+              <MaterialCommunityIcons name="content-save-outline" size={18} color="#fff" />
+              <T style={styles.saveText}>{dirty ? 'Save lab profile' : 'Profile is up to date'}</T>
+            </>
+          )}
         </Press>
         <T style={styles.note}>Lab ID is generated securely for your mobile account and cannot be edited.</T>
       </ScrollView>
