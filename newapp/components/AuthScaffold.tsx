@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Dimensions,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -23,6 +24,8 @@ type AuthScaffoldProps = {
 
 export function AuthScaffold({ title, subtitle, children, onBack }: AuthScaffoldProps) {
   const insets = useSafeAreaInsets();
+  // Blue hero should cover exactly half of the screen height.
+  const heroHeight = Math.round(Dimensions.get('window').height / 2);
 
   return (
     <View style={styles.screen}>
@@ -42,7 +45,7 @@ export function AuthScaffold({ title, subtitle, children, onBack }: AuthScaffold
           {/* Taller blue hero: gradient stays as the base layer and the
               full-bleed lab artwork (resizeMode="cover") sits on top of it,
               so the image always covers the whole blue screen. */}
-          <View style={[styles.hero, { paddingTop: insets.top + 8 }]}>
+          <View style={[styles.hero, { height: heroHeight, paddingTop: insets.top + 8 }]}>
             <LinearGradient
               colors={[C.headerTop, C.primary, '#2B7AF0']}
               start={{ x: 0.06, y: 0 }}
@@ -80,10 +83,10 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   scroll: { flex: 1, backgroundColor: C.headerTop },
   scrollContent: { flexGrow: 1, backgroundColor: C.bg },
+  // Content (back button) stays pinned to the top of the hero; the artwork
+  // fills the rest via absolute cover.
   hero: {
-    minHeight: 240,
     paddingBottom: 14,
-    justifyContent: 'center',
   },
   heroGradient: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   heroImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
