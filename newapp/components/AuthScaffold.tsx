@@ -24,8 +24,10 @@ type AuthScaffoldProps = {
 
 export function AuthScaffold({ title, subtitle, children, onBack }: AuthScaffoldProps) {
   const insets = useSafeAreaInsets();
-  // Blue hero should cover exactly half of the screen height.
-  const heroHeight = Math.round(Dimensions.get('window').height / 2);
+  // Blue hero band is kept compact (~35% of the screen) so the artwork reads
+  // as a banner rather than dominating the screen; the white form card below
+  // takes the remaining space and looks roomy.
+  const heroHeight = Math.round(Dimensions.get('window').height * 0.35);
 
   return (
     <View style={styles.screen}>
@@ -116,9 +118,9 @@ const styles = StyleSheet.create({
     maxWidth: 520,
     alignSelf: 'center',
     marginTop: -18,
-    paddingTop: 23,
+    paddingTop: 30,
     paddingHorizontal: PAGE_GUTTER,
-    paddingBottom: 28,
+    paddingBottom: 34,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     backgroundColor: C.card,
