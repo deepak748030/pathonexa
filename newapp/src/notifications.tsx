@@ -1,6 +1,7 @@
 import React from 'react';
 import { api, type ApiNotification, type Paged } from './api';
 import { useAuth } from './auth';
+import { useFeedback } from './feedback';
 import { useInfiniteData } from './useInfiniteData';
 
 export type NotificationTone = 'blue' | 'green' | 'orange' | 'purple' | 'red';
@@ -80,10 +81,24 @@ const NotificationContext = React.createContext<NotificationContextValue | null>
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user } = useAuth();
+  const { toast } = useFeedback();
   const [unreadOnly, setUnreadOnly] = React.useState(false);
+  // IDs we marked read in this session. They must stay read across list
+  // refetches even when a server response still lags behind our mark request.
+  const localReadRef = React.useRef<Set<string>>(new Set());
+  // Number of mark-read requests still in flight. While one is pending the
+  // server count may not include it yet, so we never apply a stale count.
+  const pendingMutationsRef = React.useRef(0);
+
   const fetchPage = React.useCallback(async (page: number): Promise<Paged<ApiNotification>> => {
     if (!isAuthenticated) return { items: [], pagination: { page: 1, limit: 10, total: 0, pages: 0, hasMore: false } };
-    return api.notifications.list({ page, limit: 10, unread: unreadOnly || undefined });
+    const response = await api.notifications.list({ page, limit: 10, unread: unreadOnly || undefined });
+    const localRead = localReadRef.current;
+    // Never let a lagging server response resurrect a notification we just read.
+    const items = response.items.some((item) => localRead.has(item.id))
+      ? response.items.map((item) => (localRead.has(item.id) ? { ...item, read: true } : item))
+      : response.items;
+    return { ...response, items };
   }, [isAuthenticated, unreadOnly]);
   const accountKey = user?.id || '';
   const paged = useInfiniteData<ApiNotification>({ fetchPage, resetKey: `${accountKey || 'signed-out'}:${unreadOnly}` });
@@ -110,6 +125,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         api.notifications.count(), api.notifications.list({ page: 1, limit: 1 }),
       ]);
       if (version !== countRequestVersion.current || accountId !== currentAccount.current) return;
+      // A mark-read request may still be in flight — the server count does
+      // not include it yet. Applying it would flip the badge back to unread,
+      // so we skip this round; the post-mutation refresh syncs the truth.
+      if (pendingMutationsRef.current > 0) return;
       setCountAccountId(accountId);
       setUnreadCount(unreadResult.unread);
       setTotalCount(totalResult.pagination.total);
@@ -130,36 +149,67 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const current = paged.items.find((item) => item.id === id);
     if (!accountId || !current || current.read) return;
     const previousCount = unreadCount;
+    localReadRef.current.add(id);
+    pendingMutationsRef.current += 1;
     paged.updateItem(id, { read: true });
     setCountAccountId(accountId);
     setUnreadCount(Math.max(0, previousCount - 1));
     try {
       await api.notifications.markRead(id);
     } catch (error) {
+      // Server never marked it read — restore the previous state and tell
+      // the user why the unread badge came back.
+      localReadRef.current.delete(id);
+      pendingMutationsRef.current = Math.max(0, pendingMutationsRef.current - 1);
       if (accountId !== currentAccount.current) return;
       paged.updateItem(id, { read: false });
       setUnreadCount(previousCount);
+      toast({
+        kind: 'error',
+        title: 'Could not mark as read',
+        message: error instanceof Error && error.message ? error.message : 'Connection problem — the notification stays unread. Tap it again.',
+      });
       throw error;
     }
-  }, [accountKey, paged, unreadCount]);
+    pendingMutationsRef.current = Math.max(0, pendingMutationsRef.current - 1);
+    // The server has committed the change — sync the authoritative count.
+    refreshCount().catch(() => undefined);
+  }, [accountKey, paged, unreadCount, refreshCount, toast]);
 
   const markAllRead = React.useCallback(async () => {
     const accountId = accountKey;
     if (!accountId) return;
     const unread = paged.items.filter((item) => !item.read);
-    unread.forEach((item) => paged.updateItem(item.id, { read: true }));
+    if (unread.length === 0) return;
+    unread.forEach((item) => {
+      localReadRef.current.add(item.id);
+      paged.updateItem(item.id, { read: true });
+    });
+    pendingMutationsRef.current += 1;
     const previousCount = unreadCount;
     setCountAccountId(accountId);
     setUnreadCount(0);
     try {
       await api.notifications.markAllRead();
     } catch (error) {
+      pendingMutationsRef.current = Math.max(0, pendingMutationsRef.current - 1);
+      unread.forEach((item) => {
+        localReadRef.current.delete(item.id);
+        paged.updateItem(item.id, { read: false });
+      });
       if (accountId !== currentAccount.current) return;
-      unread.forEach((item) => paged.updateItem(item.id, { read: false }));
       setUnreadCount(previousCount);
+      toast({
+        kind: 'error',
+        title: 'Could not mark all as read',
+        message: error instanceof Error && error.message ? error.message : 'Connection problem — please try again.',
+      });
       throw error;
     }
-  }, [accountKey, paged, unreadCount]);
+    pendingMutationsRef.current = Math.max(0, pendingMutationsRef.current - 1);
+    // The server has committed the change — sync the authoritative count.
+    refreshCount().catch(() => undefined);
+  }, [accountKey, paged, unreadCount, refreshCount, toast]);
 
   const refresh = React.useCallback(async () => {
     await Promise.all([paged.refresh(), refreshCount()]);
