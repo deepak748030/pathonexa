@@ -1,6 +1,6 @@
 // First-time setup — ask for the owner's name and email before entering the app.
 import React from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, TextInput, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { T } from '../components/T';
 import { AuthScaffold } from '../components/AuthScaffold';
@@ -90,13 +90,20 @@ export default function Onboarding() {
         <Press
           style={[styles.continueButton, (submitting || !name.trim() || !emailValid) && styles.continueDisabled]}
           onPress={handleContinue}
+          disabled={submitting}
           accessibilityLabel="Complete account setup"
           accessibilityState={{ disabled: submitting }}
         >
-          <T style={styles.continueText}>{submitting ? 'Saving…' : 'Continue to dashboard'}</T>
-          <View style={styles.buttonIcon}>
-            <MaterialCommunityIcons name={submitting ? 'timer-sand' : 'arrow-right'} size={18} color="#fff" />
-          </View>
+          {submitting ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <>
+              <T style={styles.continueText}>Continue to dashboard</T>
+              <View style={styles.buttonIcon}>
+                <MaterialCommunityIcons name="arrow-right" size={18} color="#fff" />
+              </View>
+            </>
+          )}
         </Press>
 
         <T style={styles.note}>

@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -44,6 +45,14 @@ export function AuthScaffold({ title, subtitle, children, onBack }: AuthScaffold
             end={{ x: 1, y: 1 }}
             style={[styles.hero, { paddingTop: insets.top + 8 }]}
           >
+            {/* Full-bleed lab-themed artwork that covers the whole blue band
+                (gradient stays behind as a fallback / edge blend). */}
+            <Image
+              source={require('../assets/login-hero.png')}
+              style={styles.heroImage}
+              resizeMode="cover"
+              accessibilityLabel=""
+            />
             <View style={styles.heroInner}>
               {onBack ? (
                 <Press style={styles.backButton} onPress={onBack} accessibilityLabel="Go back" scaleTo={0.9}>
@@ -74,6 +83,7 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
     justifyContent: 'center',
   },
+  heroImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   heroInner: {
     width: '100%',
     maxWidth: 520,
@@ -107,12 +117,14 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 22,
     backgroundColor: C.card,
   },
+  // Login-screen text sits 6pt away from the left/right edges of the sheet.
   title: {
     color: C.text,
     fontFamily: F.bold,
     fontSize: 27,
     lineHeight: 33,
     letterSpacing: -0.5,
+    paddingHorizontal: 6,
   },
   subtitle: {
     maxWidth: 430,
@@ -121,5 +133,6 @@ const styles = StyleSheet.create({
     fontFamily: F.regular,
     fontSize: 12.5,
     lineHeight: 18,
+    paddingHorizontal: 6,
   },
 });

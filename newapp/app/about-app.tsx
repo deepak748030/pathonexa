@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Platform,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -10,9 +11,11 @@ import Constants from 'expo-constants';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { T } from '../components/T';
 import { BrandIcon } from '../components/Brand';
-import { BlueHeader, Card, Skeleton } from '../components/kit';
+import { BlueHeader, Card, Skeleton, SmallOutlineBtn } from '../components/kit';
 import { api, type LabSettings } from '../src/api';
 import { C, PAGE_GUTTER } from '../src/theme';
+import { useFeedback } from '../src/feedback';
+import { checkForPlayUpdates, openPlayStore, type UpdateCheck } from '../src/updates';
 
 const FEATURES = [
   { icon: 'account-group-outline', title: 'Patient management', detail: 'Account-owned patient records and visit history' },
@@ -36,6 +39,62 @@ export default function AboutAppScreen() {
   const [error, setError] = React.useState('');
   const [openInfo, setOpenInfo] = React.useState<'privacy' | 'terms' | null>(null);
   const requestRef = React.useRef(0);
+  const { toast, confirm } = useFeedback();
+  const [checking, setChecking] = React.useState(false);
+  const [updateInfo, setUpdateInfo] = React.useState<UpdateCheck | null>(null);
+
+  // Quiet initial check so the card can show current vs latest version.
+  React.useEffect(() => {
+    let mounted = true;
+    checkForPlayUpdates().then((check) => {
+      if (mounted && check) setUpdateInfo(check);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const runUpdateCheck = async () => {
+    if (checking) return;
+    // The automated version check is an Android/Play-Store feature. On other
+    // platforms open the listing so the user can check manually.
+    if (Platform.OS !== 'android') {
+      await openPlayStore();
+      toast({
+        kind: 'info',
+        title: 'Google Play Store',
+        message: 'Opened the PathoNexa Play Store listing — automated update checks run on Android.',
+      });
+      return;
+    }
+    setChecking(true);
+    try {
+      const check = await checkForPlayUpdates();
+      if (!check) {
+        toast({
+          kind: 'warning',
+          title: 'Update check failed',
+          message: 'Could not reach Google Play right now. Check your connection and try again.',
+        });
+        return;
+      }
+      setUpdateInfo(check);
+      if (check.updateAvailable) {
+        confirm({
+          kind: 'info',
+          title: 'Update available',
+          message: `Version ${check.latestVersion} of PathoNexa is on Google Play (you have ${check.currentVersion}). Update now?`,
+          confirmText: 'Update now',
+          cancelText: 'Later',
+          onConfirm: () => openPlayStore(),
+        });
+      } else {
+        toast({ kind: 'success', title: 'Up to date', message: `You are using the latest version (${check.currentVersion}).` });
+      }
+    } finally {
+      setChecking(false);
+    }
+  };
 
   const load = React.useCallback(async () => {
     const request = ++requestRef.current;
@@ -82,6 +141,22 @@ export default function AboutAppScreen() {
             <T style={styles.errorText}>{error} Tap to retry.</T>
           </TouchableOpacity>
         )}
+
+        <T style={styles.sectionTitle}>APP UPDATES</T>
+        <Card style={styles.updateCard}>
+          <View style={styles.updateIcon}>
+            <MaterialCommunityIcons name="package-up" size={19} color={C.primary} />
+          </View>
+          <View style={styles.updateCopy}>
+            <T style={styles.updateTitle}>Google Play Store update</T>
+            <T style={styles.updateSub}>
+              {updateInfo
+                ? `Current ${updateInfo.currentVersion} · Latest ${updateInfo.latestVersion}`
+                : 'Check Google Play for the latest version'}
+            </T>
+          </View>
+          <SmallOutlineBtn label="Check" icon="cloud-download-outline" onPress={runUpdateCheck} busy={checking} />
+        </Card>
 
         <T style={styles.sectionTitle}>CURRENT LAB & PLAN</T>
         <Card style={styles.planCard}>
@@ -173,6 +248,11 @@ const styles = StyleSheet.create({
   versionText: { color: C.primary, fontSize: 9.5, fontWeight: '700', marginLeft: 4 },
   error: { flexDirection: 'row', alignItems: 'center', padding: 8, borderWidth: 1, borderColor: '#F8CACA', borderRadius: 4, backgroundColor: C.redSoft, marginTop: 4 },
   errorText: { flex: 1, color: C.red, fontSize: 10.5, marginLeft: 4 },
+  updateCard: { minHeight: 62, padding: 8, flexDirection: 'row', alignItems: 'center' },
+  updateIcon: { width: 36, height: 36, borderRadius: 4, backgroundColor: C.blueSoft, alignItems: 'center', justifyContent: 'center' },
+  updateCopy: { flex: 1, minWidth: 0, marginLeft: 6, marginRight: 4 },
+  updateTitle: { color: C.text, fontSize: 10.5, fontWeight: '700' },
+  updateSub: { color: C.sub, fontSize: 9.5, marginTop: 2 },
   sectionTitle: { color: C.faint, fontSize: 9.5, fontWeight: '700', letterSpacing: 0.5, marginTop: 8, marginBottom: 4, marginLeft: 4 },
   planCard: { minHeight: 64, padding: 8, flexDirection: 'row', alignItems: 'center' },
   planLoading: { flex: 1, flexDirection: 'row', alignItems: 'center' },

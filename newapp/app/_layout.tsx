@@ -15,8 +15,9 @@ import * as SplashScreen from 'expo-splash-screen';
 import { DrawerProvider } from '../components/Drawer';
 import { AuthProvider, useAuth } from '../src/auth';
 import { NotificationProvider } from '../src/notifications';
-import { FeedbackProvider } from '../src/feedback';
+import { FeedbackProvider, useFeedback } from '../src/feedback';
 import { C, F } from '../src/theme';
+import { checkForPlayUpdates, openPlayStore } from '../src/updates';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -36,6 +37,28 @@ function PersistentStatusBarBackground() {
 
 function AppNavigator() {
   const { isAuthenticated, isReady, needsOnboarding } = useAuth();
+  const { confirm } = useFeedback();
+
+  // In-app Google Play Store update check — once per launch, Android only.
+  // Silent unless a newer version is actually published on the Play Store.
+  useEffect(() => {
+    if (!isAuthenticated || !isReady) return;
+    let mounted = true;
+    checkForPlayUpdates().then((check) => {
+      if (!mounted || !check?.updateAvailable) return;
+      confirm({
+        kind: 'info',
+        title: 'Update available',
+        message: `Version ${check.latestVersion} of PathoNexa is on Google Play. Update now to keep your lab running smoothly.`,
+        confirmText: 'Update now',
+        cancelText: 'Later',
+        onConfirm: () => openPlayStore(),
+      });
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [isAuthenticated, isReady, confirm]);
 
   if (!isReady) return <View style={styles.sessionLoading} />;
 

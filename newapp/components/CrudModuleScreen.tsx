@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Modal,
   ScrollView,
@@ -362,8 +363,14 @@ export function CrudModuleBody({ config, header }: { config: CrudModuleConfig; h
                 <T style={styles.cancelText}>Cancel</T>
               </TouchableOpacity>
               <TouchableOpacity disabled={saving} activeOpacity={0.75} onPress={save} style={[styles.saveButton, saving && styles.disabled]}>
-                <MaterialCommunityIcons name={saving ? 'clock-outline' : 'content-save-outline'} size={17} color="#fff" />
-                <T style={styles.saveText}>{saving ? 'Saving…' : 'Save'}</T>
+                {saving ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <MaterialCommunityIcons name="content-save-outline" size={17} color="#fff" />
+                    <T style={styles.saveText}>Save</T>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
           </View>

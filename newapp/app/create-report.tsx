@@ -1,7 +1,7 @@
 // Create Report — 3-step wizard, UI PDF screens 4, 6, 7
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { T } from '../components/T';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, Modal, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, Modal, Platform, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {
@@ -477,10 +477,14 @@ export default function CreateReport() {
               disabled={payingOnline || payable <= 0}
               accessibilityRole="button"
             >
-              <MaterialCommunityIcons name="qrcode-scan" size={16} color="#fff" />
-              <T style={styles.payOnlineText}>
-                {payingOnline ? 'Opening payment…' : `Pay ₹${payable} via ${payMode}`}
-              </T>
+              {payingOnline ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <MaterialCommunityIcons name="qrcode-scan" size={16} color="#fff" />
+                  <T style={styles.payOnlineText}>Pay ₹{payable} via {payMode}</T>
+                </>
+              )}
             </TouchableOpacity>
             {paymentRef ? (
               <T style={styles.paidRef}>Paid · Ref: {paymentRef}</T>
@@ -723,7 +727,7 @@ export default function CreateReport() {
 
           <View style={styles.btnRow}>
             <OutlineBtn label="Back" icon="arrow-left" onPress={() => setStep(2)} style={{ flex: 1 }} />
-            <PrimaryBtn label={saving ? 'Saving…' : 'Save Report'} icon="file-document-outline" onPress={saveReport} style={{ flex: 1.6, marginLeft: 4 }} />
+            <PrimaryBtn label="Save Report" icon="file-document-outline" busy={saving} onPress={saveReport} style={{ flex: 1.6, marginLeft: 4 }} />
           </View>
 
           <View style={styles.safeNote}>

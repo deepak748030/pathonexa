@@ -510,35 +510,52 @@ export function SquareBtn({
 
 /* ---------- buttons ---------- */
 
-export function PrimaryBtn({ label, icon, onPress, style }: { label: string; icon?: string; onPress?: () => void; style?: StyleProp<ViewStyle> }) {
+/**
+ * Buttons with an async action take `busy`: while the action runs the
+ * button shows ONLY a spinner inside itself — the label is never swapped to
+ * "Loading…" or similar text, and presses are ignored until it finishes.
+ */
+export function PrimaryBtn({ label, icon, onPress, style, busy = false }: { label: string; icon?: string; onPress?: () => void; style?: StyleProp<ViewStyle>; busy?: boolean }) {
   return (
-    <Press style={[styles.primaryBtn, style]} onPress={onPress}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-        {!!icon && <MaterialCommunityIcons name={icon as any} size={18} color="#fff" style={{ marginRight: 4 }} />}
-        <T style={styles.primaryBtnText}>{label}</T>
-      </View>
+    <Press style={[styles.primaryBtn, style]} onPress={onPress} disabled={busy} accessibilityState={{ disabled: busy }}>
+      {busy ? (
+        <ActivityIndicator size="small" color="#fff" />
+      ) : (
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+          {!!icon && <MaterialCommunityIcons name={icon as any} size={18} color="#fff" style={{ marginRight: 4 }} />}
+          <T style={styles.primaryBtnText}>{label}</T>
+        </View>
+      )}
     </Press>
   );
 }
 
-export function OutlineBtn({ label, icon, onPress, style }: { label: string; icon?: string; onPress?: () => void; style?: StyleProp<ViewStyle> }) {
+export function OutlineBtn({ label, icon, onPress, style, busy = false }: { label: string; icon?: string; onPress?: () => void; style?: StyleProp<ViewStyle>; busy?: boolean }) {
   return (
-    <Press style={[styles.outlineBtn, style]} onPress={onPress}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-        {!!icon && <MaterialCommunityIcons name={icon as any} size={17} color={C.primary} style={{ marginRight: 4 }} />}
-        <T style={styles.outlineBtnText}>{label}</T>
-      </View>
+    <Press style={[styles.outlineBtn, style]} onPress={onPress} disabled={busy} accessibilityState={{ disabled: busy }}>
+      {busy ? (
+        <ActivityIndicator size="small" color={C.primary} />
+      ) : (
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+          {!!icon && <MaterialCommunityIcons name={icon as any} size={17} color={C.primary} style={{ marginRight: 4 }} />}
+          <T style={styles.outlineBtnText}>{label}</T>
+        </View>
+      )}
     </Press>
   );
 }
 
-export function SmallOutlineBtn({ label, icon, onPress }: { label: string; icon?: string; onPress?: () => void }) {
+export function SmallOutlineBtn({ label, icon, onPress, busy = false }: { label: string; icon?: string; onPress?: () => void; busy?: boolean }) {
   return (
-    <Press style={styles.smallOutlineBtn} onPress={onPress} scaleTo={0.93}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-        {!!icon && <MaterialCommunityIcons name={icon as any} size={14} color={C.primary} />}
-        <T style={styles.smallOutlineBtnText}>{label}</T>
-      </View>
+    <Press style={styles.smallOutlineBtn} onPress={onPress} scaleTo={0.93} disabled={busy} accessibilityState={{ disabled: busy }}>
+      {busy ? (
+        <ActivityIndicator size="small" color={C.primary} />
+      ) : (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          {!!icon && <MaterialCommunityIcons name={icon as any} size={14} color={C.primary} />}
+          <T style={styles.smallOutlineBtnText}>{label}</T>
+        </View>
+      )}
     </Press>
   );
 }
