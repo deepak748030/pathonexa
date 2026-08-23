@@ -25,7 +25,7 @@ Everything specified in `Pathonexa structure .pdf` and drawn in
 # 1) Backend  → http://localhost:5000
 cd server
 npm install
-npm run dev          # works even without MongoDB (in-memory fallback + demo data)
+npm run dev          # works even without MongoDB (in-memory fallback, starts empty)
 
 # 2) App (new terminal)  → http://localhost:8080
 cd app
@@ -99,8 +99,9 @@ stamp footer, Share / Download / Print bar), More tab and the side drawer.
 - `app/lib/serverStatus.ts` pings `GET /api/health`; the app shows a
   **server status card** (More tab) and an **offline banner** when the
   backend is unreachable.
-- The server runs on `0.0.0.0` with CORS enabled and seeds demo
-  patients/reports on first start (`SEED_DEMO=true`).
+- The server runs on `0.0.0.0` with CORS enabled. New lab accounts start
+  empty — only the clinical test-master templates are seeded on first use,
+  so the app shows the lab's own data (never mock patients/reports).
 
 ## 🛠️ Root Scripts
 
