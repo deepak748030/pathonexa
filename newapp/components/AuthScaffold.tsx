@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: C.headerTop },
   scrollContent: { flexGrow: 1, backgroundColor: C.bg },
   hero: {
-    minHeight: 150,
+    minHeight: 200,
     paddingBottom: 14,
     justifyContent: 'center',
   },
